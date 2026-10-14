@@ -55,19 +55,36 @@ PLANILHA_MRV="/caminho/MRV_TicketManagement_xxx.xlsx" npm test
    - *Sign In / Providers → Email*: desligue **Allow new users to sign up** (só o Admin cadastra usuários).
    - *URL Configuration*: Site URL = `https://seu-dominio`; Redirect URLs = `https://seu-dominio/auth/callback`.
    - *Emails → Magic Link*: cole o conteúdo de `supabase/templates/magic_link.html`. Ele usa `token_hash`, então funciona mesmo se o link for aberto em outro aparelho.
-   - *SMTP*: configure o remetente (Resend ou o SMTP do domínio MRV). O SMTP padrão do Supabase tem limite baixo de envio.
-3. **Vercel**: importe o repositório e configure as variáveis de `.env.example` (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SITE_URL`, `CRON_SECRET`).
+   - *SMTP* (o padrão do Supabase tem limite baixo de envio): use o Resend, ver **E-mail** abaixo.
+3. **Vercel**: importe o repositório e configure as variáveis de `.env.example` (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SITE_URL`, `CRON_SECRET`, `RESEND_API_KEY`, `EMAIL_REMETENTE`).
 4. **Primeiro Admin**:
    ```bash
    npm run criar-admin -- seu.email@mrv.com.br "Seu Nome"
    ```
-   Os demais usuários se cadastram em **Usuários**, dentro do sistema.
+   Os responsáveis de cada área são cadastrados em **Áreas e responsáveis** (Admin ou Marketing); os demais perfis, em **Usuários**.
 5. **Jobs** (`vercel.json`): expirar convites a cada 30 min e fechar prazos de hora em hora. No plano Hobby da Vercel o cron só roda uma vez por dia. Alternativa sem custo: `pg_cron` no próprio Supabase.
    ```sql
    select cron.schedule('expirar-convites', '*/30 * * * *', 'select expirar_convites()');
    select cron.schedule('fechar-prazos', '5 * * * *',
      $$select fechar_prazo(id) from eventos where status = 'aberto' and prazo_solicitacao < now()$$);
    ```
+
+## E-mail (Resend, domínio `ingressos.weareact3.com`)
+
+1. No Resend: *Domains → Add domain* → `ingressos.weareact3.com` e crie no DNS do `weareact3.com` exatamente os registros (SPF, DKIM, MX) que o Resend mostrar. Espere ficar **Verified**.
+2. Crie uma API key (*API Keys → Create*, permissão *Sending access*, restrita ao domínio).
+3. **Login (magic link)** sai pelo Supabase Auth usando o SMTP do Resend. Em *Authentication → Emails → SMTP Settings*:
+   - Host `smtp.resend.com`, porta `465`, usuário `resend`, senha = a API key
+   - Sender email `naoresponda@ingressos.weareact3.com`, sender name `Ingressos MRV`
+4. **Mensagens do sistema** (convites, passo a passo do Galo ID, lembretes — fase 3) usam a API do Resend pelo adapter `src/lib/mensagens/email.ts`, com `RESEND_API_KEY` e `EMAIL_REMETENTE` (padrão `Ingressos MRV <naoresponda@ingressos.weareact3.com>`). `EMAIL_RESPONDER_PARA` opcional faz as respostas irem para o Marketing.
+
+## Áreas e responsáveis
+
+Em **Áreas e responsáveis** (Admin e Marketing): criar/renomear/desativar áreas, centro de custo, e adicionar ou remover responsáveis por nome e e-mail — **mais de um por área**, e uma pessoa pode responder por várias. Quem é adicionado recebe acesso por magic link (a conta é criada na hora) e passa a ver só as listas dessas áreas. Área nova não tem cota nos eventos já criados: defina em *Ajustar cota* na página do evento.
+
+## Envio dos ingressos (sistema do Atlético)
+
+O sistema do Atlético não aceita envio em lote, então a tela **A enviar** é uma fila para o envio manual, um por um: em cada linha, *Copiar CPF* → enviar no sistema do Atlético → *Enviado ✓*. A linha sai da fila e o status fica registrado com data/hora. Por padrão a fila mostra só quem já confirmou a facial no Galo ID; quem ainda não confirmou fica na aba *Aprovados sem facial* (envio possível, com confirmação, e registrado). Cada cópia de CPF entra na auditoria.
 
 ## Importar a planilha legada
 
@@ -84,7 +101,7 @@ npm run importar -- "MRV_TicketManagement_GalovsMontevideo 14.10.xlsx" \
 - importa o convidado da arquibancada (a planilha só tem o CPF) como "Convidado de {titular}"
 - trata "sem cadastro" na observação como **facial pendente**
 - transforma linhas `RESERVADO` sem dados do camarote em **vagas reservadas** (convites do Modo B), se o evento ainda não aconteceu
-- lê a capacidade do camarote da aba Divisão (44 no jogo de 14/10) e registra o ajuste no histórico de cotas
+- lê a capacidade do camarote da aba Divisão (o padrão é 44) e registra o ajuste no histórico se for diferente
 - cruza a aba **Convidados Camarote** com a aba Camarote e lista quem não bate
 - barra CPF duplicado no mesmo evento (a regra do banco vale aqui também)
 
@@ -136,7 +153,8 @@ tests/                 unit/ e db/ (PGlite)
   - **Modo B**: vagas reservadas com link individual, botões de copiar e `wa.me`, validade, cancelamento e "Aguardando preenchimento"
 - Validação da lista pela área (registro de quem e quando); aprovação e recusa em lote; remanejamento; pool ao fechar o prazo; lista de espera automática
 - Galo ID mínimo: mensagem `wa.me` pronta, "passo a passo enviado", "Já fiz minha facial" / "Recebi meu ingresso" na página do torcedor
-- "A enviar": filtro por setor, área e status; copiar CPFs (só dígitos) e `Nome;CPF`; marcar enviados em lote, com opção de enviar sem facial (registrada)
+- "A enviar": fila para envio manual um a um (copiar CPF da linha → *Enviado ✓*), filtros por setor/área, opção de enviar sem facial (registrada)
+- Áreas e responsáveis configuráveis (vários por área)
 - Exportação XLSX no layout da planilha (Arquibancada/Pista, Camarote, Convidados Camarote, Divisão)
 - Importação da planilha legada (tela e CLI) e das respostas do Microsoft Forms (CSV/XLSX, com mapeamento de colunas)
 

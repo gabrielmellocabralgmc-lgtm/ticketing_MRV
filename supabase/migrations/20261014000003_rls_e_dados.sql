@@ -125,14 +125,14 @@ insert into areas (nome, slug, ordem) values
 insert into config (chave, valor) values
 ('cotas_padrao', $json${
   "jogo": {
-    "camarote": {"capacidade": 40, "cota_por_area": false, "areas": {}},
+    "camarote": {"capacidade": 44, "cota_por_area": false, "areas": {}},
     "arquibancada": {"capacidade": 100, "cota_por_area": true, "areas": {
       "dh": 10, "marketing": 10, "comercial-corporativo": 10, "comercial-regional-bh": 10, "di": 10,
       "producao": 10, "luggo": 6, "urba": 6, "rel-institucional": 10, "presidencia": 18
     }}
   },
   "show": {
-    "camarote": {"capacidade": 40, "cota_por_area": false, "areas": {}},
+    "camarote": {"capacidade": 44, "cota_por_area": false, "areas": {}},
     "pista": {"capacidade": 50, "cota_por_area": true, "areas": {
       "dh": 6, "marketing": 6, "comercial": 6, "di": 6, "producao": 6, "luggo": 2, "urba": 2,
       "rel-institucional": {"quantidade": 8, "sob_demanda": true}, "presidencia": 8

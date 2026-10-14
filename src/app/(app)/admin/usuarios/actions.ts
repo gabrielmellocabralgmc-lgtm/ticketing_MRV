@@ -2,7 +2,8 @@
 import { revalidatePath } from "next/cache";
 import { falha, type Resultado } from "@/lib/erros";
 import { exigirAdmin } from "@/lib/sessao";
-import { supabaseServico, supabaseServidor } from "@/lib/supabase/server";
+import { supabaseServidor } from "@/lib/supabase/server";
+import { garantirUsuarioAuth } from "@/lib/usuarios";
 
 export async function salvarUsuario(_: unknown, form: FormData): Promise<Resultado> {
   await exigirAdmin();
@@ -12,15 +13,11 @@ export async function salvarUsuario(_: unknown, form: FormData): Promise<Resulta
   const areas = form.getAll("areas").map(String);
   if (!email || !nome) return { ok: false, erro: "Informe nome e e-mail." };
 
-  // Conta no Supabase Auth (sem senha: o acesso é por magic link)
-  const servico = supabaseServico();
-  let userId: string | undefined;
-  const criado = await servico.auth.admin.createUser({ email, email_confirm: true, user_metadata: { nome } });
-  if (criado.data.user) userId = criado.data.user.id;
-  else {
-    const { data } = await servico.auth.admin.listUsers({ perPage: 1000 });
-    userId = data.users.find((u) => u.email?.toLowerCase() === email)?.id;
-    if (!userId) return falha(criado.error);
+  let userId: string;
+  try {
+    userId = await garantirUsuarioAuth(email, nome);
+  } catch (e) {
+    return falha(e);
   }
 
   const supabase = await supabaseServidor();

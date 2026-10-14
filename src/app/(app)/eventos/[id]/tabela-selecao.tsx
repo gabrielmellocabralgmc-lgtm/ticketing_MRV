@@ -36,8 +36,16 @@ export interface AcaoLote {
   executar: (ids: string[], motivo: string) => Promise<Resultado>;
 }
 
+/** Ação de uma linha só (ex.: envio manual um a um no sistema do Atlético). */
+export interface AcaoLinha {
+  rotulo: string;
+  copiarCpf?: (qtd: number) => Promise<void>; // mostra "Copiar CPF" e registra a cópia
+  confirmar?: string;
+  executar: (ids: string[]) => Promise<Resultado>;
+}
+
 export function TabelaSelecao({
-  linhas, acoes, evento, mensagem, vazio = "Nada por aqui.", extra,
+  linhas, acoes, evento, mensagem, vazio = "Nada por aqui.", extra, acaoLinha,
 }: {
   linhas: LinhaIngresso[];
   acoes: AcaoLote[];
@@ -45,6 +53,7 @@ export function TabelaSelecao({
   mensagem?: "galo_id" | "enviado";
   vazio?: string;
   extra?: (l: LinhaIngresso) => ReactNode;
+  acaoLinha?: AcaoLinha;
 }) {
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [retorno, setRetorno] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -114,6 +123,22 @@ export function TabelaSelecao({
                     <span className="text-tinta/60">{celular(l.celular)}</span>
                     {texto && l.celular && <BotaoWhatsApp link={linkWhatsApp(l.celular, texto)} rotulo={mensagem === "galo_id" ? "Galo ID" : "Avisar"} />}
                     <BotaoCopiar texto={linkTorcedor(l.token)} rotulo="Link" />
+                    {acaoLinha?.copiarCpf && l.cpf && (
+                      <BotaoCopiar texto={l.cpf} rotulo="Copiar CPF" aoCopiar={() => acaoLinha.copiarCpf?.(1)} />
+                    )}
+                    {acaoLinha && (
+                      <button
+                        type="button"
+                        disabled={pendente}
+                        onClick={() => (!acaoLinha.confirmar || confirm(acaoLinha.confirmar.replace("{nome}", l.nome ?? ""))) && iniciar(async () => {
+                          const r = await acaoLinha.executar([l.id]);
+                          setRetorno(r.ok ? { ok: true, msg: `${l.nome}: ${r.mensagem ?? "feito"}` } : { ok: false, msg: r.erro });
+                        })}
+                        className="rounded-md bg-mrv-700 px-2 py-1 text-xs font-semibold text-white hover:bg-mrv-900 disabled:opacity-50"
+                      >
+                        {acaoLinha.rotulo}
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

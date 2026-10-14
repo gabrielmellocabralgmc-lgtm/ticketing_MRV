@@ -41,12 +41,12 @@ beforeAll(async () => {
 });
 
 describe("eventos e cotas", () => {
-  it("cria jogo com as cotas do regulamento (100 arquibancada, 40 camarote)", async () => {
+  it("cria jogo com as cotas do regulamento (100 arquibancada, 44 camarote)", async () => {
     const ev = await novoEvento();
     const setores = await b.sql<{ setor: string; capacidade: number; cota_por_area: boolean }>(
       `select setor, capacidade, cota_por_area from evento_setores where evento_id = $1 order by setor`, [ev]);
     expect(setores).toEqual([
-      { setor: "camarote", capacidade: 40, cota_por_area: false },
+      { setor: "camarote", capacidade: 44, cota_por_area: false },
       { setor: "arquibancada", capacidade: 100, cota_por_area: true },
     ]);
     const [{ soma }] = await b.sql<{ soma: number }>(`select sum(quantidade)::int soma from cotas where evento_id = $1`, [ev]);
@@ -336,5 +336,33 @@ describe("resumos", () => {
     expect(tudo.filter((r) => r.setor === "arquibancada")).toHaveLength(10);
     const [arq] = await b.como<{ alocado: number; ocupados: number }>(oper, `select * from resumo_setores($1) where setor = 'arquibancada'`, [ev]);
     expect(arq).toMatchObject({ alocado: 100, ocupados: 4 });
+  });
+});
+
+describe("configuração de áreas e responsáveis", () => {
+  it("Marketing cria área, adiciona vários responsáveis e remove; responsável não configura", async () => {
+    const [{ id }] = await b.como<{ id: string }>(mkt, `select salvar_area(null, 'Jurídico', 'juridico', 'CC-77', true) as id`);
+    const u1 = (await b.sql<{ id: string }>(`insert into auth.users (email) values ('ana.jur@mrv.com') returning id`))[0].id;
+    const u2 = (await b.sql<{ id: string }>(`insert into auth.users (email) values ('beto.jur@mrv.com') returning id`))[0].id;
+    await b.como(mkt, `select adicionar_responsavel($1, $2, 'Ana Jurídico', 'ana.jur@mrv.com')`, [id, u1]);
+    await b.como(mkt, `select adicionar_responsavel($1, $2, 'Beto Jurídico', 'Beto.Jur@mrv.com')`, [id, u2]);
+    // responsável da DH também pode responder pelo Jurídico
+    await b.como(mkt, `select adicionar_responsavel($1, $2, 'ignorado', 'x')`, [id, respDH]);
+    const lista = await b.como<{ nome: string; email: string }>(mkt, `select nome, email from responsaveis_por_area() where area_id = $1`, [id]);
+    expect(lista.map((l) => l.email).sort()).toEqual(["ana.jur@mrv.com", "beto.jur@mrv.com", "resp.dh@teste.mrv"]);
+
+    // os dois novos já enxergam a área
+    const ev = await novoEvento();
+    await b.como(mkt, `select ajustar_cota($1, 'arquibancada', $2, 4, 'nova área')`, [ev, id]);
+    await expect(pedir(u2, ev, id, [nova()])).resolves.toBeTruthy();
+
+    await b.como(mkt, `select remover_responsavel($1, $2)`, [id, u2]);
+    await expect(pedir(u2, ev, id, [nova()])).rejects.toThrow(/SEM_PERMISSAO/);
+    // perfil de quem já existia não muda
+    const [p] = await b.sql<{ nome: string; papel: string }>(`select nome, papel from perfis where user_id = $1`, [respDH]);
+    expect(p).toEqual({ nome: "Resp DH", papel: "responsavel" });
+
+    await expect(b.como(respDH, `select salvar_area(null, 'Hack', 'hack', null, true)`)).rejects.toThrow(/SEM_PERMISSAO/);
+    await expect(b.como(mkt, `select salvar_area(null, 'Jurídico', 'juridico-2', null, true)`)).rejects.toThrow(/AREA_DUPLICADA/);
   });
 });

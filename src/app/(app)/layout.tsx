@@ -7,6 +7,7 @@ export default async function LayoutInterno({ children }: { children: React.Reac
   const s = await exigirSessao();
   const links = [
     { href: "/eventos", rotulo: "Eventos" },
+    ...(s.staff ? [{ href: "/admin/areas", rotulo: "Áreas e responsáveis" }] : []),
     ...(s.papel === "admin"
       ? [
           { href: "/admin/usuarios", rotulo: "Usuários" },

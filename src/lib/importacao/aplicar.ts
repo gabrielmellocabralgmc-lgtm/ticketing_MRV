@@ -39,10 +39,11 @@ export async function aplicarPlano(plano: PlanoImportacao, rpc: Rpc, op: OpcoesA
     },
   })) as string;
 
-  if (plano.camaroteDisponibilizados && plano.camaroteDisponibilizados !== 40) {
+  // Capacidade do camarote lida da aba Divisão (se for igual ao padrão, o ajuste não muda nada nem gera histórico)
+  if (plano.camaroteDisponibilizados) {
     await rpc("ajustar_cota", {
       p_evento: eventoId, p_setor: "camarote", p_area: null, p_quantidade: plano.camaroteDisponibilizados,
-      p_motivo: `Importado da planilha: ${plano.camaroteDisponibilizados} disponibilizados (contrato prevê 40)`,
+      p_motivo: `Importado da planilha: ${plano.camaroteDisponibilizados} disponibilizados`,
     });
   }
 

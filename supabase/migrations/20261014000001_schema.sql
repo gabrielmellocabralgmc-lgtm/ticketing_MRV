@@ -75,7 +75,7 @@ create table eventos (
   criado_em timestamptz not null default now()
 );
 
--- Capacidade de cada setor no evento (40 camarote, 100 arquibancada, 50 pista)
+-- Capacidade de cada setor no evento (44 camarote, 100 arquibancada, 50 pista)
 create table evento_setores (
   evento_id uuid not null references eventos (id) on delete cascade,
   setor setor not null,
