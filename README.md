@@ -82,6 +82,10 @@ PLANILHA_MRV="/caminho/MRV_TicketManagement_xxx.xlsx" npm test
 
 Em **Áreas e responsáveis** (Admin e Marketing): criar/renomear/desativar áreas, centro de custo, e adicionar ou remover responsáveis por nome e e-mail — **mais de um por área**, e uma pessoa pode responder por várias. Quem é adicionado recebe acesso por magic link (a conta é criada na hora) e passa a ver só as listas dessas áreas. Área nova não tem cota nos eventos já criados: defina em *Ajustar cota* na página do evento.
 
+## Aparência
+
+Visual baseado no site da MRV (fundo branco, verde, cantos de 8 px) com o do Galo ID (preto e branco, fonte Saira) nas telas de jogo e no login. Em **Aparência** (Admin) envia-se a foto da tela de login e o escudo do Atlético; o escudo do adversário fica na edição de cada jogo. As imagens ficam no próprio banco (tabela `imagens`, até 4 MB, reduzidas no navegador) e são servidas em `/img/<chave>`. Sem imagem, aparece o espaço vazio no formato de escudo.
+
 ## Envio dos ingressos (sistema do Atlético)
 
 O sistema do Atlético não aceita envio em lote, então a tela **A enviar** é uma fila para o envio manual, um por um: em cada linha, *Copiar CPF* → enviar no sistema do Atlético → *Enviado ✓*. A linha sai da fila e o status fica registrado com data/hora. Por padrão a fila mostra só quem já confirmou a facial no Galo ID; quem ainda não confirmou fica na aba *Aprovados sem facial* (envio possível, com confirmação, e registrado). Cada cópia de CPF entra na auditoria.

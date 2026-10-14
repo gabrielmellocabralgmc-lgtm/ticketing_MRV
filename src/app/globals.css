@@ -1,21 +1,26 @@
 @import "tailwindcss";
 
-/* Identidade do regulamento "Arena MRV — Distribuição de ingressos" */
+/* Visual: base da MRV (branco, verde, cantos de 8px) + Galo ID (preto e branco, Saira) */
 @theme {
-  --color-mrv-50: #e6f4ec;
-  --color-mrv-100: #cde9d9;
+  --color-mrv-50: #f2f6ef;
+  --color-mrv-100: #e6f4ec;
   --color-mrv-500: #079d56;
   --color-mrv-600: #00843d;
   --color-mrv-700: #006b3f;
   --color-mrv-900: #003d24;
   --color-laranja-500: #ff8b22;
-  --color-laranja-100: #ffe8d3;
-  --color-amarelo-500: #ffb719;
-  --color-lima-400: #82ea5b;
-  --color-tinta: #2b2b2b;
-  --color-fundo: #f2f2f2;
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --color-laranja-700: #b85f0a;
+  --color-laranja-100: #fff4e8;
+  --color-amarelo-500: #facf00;
+  --color-amarelo-100: #fff7cc;
+  --color-preto: #121212;
+  --color-tinta: #242625;
+  --color-cinza: #5d615f;
+  --color-borda: #e5e5e5;
+  --color-fundo: #f4f5f4;
+  --font-sans: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-saira), var(--font-figtree), sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 body {

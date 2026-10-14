@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import clsx from "clsx";
 import { BotaoCopiar } from "@/components/copiar";
+import { Escudo, Listras } from "@/components/jogo";
+import { Marca } from "@/components/marca";
+import { CHAVE_ESCUDO_ATLETICO, chaveEscudoAdversario, imagensDisponiveis } from "@/lib/imagens";
 import { Aviso, Cartao, SeloStatus } from "@/components/ui";
 import { dataHora, dataLonga } from "@/lib/formato";
 import { linkTorcedor } from "@/lib/mensagens";
@@ -12,7 +15,7 @@ import { FormConvidado } from "./form-convidado";
 export const metadata: Metadata = { title: "Seu ingresso MRV", robots: { index: false, follow: false }, referrer: "no-referrer" };
 export const dynamic = "force-dynamic";
 
-interface EventoPublico { titulo: string; inicio: string; abertura_portoes: string | null; competicao: string | null; tipo: string }
+interface EventoPublico { id: string; titulo: string; inicio: string; abertura_portoes: string | null; competicao: string | null; tipo: string }
 interface InfoConvite {
   tipo: "convite"; status: string; qtd_lugares: number; nome_previsto: string | null; expira_em: string;
   setor: Setor; area: string; evento: EventoPublico; ingressos: { token: string; nome: string; status: StatusIngresso }[];
@@ -32,29 +35,38 @@ async function consultar(token: string) {
 function Moldura({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-dvh">
-      <header className="bg-mrv-700 px-4 py-4 text-white">
-        <div className="mx-auto flex max-w-lg items-center gap-2 font-bold">
-          <span className="rounded-md bg-white px-1.5 py-0.5 text-xs font-black text-mrv-700">MRV</span> Arena MRV
+      <header className="bg-preto px-4 py-4 text-white">
+        <div className="mx-auto flex max-w-lg items-center gap-3">
+          <Marca claro />
+          <span className="h-5 w-px bg-white/40" />
+          <span className="font-display text-sm font-bold tracking-[0.06em]">ARENA MRV</span>
         </div>
       </header>
-      <div className="h-1 bg-laranja-500" />
       <main className="mx-auto max-w-lg space-y-4 px-4 py-6">{children}</main>
     </div>
   );
 }
 
-function CabecalhoEvento({ evento, setor, area }: { evento: EventoPublico; setor: Setor; area: string }) {
+async function CabecalhoEvento({ evento, setor, area }: { evento: EventoPublico; setor: Setor; area: string }) {
+  const img = await imagensDisponiveis();
   return (
-    <Cartao>
-      <div className="text-xs font-semibold tracking-wide text-laranja-500 uppercase">{evento.competicao ?? (evento.tipo === "jogo" ? "Jogo" : "Show")}</div>
-      <h1 className="mt-0.5 text-2xl font-bold text-mrv-900">{evento.titulo}</h1>
-      <p className="text-sm text-tinta/70 first-letter:uppercase">{dataLonga(evento.inicio)}</p>
-      <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
-        <div><dt className="text-xs text-tinta/50">Setor</dt><dd className="font-medium">{ROTULO_SETOR[setor]}</dd></div>
-        <div><dt className="text-xs text-tinta/50">Convite da área</dt><dd className="font-medium">{area}</dd></div>
-        {evento.abertura_portoes && <div><dt className="text-xs text-tinta/50">Portões</dt><dd className="font-medium">{dataHora(evento.abertura_portoes)}</dd></div>}
+    <section className="overflow-hidden rounded-2xl bg-preto text-white">
+      <div className="flex items-center gap-4 p-5">
+        <Escudo url={img[CHAVE_ESCUDO_ATLETICO]} nome="do Atlético" />
+        <div className="min-w-0 flex-1">
+          <div className="font-display text-xs font-bold tracking-[0.1em] text-amarelo-500 uppercase">{evento.competicao ?? (evento.tipo === "jogo" ? "Jogo" : "Show")}</div>
+          <h1 className="font-display text-2xl leading-tight font-extrabold uppercase">{evento.titulo}</h1>
+          <p className="text-sm text-white/80 first-letter:uppercase">{dataLonga(evento.inicio)}</p>
+        </div>
+        <Escudo url={img[chaveEscudoAdversario(evento.id)]} nome="do adversário" />
+      </div>
+      <Listras />
+      <dl className="grid grid-cols-2 gap-3 bg-white p-5 text-sm text-tinta">
+        <div><dt className="text-xs text-cinza">Setor</dt><dd className="font-semibold">{ROTULO_SETOR[setor]}</dd></div>
+        <div><dt className="text-xs text-cinza">Convite da área</dt><dd className="font-semibold">{area}</dd></div>
+        {evento.abertura_portoes && <div><dt className="text-xs text-cinza">Portões</dt><dd className="font-semibold">{dataHora(evento.abertura_portoes)}</dd></div>}
       </dl>
-    </Cartao>
+    </section>
   );
 }
 
@@ -87,7 +99,7 @@ async function PaginaIngresso({ token, info, acompanhantes }: { token: string; i
               const ok = e.feitos.includes(info.status);
               return (
                 <li key={e.rotulo} className="flex items-center gap-3 text-sm">
-                  <span className={clsx("flex size-6 items-center justify-center rounded-full text-xs font-bold", ok ? "bg-mrv-700 text-white" : "bg-black/5 text-tinta/40")}>{ok ? "✓" : "·"}</span>
+                  <span className={clsx("flex size-6 items-center justify-center rounded-full text-xs font-bold", ok ? "bg-mrv-600 text-white" : "bg-black/5 text-tinta/40")}>{ok ? "✓" : "·"}</span>
                   <span className={ok ? "font-medium" : "text-tinta/50"}>{e.rotulo}</span>
                 </li>
               );

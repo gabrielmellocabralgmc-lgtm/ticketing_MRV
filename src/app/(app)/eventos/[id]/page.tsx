@@ -2,11 +2,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BotaoAcao, FormAcao } from "@/components/form-acao";
 import { AoVivo } from "@/components/ao-vivo";
-import { BotaoLink, Campo, Cartao, Entrada, Numero, Selecao, Selo, Tabela, Titulo, Vazio } from "@/components/ui";
-import { dataHora, dataLonga } from "@/lib/formato";
+import { BotaoLink, Campo, Cartao, Entrada, Numero, Selecao, Selo, Tabela, Vazio } from "@/components/ui";
+import { dataHora } from "@/lib/formato";
 import { exigirSessao } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
 import { ROTULO_SETOR, ROTULO_STATUS_EVENTO } from "@/lib/tipos";
+import { CabecalhoJogo } from "@/components/jogo";
+import { CHAVE_ESCUDO_ATLETICO, chaveEscudoAdversario, imagensDisponiveis } from "@/lib/imagens";
 import { ajustarCota, mudarStatusEvento, remanejarCota } from "../actions";
 import { carregarEvento, carregarResumo, type LinhaResumo } from "./dados";
 
@@ -22,11 +24,17 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
   if (s.papel === "operacao") redirect(`/operacao?evento=${id}`);
   const ev = await carregarEvento(id);
   const { linhas, setores } = await carregarResumo(id);
+  const img = await imagensDisponiveis();
   if (s.papel === "responsavel") {
     const minhas = linhas.filter((l) => l.cota !== null);
     // uma área só: vai direto para a lista dela
     if (minhas.length === 1) redirect(`/eventos/${id}/areas/${minhas[0].area_id}?setor=${minhas[0].setor}`);
-    return <VisaoResponsavel id={id} titulo={ev.titulo} inicio={ev.inicio} linhas={minhas} />;
+    return (
+      <>
+        <CabecalhoJogo ev={ev} tamanho="m" escudoAtletico={img[CHAVE_ESCUDO_ATLETICO]} escudoAdversario={img[chaveEscudoAdversario(id)]} />
+        <VisaoResponsavel id={id} linhas={minhas} />
+      </>
+    );
   }
   const supabase = await supabaseServidor();
   const { data: historico } = s.staff
@@ -40,25 +48,23 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
   return (
     <>
       <AoVivo evento={id} />
-      <Titulo
-        sub={<span className="first-letter:uppercase">{dataLonga(ev.inicio)}{ev.competicao && ` · ${ev.competicao}`}{ev.abertura_portoes && ` · portões ${dataHora(ev.abertura_portoes)}`}</span>}
-        acoes={
-          s.staff && (
-            <>
-              <BotaoLink href={`/eventos/${id}/painel`} variante="primario">Painel do jogo</BotaoLink>
-              <BotaoLink href={`/eventos/${id}/lista`}>Lista geral</BotaoLink>
-              <BotaoLink href={`/eventos/${id}/aprovacao`}>Aprovação{pendenteAprovar > 0 && ` (${pendenteAprovar})`}</BotaoLink>
-              <BotaoLink href={`/eventos/${id}/envio`}>A enviar{aEnviar > 0 && ` (${aEnviar})`}</BotaoLink>
-              <a href={`/eventos/${id}/exportar`} className="inline-flex items-center rounded-lg px-3.5 py-2 text-sm font-semibold text-mrv-700 ring-1 ring-mrv-700/30 hover:bg-mrv-50">Exportar XLSX</a>
-              <BotaoLink href={`/eventos/${id}/editar`} variante="fantasma">Editar</BotaoLink>
-            </>
-          )
-        }
-      >
-        {ev.titulo}{" "}
-        <Selo tom={ev.status === "aberto" ? "verde" : ev.status === "rascunho" ? "amarelo" : "cinza"}>{ROTULO_STATUS_EVENTO[ev.status]}</Selo>
-        {ev.concorrido && <> <Selo tom="laranja">Concorrido</Selo></>}
-      </Titulo>
+      <CabecalhoJogo ev={ev} tamanho="m" escudoAtletico={img[CHAVE_ESCUDO_ATLETICO]} escudoAdversario={img[chaveEscudoAdversario(id)]}>
+        <div className="mt-1 flex flex-wrap gap-1.5">
+          <Selo tom={ev.status === "aberto" ? "verde" : ev.status === "rascunho" ? "amarelo" : "cinza"}>{ROTULO_STATUS_EVENTO[ev.status]}</Selo>
+          {ev.concorrido && <Selo tom="laranja">Concorrido</Selo>}
+          {!img[chaveEscudoAdversario(id)] && <Link href={`/eventos/${id}/editar#escudos`} className="text-xs font-semibold text-white/80 underline hover:text-white">enviar escudo do adversário</Link>}
+        </div>
+      </CabecalhoJogo>
+      {s.staff && (
+        <div className="mb-6 flex flex-wrap gap-2">
+          <BotaoLink href={`/eventos/${id}/painel`} variante="primario">Painel do jogo</BotaoLink>
+          <BotaoLink href={`/eventos/${id}/lista`}>Lista geral</BotaoLink>
+          <BotaoLink href={`/eventos/${id}/aprovacao`}>Aprovação{pendenteAprovar > 0 && ` (${pendenteAprovar})`}</BotaoLink>
+          <BotaoLink href={`/eventos/${id}/envio`}>A enviar{aEnviar > 0 && ` (${aEnviar})`}</BotaoLink>
+          <a href={`/eventos/${id}/exportar`} className="inline-flex min-h-10 items-center rounded-lg px-4 py-2 text-sm font-bold text-mrv-700 ring-1 ring-mrv-600 hover:bg-mrv-50">Exportar XLSX</a>
+          <BotaoLink href={`/eventos/${id}/editar`} variante="fantasma">Editar</BotaoLink>
+        </div>
+      )}
 
       {s.staff && (
         <Cartao className="mb-6 flex flex-wrap items-center gap-4">
@@ -212,10 +218,10 @@ async function SeletorSetorArea({ setores, linhas, incluirCapacidade }: { setore
 }
 
 /** Responsável de área: só as próprias cotas, sem os totais do setor. */
-function VisaoResponsavel({ id, titulo, inicio, linhas: minhas }: { id: string; titulo: string; inicio: string; linhas: LinhaResumo[] }) {
+function VisaoResponsavel({ id, linhas: minhas }: { id: string; linhas: LinhaResumo[] }) {
   return (
     <>
-      <Titulo sub={<span className="first-letter:uppercase">{dataLonga(inicio)}</span>}>{titulo}</Titulo>
+      <h2 className="mb-4 text-xl font-bold">Suas áreas neste jogo</h2>
       {minhas.length === 0 ? (
         <Vazio>Suas áreas não têm cota neste evento.</Vazio>
       ) : (

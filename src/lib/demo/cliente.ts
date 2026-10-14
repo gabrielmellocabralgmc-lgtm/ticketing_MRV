@@ -6,7 +6,7 @@
 import { PGlite, type Transaction } from "@electric-sql/pglite";
 import { existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
-import { prepararBanco } from "./banco";
+import { aplicarMigracoesNovas, prepararBanco } from "./banco";
 
 if (process.env.VERCEL || (process.env.NODE_ENV === "production" && !process.env.DEMO_PERMITIR_PRODUCAO)) {
   throw new Error("O modo demonstração não pode rodar em produção.");
@@ -26,8 +26,10 @@ export function bancoDemo(): Promise<PGlite> {
       const db = new PGlite(dir);
       if (novo) {
         console.log("[demo] criando banco de demonstração em .demo.nosync/ (migrações + seed)…");
-        await prepararBanco(db, { seed: true });
+        await prepararBanco(db, { seed: true, registrar: true });
         console.log("[demo] pronto.");
+      } else {
+        await aplicarMigracoesNovas(db);
       }
       return db;
     })();

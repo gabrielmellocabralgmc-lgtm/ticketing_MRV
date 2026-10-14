@@ -1,4 +1,4 @@
-import { Cartao, Selo } from "@/components/ui";
+import { Selo } from "@/components/ui";
 import { supabaseServico } from "@/lib/supabase/server";
 import { ROTULO_PAPEL, type Papel } from "@/lib/tipos";
 import { entrarDemo } from "./actions";
@@ -12,15 +12,15 @@ export async function LoginDemo({ next }: { next: string }) {
   ]);
   const areas = (uid: string) => (resp ?? []).filter((r) => r.user_id === uid).map((r) => (r.areas as unknown as { nome: string }).nome).join(", ");
   return (
-    <Cartao>
-      <p className="mb-3 rounded-lg bg-amarelo-500/20 px-3 py-2 text-sm text-amber-900">
+    <div>
+      <p className="mb-3 rounded-lg bg-amarelo-100 px-3 py-2 text-sm text-[#5c4a00]">
         <b>Modo demonstração.</b> Banco local com dados fictícios, sem envio de e-mail. Escolha com quem entrar:
       </p>
-      <form action={entrarDemo} className="max-h-[60vh] space-y-1 overflow-y-auto">
+      <form action={entrarDemo} className="max-h-[55vh] divide-y divide-borda overflow-y-auto rounded-xl border border-borda">
         <input type="hidden" name="next" value={next} />
         {(perfis ?? []).map((p) => (
           <button key={p.user_id} name="usuario" value={p.user_id}
-            className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm hover:bg-mrv-50">
+            className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm hover:bg-mrv-50">
             <span>
               <span className="font-medium">{p.nome}</span>
               <span className="block text-xs text-tinta/60">{p.papel === "responsavel" ? areas(p.user_id) : p.email}</span>
@@ -29,6 +29,6 @@ export async function LoginDemo({ next }: { next: string }) {
           </button>
         ))}
       </form>
-    </Cartao>
+    </div>
   );
 }

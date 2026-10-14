@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import clsx from "clsx";
-import { dataLonga } from "@/lib/formato";
+import { CabecalhoJogo } from "@/components/jogo";
+import { CHAVE_ESCUDO_ATLETICO, chaveEscudoAdversario, imagensDisponiveis } from "@/lib/imagens";
 import { exigirSessao } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
 import { ListaChegada, type Convidado } from "./lista-chegada";
@@ -15,7 +16,7 @@ export default async function Operacao({ searchParams }: { searchParams: Promise
   const supabase = await supabaseServidor();
   // eventos de ontem em diante (o jogo do dia aparece primeiro)
   const desde = Date.now() - 24 * 3600e3;
-  const { data: eventos } = await supabase.from("eventos").select("id, titulo, inicio, status").order("inicio").limit(60);
+  const { data: eventos } = await supabase.from("eventos").select("id, titulo, adversario, competicao, inicio, abertura_portoes, status").order("inicio").limit(60);
   const proximos = (eventos ?? [])
     .filter((e) => new Date(e.inicio).getTime() >= desde && !["rascunho", "encerrado"].includes(e.status))
     .slice(0, 5);
@@ -24,23 +25,24 @@ export default async function Operacao({ searchParams }: { searchParams: Promise
   if (!ev) {
     return <p className="py-16 text-center text-tinta/60">Nenhum jogo próximo.</p>;
   }
-  const { data, error } = await supabase.rpc("lista_camarote", { p_evento: ev.id });
+  const [{ data, error }, img] = await Promise.all([supabase.rpc("lista_camarote", { p_evento: ev.id }), imagensDisponiveis()]);
 
   return (
+    <>
+    <CabecalhoJogo ev={ev} tamanho="m" rotulo="Camarote MRV" escudoAtletico={img[CHAVE_ESCUDO_ATLETICO]} escudoAdversario={img[chaveEscudoAdversario(ev.id)]} />
     <div className="mx-auto max-w-xl">
       {proximos.length > 1 && (
         <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
           {proximos.map((e) => (
             <Link key={e.id} href={`?evento=${e.id}`}
-              className={clsx("shrink-0 rounded-full px-3 py-1 text-sm", e.id === ev.id ? "bg-mrv-700 text-white" : "bg-white text-mrv-700 ring-1 ring-mrv-700/20")}>
+              className={clsx("shrink-0 rounded-full px-3 py-1 text-sm", e.id === ev.id ? "bg-mrv-700 text-white" : "bg-white text-mrv-700 ring-1 ring-borda")}>
               {e.titulo}
             </Link>
           ))}
         </div>
       )}
-      <h1 className="text-xl font-bold text-mrv-900">Camarote · {ev.titulo}</h1>
-      <p className="mb-4 text-sm text-tinta/60 first-letter:uppercase">{dataLonga(ev.inicio)}</p>
       {error ? <p className="text-red-700">Sem acesso à lista do camarote.</p> : <ListaChegada convidados={(data ?? []) as Convidado[]} />}
     </div>
+    </>
   );
 }

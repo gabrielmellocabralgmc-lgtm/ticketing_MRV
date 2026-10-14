@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AoVivo } from "@/components/ao-vivo";
-import { Titulo } from "@/components/ui";
-import { dataLonga } from "@/lib/formato";
+import { CabecalhoJogo } from "@/components/jogo";
+import { CHAVE_ESCUDO_ATLETICO, chaveEscudoAdversario, imagensDisponiveis } from "@/lib/imagens";
 import { exigirStaff } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
 import { carregarEvento, carregarResumo } from "../dados";
@@ -20,13 +20,15 @@ export default async function Painel({ params }: { params: Promise<{ id: string 
     carregarIngressos(id, ["solicitado", "validado_area", "aprovado", "facial_pendente", "facial_ok", "enviado", "confirmado", "presente", "lista_espera"], "painel"),
     supabase.from("areas").select("id, nome, slug").eq("ativo", true).order("ordem"),
   ]);
+  const img = await imagensDisponiveis();
   const areaPadrao = (areas ?? []).find((a) => a.slug === "marketing")?.id ?? areas?.[0]?.id ?? "";
 
   return (
     <>
       <AoVivo evento={id} />
-      {s.papel === "admin" && <div className="mb-2 text-sm"><Link href={`/eventos/${id}`} className="text-mrv-700 hover:underline">← gestão completa do evento</Link></div>}
-      <Titulo sub={<span className="first-letter:uppercase">{dataLonga(ev.inicio)}{ev.competicao && ` · ${ev.competicao}`}</span>}>{ev.titulo}</Titulo>
+      <CabecalhoJogo ev={ev} escudoAtletico={img[CHAVE_ESCUDO_ATLETICO]} escudoAdversario={img[chaveEscudoAdversario(id)]}>
+        {s.papel === "admin" && <Link href={`/eventos/${id}`} className="mt-1 text-sm font-semibold text-white/80 underline hover:text-white">Gestão completa do evento</Link>}
+      </CabecalhoJogo>
       <PainelJogo
         evento={id}
         linhas={linhas as unknown as LinhaPainel[]}

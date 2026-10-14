@@ -423,3 +423,18 @@ describe("perfis simplificados", () => {
     expect(await b.como(oper, `select * from v_ingressos`)).toEqual([]);
   });
 });
+
+describe("imagens do layout", () => {
+  it("Marketing/Admin salvam foto e escudo; responsável não; leitura pública só pelo servidor", async () => {
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]).toString("base64");
+    await b.como(mkt, `select salvar_imagem('login', 'image/png', $1)`, [png]);
+    const [img] = await b.como<{ mime: string; base64: string }>(null, `select * from ler_imagem('login')`);
+    expect(img).toMatchObject({ mime: "image/png", base64: png });
+    await expect(b.como(respDH, `select salvar_imagem('login', 'image/png', $1)`, [png])).rejects.toThrow(/SEM_PERMISSAO/);
+    await expect(b.como(respDH, `select * from ler_imagem('login')`)).rejects.toThrow(/permission denied/);
+    await expect(b.como(mkt, `select salvar_imagem('../x', 'image/png', $1)`, [png])).rejects.toThrow();
+    await expect(b.como(mkt, `select salvar_imagem('ok', 'text/html', $1)`, [png])).rejects.toThrow();
+    const disp = await b.como<{ chave: string }>(respDH, `select chave from imagens_disponiveis()`);
+    expect(disp.map((d) => d.chave)).toContain("login");
+  });
+});

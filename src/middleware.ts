@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { COOKIE_DEMO, MODO_DEMO } from "@/lib/demo/constantes";
 
 // Renova a sessão do Supabase e manda para /login quem não estiver logado nas áreas internas.
-const PUBLICAS = ["/login", "/auth", "/i/", "/api/cron"];
+const PUBLICAS = ["/login", "/auth", "/i/", "/img/", "/api/cron"];
 
 export async function middleware(request: NextRequest) {
   if (MODO_DEMO) {

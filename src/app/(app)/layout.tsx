@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { exigirSessao } from "@/lib/sessao";
 import { ROTULO_PAPEL } from "@/lib/tipos";
+import { Marca } from "@/components/marca";
+import { Nav } from "@/components/nav";
 import { sair } from "./actions";
 
 export default async function LayoutInterno({ children }: { children: React.ReactNode }) {
@@ -12,36 +14,30 @@ export default async function LayoutInterno({ children }: { children: React.Reac
         ? [
             { href: "/eventos", rotulo: "Eventos" },
             { href: "/admin/areas", rotulo: "Áreas e responsáveis" },
+            { href: "/admin/aparencia", rotulo: "Aparência" },
             { href: "/admin/usuarios", rotulo: "Usuários" },
             { href: "/admin/importar", rotulo: "Importar" },
             { href: "/admin/auditoria", rotulo: "Auditoria" },
           ]
         : [{ href: "/eventos", rotulo: "Jogos" }];
   return (
-    <div className="min-h-dvh">
-      <header className="bg-mrv-700 text-white">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
-          <Link href={s.papel === "operacao" ? "/operacao" : "/eventos"} className="flex items-center gap-2 font-bold">
-            <span className="rounded-md bg-white px-1.5 py-0.5 text-xs font-black text-mrv-700">MRV</span>
-            Ingressos · Arena MRV
+    <div className="min-h-dvh overflow-x-clip">
+      <header className="border-b border-borda bg-white">
+        <div className="mx-auto flex min-h-[72px] max-w-7xl flex-wrap items-center gap-x-8 gap-y-2 px-4 py-2">
+          <Link href={s.papel === "operacao" ? "/operacao" : "/eventos"} className="flex items-center gap-2.5">
+            <Marca />
+            <span className="text-base font-bold text-tinta">Ingressos · Arena MRV</span>
           </Link>
-          <nav className="flex gap-1 text-sm">
-            {links.map((l) => (
-              <Link key={l.href} href={l.href} className="rounded-md px-2.5 py-1 text-white/85 hover:bg-white/10 hover:text-white">
-                {l.rotulo}
-              </Link>
-            ))}
-          </nav>
-          <div className="ml-auto flex items-center gap-3 text-sm">
-            <span className="text-white/80">
-              {s.nome} · <span className="text-amarelo-500">{ROTULO_PAPEL[s.papel]}</span>
+          <Nav links={links} />
+          <div className="ml-auto flex items-center gap-4 text-sm text-cinza">
+            <span>
+              {s.nome} · <span className="font-semibold text-mrv-700">{ROTULO_PAPEL[s.papel]}</span>
             </span>
             <form action={sair}>
-              <button className="rounded-md px-2 py-1 text-white/80 hover:bg-white/10 hover:text-white">Sair</button>
+              <button className="rounded-lg px-2 py-2 font-semibold text-mrv-700 hover:bg-mrv-50">Sair</button>
             </form>
           </div>
         </div>
-        <div className="h-1 bg-laranja-500" />
       </header>
       <main className="mx-auto max-w-7xl px-4 py-8">{children}</main>
     </div>

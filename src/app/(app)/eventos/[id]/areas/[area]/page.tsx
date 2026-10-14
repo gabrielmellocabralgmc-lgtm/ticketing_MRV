@@ -2,8 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AoVivo } from "@/components/ao-vivo";
 import { BotaoAcao } from "@/components/form-acao";
-import { Aviso, Cartao, Numero, Titulo } from "@/components/ui";
-import { dataHora, dataLonga, paraInputLocal } from "@/lib/formato";
+import { CabecalhoJogo } from "@/components/jogo";
+import { Aviso, Cartao, Numero } from "@/components/ui";
+import { CHAVE_ESCUDO_ATLETICO, chaveEscudoAdversario, imagensDisponiveis } from "@/lib/imagens";
+import { dataHora, paraInputLocal } from "@/lib/formato";
 import { exigirSessao } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
 import { ROTULO_SETOR, type Saldo, type Setor } from "@/lib/tipos";
@@ -20,6 +22,7 @@ export default async function PainelArea({ params, searchParams }: { params: Pro
   const s = await exigirSessao();
   const ev = await carregarEvento(id);
   const supabase = await supabaseServidor();
+  const img = await imagensDisponiveis();
 
   const [{ data: areaRow }, { data: setoresRows }] = await Promise.all([
     supabase.from("areas").select("id, nome").eq("id", area).maybeSingle(),
@@ -50,12 +53,10 @@ export default async function PainelArea({ params, searchParams }: { params: Pro
   return (
     <>
       <AoVivo evento={id} />
-      <div className="mb-2 text-sm">
-        <Link href={`/eventos/${id}`} className="text-mrv-700 hover:underline">← {ev.titulo}</Link>
-      </div>
-      <Titulo sub={<span className="first-letter:uppercase">{dataLonga(ev.inicio)} · prazo para solicitar: {dataHora(ev.prazo_solicitacao)} · validar até: {dataHora(ev.prazo_validacao)}</span>}>
-        {areaRow.nome} · {ROTULO_SETOR[setor]}
-      </Titulo>
+      <CabecalhoJogo ev={ev} tamanho="m" escudoAtletico={img[CHAVE_ESCUDO_ATLETICO]} escudoAdversario={img[chaveEscudoAdversario(id)]}
+        rotulo={`${areaRow.nome} · ${ROTULO_SETOR[setor]}`}>
+        <div className="text-sm text-white/70">Solicitar até {dataHora(ev.prazo_solicitacao)} · validar até {dataHora(ev.prazo_validacao)}</div>
+      </CabecalhoJogo>
 
       {setores.length > 1 && (
         <div className="mb-4 flex gap-2">

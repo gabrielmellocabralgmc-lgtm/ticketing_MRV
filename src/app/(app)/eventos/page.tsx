@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BotaoLink, Cartao, Selo, Titulo, Vazio } from "@/components/ui";
+import { Escudo } from "@/components/jogo";
+import { BotaoLink, Selo, Titulo, Vazio } from "@/components/ui";
+import { CHAVE_ESCUDO_ATLETICO, chaveEscudoAdversario, imagensDisponiveis } from "@/lib/imagens";
 import { dataLonga, dataHora } from "@/lib/formato";
 import { exigirSessao } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
@@ -34,42 +36,61 @@ export default async function Eventos() {
   const proximos = eventos.filter((e) => new Date(e.inicio).getTime() >= agora - 6 * 3600e3).reverse();
   const passados = eventos.filter((e) => new Date(e.inicio).getTime() < agora - 6 * 3600e3);
 
-  const Lista = ({ itens }: { itens: Evento[] }) =>
+  const img = await imagensDisponiveis();
+  const statusTom = (e: Evento) => (e.status === "aberto" ? "verde" : e.status === "rascunho" ? "amarelo" : "cinza") as "verde" | "amarelo" | "cinza";
+
+  // Próximos: card com faixa preta e escudos; anteriores: linha compacta
+  const Cards = ({ itens }: { itens: Evento[] }) =>
     itens.length === 0 ? (
-      <Vazio>Nenhum evento.</Vazio>
+      <Vazio>Nenhum jogo programado.</Vazio>
     ) : (
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-5 md:grid-cols-2">
         {itens.map((e) => (
-          <Link key={e.id} href={`/eventos/${e.id}`} className="group">
-            <Cartao className="h-full transition group-hover:ring-mrv-600/40">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-xs font-semibold tracking-wide text-laranja-500 uppercase">
-                    {e.tipo === "jogo" ? e.competicao ?? "Jogo" : "Show"}
-                    {e.concorrido && " · concorrido"}
-                  </div>
-                  <h2 className="mt-0.5 text-lg font-bold text-mrv-900">{e.titulo}</h2>
-                  <p className="text-sm text-tinta/70 first-letter:uppercase">{dataLonga(e.inicio)}</p>
-                </div>
-                <Selo tom={e.status === "aberto" ? "verde" : e.status === "rascunho" ? "amarelo" : "cinza"}>{ROTULO_STATUS_EVENTO[e.status]}</Selo>
+          <Link key={e.id} href={`/eventos/${e.id}`}
+            className="group flex flex-col overflow-hidden rounded-2xl border border-borda bg-white transition hover:border-mrv-600 focus-visible:outline-2 focus-visible:outline-mrv-600">
+            <div className="flex items-center gap-4 bg-preto p-5">
+              <Escudo url={img[CHAVE_ESCUDO_ATLETICO]} nome="do Atlético" />
+              <div className="min-w-0 flex-1 font-display text-[22px] leading-tight font-extrabold text-white uppercase">{e.titulo}</div>
+              <Escudo url={img[chaveEscudoAdversario(e.id)]} nome={e.adversario ? `do ${e.adversario}` : "do adversário"} />
+            </div>
+            <div className="flex flex-1 flex-col gap-3.5 p-5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-sm text-cinza first-letter:uppercase">{dataLonga(e.inicio)}{e.competicao && ` · ${e.competicao}`}</span>
+                <span className="flex gap-1.5">
+                  {e.concorrido && <Selo tom="laranja">Concorrido</Selo>}
+                  <Selo tom={statusTom(e)}>{ROTULO_STATUS_EVENTO[e.status]}</Selo>
+                </span>
               </div>
-              <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2.5">
                 {(porEvento[e.id] ?? []).map((r) => (
-                  <div key={r.rotulo}>
-                    <span className="text-tinta/60">{r.rotulo}: </span>
-                    <span className="tabular font-semibold">{r.ocupados}/{r.capacidade}</span>
-                    {r.em_espera > 0 && <span className="text-xs text-amber-700"> · {r.em_espera} em espera</span>}
+                  <div key={r.rotulo} className="rounded-xl bg-fundo px-3 py-2.5">
+                    <div className="text-xs text-cinza">{r.rotulo}</div>
+                    <div className="tabular font-display text-xl font-bold">{r.ocupados}<span className="text-sm text-[#8a8f8c]">/{r.capacidade}</span></div>
+                    {r.em_espera > 0 && <div className="text-xs font-semibold text-laranja-700">{r.em_espera} em espera</div>}
                   </div>
                 ))}
               </div>
-              {e.prazo_solicitacao && e.status === "aberto" && (
-                <p className="mt-3 text-xs text-tinta/60">Solicitações até {dataHora(e.prazo_solicitacao)}</p>
-              )}
-            </Cartao>
+              {e.prazo_solicitacao && e.status === "aberto" && <p className="text-xs text-cinza">Solicitações até {dataHora(e.prazo_solicitacao)}</p>}
+            </div>
           </Link>
         ))}
       </div>
     );
+
+  const Linhas = ({ itens }: { itens: Evento[] }) => (
+    <div className="grid gap-3 md:grid-cols-2">
+      {itens.map((e) => (
+        <Link key={e.id} href={`/eventos/${e.id}`} className="flex items-center gap-4 rounded-2xl border border-borda bg-white px-5 py-4 hover:border-mrv-600">
+          <Escudo url={img[chaveEscudoAdversario(e.id)]} nome={e.adversario ? `do ${e.adversario}` : "do adversário"} tamanho="p" escuro={false} />
+          <div className="min-w-0">
+            <div className="font-display text-[17px] font-bold uppercase">{e.titulo}</div>
+            <div className="text-[13px] text-cinza first-letter:uppercase">{dataLonga(e.inicio)}{e.competicao && ` · ${e.competicao}`}</div>
+          </div>
+          <span className="ml-auto"><Selo tom={statusTom(e)}>{ROTULO_STATUS_EVENTO[e.status]}</Selo></span>
+        </Link>
+      ))}
+    </div>
+  );
 
   return (
     <>
@@ -79,12 +100,12 @@ export default async function Eventos() {
       >
         {s.papel === "marketing" ? "Jogos" : "Eventos"}
       </Titulo>
-      <h2 className="mb-3 text-sm font-semibold tracking-wide text-tinta/60 uppercase">Próximos</h2>
-      <Lista itens={proximos} />
+      <h2 className="mb-3 font-display text-[13px] font-bold tracking-[0.08em] text-cinza">PRÓXIMOS</h2>
+      <Cards itens={proximos} />
       {passados.length > 0 && (
         <>
-          <h2 className="mt-10 mb-3 text-sm font-semibold tracking-wide text-tinta/60 uppercase">Anteriores</h2>
-          <Lista itens={passados} />
+          <h2 className="mt-10 mb-3 font-display text-[13px] font-bold tracking-[0.08em] text-cinza">ANTERIORES</h2>
+          <Linhas itens={passados} />
         </>
       )}
     </>
