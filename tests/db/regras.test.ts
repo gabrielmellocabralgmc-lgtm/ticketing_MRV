@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { BancoTeste, pessoa } from "./helpers";
 
 let b: BancoTeste;
-let admin: string, mkt: string, respDH: string, respLuggo: string, oper: string;
+let mkt: string, respDH: string, respLuggo: string, oper: string;
 let dh: string, luggo: string, presid: string;
 let seq = 0;
 const nova = (nome?: string) => pessoa(++seq, nome);
@@ -30,7 +30,7 @@ const statusDe = async (ids: string[]) =>
 
 beforeAll(async () => {
   b = await BancoTeste.criar();
-  admin = await b.criarUsuario("Admin", "admin");
+  await b.criarUsuario("Admin", "admin");
   mkt = await b.criarUsuario("Gestora Marketing", "marketing");
   respDH = await b.criarUsuario("Resp DH", "responsavel", ["dh"]);
   respLuggo = await b.criarUsuario("Resp Luggo", "responsavel", ["luggo"]);
@@ -307,10 +307,34 @@ describe("pipeline completo e RLS", () => {
     await expect(pedir(respDH, ev2, dh, [nova()])).rejects.toThrow(/EVENTO_FECHADO/);
   });
 
+  it("camarote: só o Marketing lança pedidos e convites", async () => {
+    const ev = await novoEvento();
+    await expect(pedir(respDH, ev, dh, [nova()], {}, "camarote")).rejects.toThrow(/CAMAROTE_MARKETING/);
+    await expect(b.como(respDH, `select criar_convite($1, 'camarote', $2, 1, 'x')`, [ev, dh])).rejects.toThrow(/CAMAROTE_MARKETING/);
+    await expect(pedir(mkt, ev, dh, [nova()], {}, "camarote")).resolves.toBeTruthy();
+  });
+
   it("usuário autenticado sem perfil não faz nada", async () => {
     const [u] = await b.sql<{ id: string }>(`insert into auth.users (email) values ('intruso@x.com') returning id`);
     const ev = await novoEvento();
     expect(await b.como(u.id, `select * from eventos`)).toEqual([]);
     await expect(pedir(u.id, ev, dh, [nova()])).rejects.toThrow(/SEM_PERMISSAO/);
+  });
+});
+
+describe("resumos", () => {
+  it("resumo_evento conta por status e respeita a área do responsável", async () => {
+    const ev = await novoEvento();
+    await pedir(respDH, ev, dh, [nova(), nova()]);
+    await b.como(respDH, `select criar_convite($1, 'arquibancada', $2, 1, 'Fulano')`, [ev, dh]);
+    await pedir(respLuggo, ev, luggo, [nova()]);
+    const visao = await b.como<{ area_id: string; ocupados: number; solicitados: number; convites_aguardando: number; cota: number }>(
+      respDH, `select * from resumo_evento($1)`, [ev]);
+    expect(visao).toHaveLength(1);
+    expect(visao[0]).toMatchObject({ area_id: dh, ocupados: 3, solicitados: 2, convites_aguardando: 1, cota: 10 });
+    const tudo = await b.como<{ setor: string }>(mkt, `select * from resumo_evento($1)`, [ev]);
+    expect(tudo.filter((r) => r.setor === "arquibancada")).toHaveLength(10);
+    const [arq] = await b.como<{ alocado: number; ocupados: number }>(oper, `select * from resumo_setores($1) where setor = 'arquibancada'`, [ev]);
+    expect(arq).toMatchObject({ alocado: 100, ocupados: 4 });
   });
 });

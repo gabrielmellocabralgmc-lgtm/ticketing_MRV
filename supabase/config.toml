@@ -1,0 +1,30 @@
+# Configuração do Supabase local (supabase start). Valores omitidos usam o padrão da CLI.
+project_id = "ingressos-mrv"
+
+[api]
+port = 54321
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+port = 54323
+
+[inbucket]
+# e-mails do ambiente local (magic links) aparecem em http://127.0.0.1:54324
+port = 54324
+
+[auth]
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/auth/callback"]
+# só o Admin cadastra usuários; o login é por magic link
+enable_signup = false
+
+[auth.email]
+enable_signup = false
+otp_expiry = 3600
+
+[auth.email.template.magic_link]
+subject = "Seu link de acesso · Ingressos MRV"
+content_path = "./supabase/templates/magic_link.html"

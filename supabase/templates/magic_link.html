@@ -1,0 +1,16 @@
+<!-- token_hash funciona mesmo se o link for aberto em outro navegador/aparelho -->
+<div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #2b2b2b">
+  <div style="background: #006b3f; color: #fff; padding: 16px 20px; font-weight: bold; border-bottom: 4px solid #ff8b22">
+    Ingressos MRV · Arena MRV
+  </div>
+  <div style="padding: 20px">
+    <p>Clique no botão para entrar no sistema de ingressos da MRV. O link vale por 1 hora e só pode ser usado uma vez.</p>
+    <p style="margin: 24px 0">
+      <a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=email&next=/eventos"
+         style="background: #006b3f; color: #fff; padding: 12px 20px; border-radius: 8px; text-decoration: none; font-weight: bold">
+        Entrar
+      </a>
+    </p>
+    <p style="font-size: 12px; color: #777">Se você não pediu este acesso, ignore este e-mail.</p>
+  </div>
+</div>

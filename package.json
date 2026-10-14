@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "importar": "tsx scripts/importar-planilha.ts",
+    "criar-admin": "tsx scripts/criar-admin.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
@@ -16,15 +19,17 @@
     "clsx": "^2.1.1",
     "exceljs": "^4.4.0",
     "next": "15.5.27",
+    "pg": "^8.23.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "zod": "^4.6.7"
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.9",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^24.19.2",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv": "^18.0.7",

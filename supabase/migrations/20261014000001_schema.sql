@@ -195,7 +195,7 @@ create table validacoes (
   evento_id uuid not null references eventos (id) on delete cascade,
   setor setor not null,
   area_id uuid not null references areas (id),
-  validado_por uuid not null references auth.users (id),
+  validado_por uuid not null references perfis (user_id),
   qtd int not null,
   em timestamptz not null default now()
 );

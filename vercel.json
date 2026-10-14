@@ -1,0 +1,6 @@
+{
+  "crons": [
+    { "path": "/api/cron/expirar-convites", "schedule": "*/30 * * * *" },
+    { "path": "/api/cron/fechar-prazos", "schedule": "5 * * * *" }
+  ]
+}

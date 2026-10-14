@@ -6,7 +6,15 @@ import path from "node:path";
 
 const SHIM = `
 create schema auth;
-create table auth.users (id uuid primary key default gen_random_uuid(), email text unique);
+create table auth.users (
+  instance_id uuid, id uuid primary key default gen_random_uuid(), aud text, role text, email text unique,
+  encrypted_password text, email_confirmed_at timestamptz, raw_app_meta_data jsonb, raw_user_meta_data jsonb,
+  created_at timestamptz, updated_at timestamptz
+);
+create table auth.identities (
+  id uuid primary key, user_id uuid references auth.users (id), provider_id text, identity_data jsonb, provider text,
+  last_sign_in_at timestamptz, created_at timestamptz, updated_at timestamptz
+);
 create function auth.uid() returns uuid language sql stable as $$
   select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
 $$;
@@ -40,6 +48,10 @@ export class BancoTeste {
     }
     await db.exec(GRANTS);
     return new BancoTeste(db);
+  }
+
+  async rodarSeed() {
+    await this.db.exec(readFileSync(path.resolve(__dirname, "../../supabase/seed.sql"), "utf8"));
   }
 
   /** Executa como superusuário (setup). */
@@ -87,4 +99,19 @@ export function cpfFake(seq: number): string {
 
 export function pessoa(seq: number, nome = `Pessoa ${seq}`) {
   return { nome, cpf: cpfFake(seq), celular: `319${String(90000000 + seq).slice(-8)}` };
+}
+
+/** Rpc com argumentos nomeados sobre SQL, como o supabase.rpc. */
+export function rpcSql(b: BancoTeste, userId: string | null) {
+  return async (fn: string, args: Record<string, unknown>) => {
+    const nomes = Object.keys(args);
+    const valores = nomes.map((k) => {
+      const v = args[k];
+      return v !== null && typeof v === "object" && !Array.isArray(v) ? JSON.stringify(v)
+        : Array.isArray(v) && v.some((x) => typeof x === "object") ? JSON.stringify(v) : v;
+    });
+    const sql = `select ${fn}(${nomes.map((k, i) => `${k} => $${i + 1}`).join(", ")}) as r`;
+    const [{ r }] = await b.como<{ r: unknown }>(userId, sql, valores);
+    return r;
+  };
 }

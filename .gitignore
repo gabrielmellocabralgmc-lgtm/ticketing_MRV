@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# planilhas reais têm dados pessoais (LGPD) — nunca versionar
+*.xlsx
+*.csv
+!.env.example

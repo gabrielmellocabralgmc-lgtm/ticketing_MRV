@@ -468,7 +468,7 @@ end $$;
 -- p_pessoas: [{nome, cpf, celular, email, colaborador, status?, observacao?}]; a 1ª é o titular,
 --            as demais ficam como "convidado de" titular.
 -- p_opcoes: {origem, lista_espera (default true), liberar_duplicado, ignorar_cota, prioridade,
---            catering, centro_custo, indicacao_de, observacao}
+--            catering, centro_custo, indicacao_de, observacao, motivo}
 create or replace function criar_pedido(p_evento uuid, p_setor setor, p_area uuid, p_pessoas jsonb, p_opcoes jsonb default '{}')
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
@@ -489,6 +489,7 @@ declare
 begin
   perform _exigir(responde_area(p_area));
   perform _exigir(v_staff or v_origem in ('responsavel', 'forms'), 'SEM_PERMISSAO: origem de pedido não permitida');
+  perform _exigir(v_staff or p_setor <> 'camarote', 'CAMAROTE_MARKETING: pedidos de camarote são lançados pelo Marketing MRV');
   perform _exigir(v_n between 1 and 20, 'VALOR_INVALIDO: informe de 1 a 20 pessoas');
 
   select * into v_ev from eventos where id = p_evento;
@@ -516,7 +517,7 @@ begin
           p_opcoes ->> 'centro_custo', limpar_nome(p_opcoes ->> 'indicacao_de'), p_opcoes ->> 'observacao')
   returning id into v_pedido;
 
-  perform _ctx('usuario', case when v_status = 'lista_espera' then 'cota esgotada: entrou na lista de espera' end);
+  perform _ctx('usuario', coalesce(p_opcoes ->> 'motivo', case when v_status = 'lista_espera' then 'cota esgotada: entrou na lista de espera' end));
   for p in select * from jsonb_array_elements(p_pessoas) loop
     i := i + 1;
     v_pessoa := _upsert_pessoa(p || jsonb_build_object('colaborador', coalesce((p ->> 'colaborador')::boolean, i = 1 and p_setor <> 'camarote')),
@@ -567,6 +568,7 @@ declare
   v_expira timestamptz;
 begin
   perform _exigir(responde_area(p_area));
+  perform _exigir(eh_staff() or p_setor <> 'camarote', 'CAMAROTE_MARKETING: convites de camarote são gerados pelo Marketing MRV');
   perform _exigir(p_qtd between 1 and 10, 'VALOR_INVALIDO: um convite vale de 1 a 10 lugares');
   select * into v_ev from eventos where id = p_evento;
   perform _exigir(found, 'NAO_ENCONTRADO: evento não encontrado');
@@ -853,7 +855,7 @@ returns table (
   ingresso_id uuid, pedido_id uuid, convite_id uuid, status status_ingresso, preenchido_por preenchido_por,
   nome text, cpf text, celular text, email text, convidado_de_nome text, titular boolean,
   token text, criado_em timestamptz, convite_nome_previsto text, convite_expira_em timestamptz, convite_status status_convite,
-  indicacao_de text
+  convite_token text, convite_contato text, convite_qtd int, indicacao_de text
 )
 language plpgsql stable security definer set search_path = public as $$
 declare
@@ -864,7 +866,7 @@ begin
   select i.id, i.pedido_id, i.convite_id, i.status, i.preenchido_por,
          p.nome, case when v_staff then p.cpf else mascarar_cpf(p.cpf) end, p.celular, p.email,
          pt.nome, i.convidado_de is null, i.token, i.criado_em,
-         c.nome_previsto, c.expira_em, c.status, pe.indicacao_de
+         c.nome_previsto, c.expira_em, c.status, c.token, c.contato, c.qtd_lugares, pe.indicacao_de
   from ingressos i
   join pedidos pe on pe.id = i.pedido_id
   left join pessoas p on p.id = i.pessoa_id
