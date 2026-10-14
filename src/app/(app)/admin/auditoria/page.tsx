@@ -26,7 +26,7 @@ export default async function Auditoria() {
                   <td className="whitespace-nowrap">{dataHora(l.em)}</td>
                   <td>{l.autor ? nome.get(l.autor) ?? l.autor : "sistema"}</td>
                   <td className="font-medium">{l.acao}</td>
-                  <td className="text-xs">{l.entidade}</td>
+                  <td className="text-xs">{l.entidade}{l.entidade_id && l.entidade === "imagem" && <span className="text-cinza"> · {l.entidade_id}</span>}</td>
                   <td className="max-w-md truncate font-mono text-xs text-tinta/60" title={JSON.stringify(l.detalhes)}>{l.detalhes ? JSON.stringify(l.detalhes) : ""}</td>
                 </tr>
               ))}

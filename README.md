@@ -84,7 +84,7 @@ Em **Áreas e responsáveis** (Admin e Marketing): criar/renomear/desativar áre
 
 ## Aparência
 
-Visual baseado no site da MRV (fundo branco, verde, cantos de 8 px) com o do Galo ID (preto e branco, fonte Saira) nas telas de jogo e no login. Em **Aparência** (Admin) envia-se a foto da tela de login e o escudo do Atlético; o escudo do adversário fica na edição de cada jogo. As imagens ficam no próprio banco (tabela `imagens`, até 4 MB, reduzidas no navegador) e são servidas em `/img/<chave>`. Sem imagem, aparece o espaço vazio no formato de escudo.
+Visual baseado no site da MRV (fundo branco, verde, cantos de 8 px) com o do Galo ID (preto e branco, fonte Saira) nas telas de jogo e no login. Em **Aparência** (Admin) envia-se o logo da MRV (fundo claro, fundo escuro e ícone da aba), a foto da tela de login e o escudo do Atlético; o escudo do adversário fica na edição de cada jogo. As imagens ficam no próprio banco (tabela `imagens`, até 4 MB, reduzidas no navegador) e são servidas em `/img/<chave>`. Sem imagem, aparece o espaço vazio no formato de escudo.
 
 ## Envio dos ingressos (sistema do Atlético)
 

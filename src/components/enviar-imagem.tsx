@@ -34,7 +34,7 @@ export function EnviarImagem({
   url?: string;
   rotulo: string;
   dica?: string;
-  formato?: "foto" | "escudo";
+  formato?: "foto" | "escudo" | "logo" | "icone";
   escuro?: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
@@ -49,7 +49,7 @@ export function EnviarImagem({
     setErro(null);
     iniciar(async () => {
       try {
-        const { mime, base64 } = await prepararArquivo(f, formato === "foto" ? 1920 : 512);
+        const { mime, base64 } = await prepararArquivo(f, formato === "foto" ? 1920 : formato === "logo" ? 800 : 512);
         const r = await salvarImagem(chave, mime, base64);
         if (!r.ok) return setErro(r.erro);
         setPrevia(`data:${mime};base64,${base64}`);
@@ -71,7 +71,7 @@ export function EnviarImagem({
         aria-label={`${rotulo}: ${previa ? "trocar" : "enviar"} imagem`}
         className={clsx(
           "group relative flex w-full items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed transition",
-          formato === "foto" ? "aspect-video max-h-[420px]" : "aspect-[8/9] max-w-40",
+          formato === "foto" ? "aspect-video max-h-[420px]" : formato === "logo" ? "aspect-[3/1] max-w-80" : formato === "icone" ? "aspect-square max-w-28" : "aspect-[8/9] max-w-40",
           escuro ? "border-white/35 bg-preto text-white/75" : "border-[#c9ccca] bg-white text-cinza",
           arrastando && "border-mrv-600 bg-mrv-50",
         )}
@@ -82,7 +82,7 @@ export function EnviarImagem({
         ) : (
           <span className="flex flex-col items-center gap-2 p-4 text-center text-sm">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              {formato === "foto" ? <><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="10" r="2" /><path d="M21 16l-5-5-8 8" /></> : <path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z" />}
+              {formato === "escudo" ? <path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6z" /> : <><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="10" r="2" /><path d="M21 16l-5-5-8 8" /></>}
             </svg>
             <span className="font-semibold">{rotulo}</span>
             <span className="text-xs opacity-80">Arraste aqui ou clique para enviar</span>

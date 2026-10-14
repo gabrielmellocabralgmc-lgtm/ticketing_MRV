@@ -37,6 +37,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
       <div className="flex flex-[1_1_480px] items-center justify-center px-6 py-12">
         <div className="flex w-full max-w-[400px] flex-col gap-7">
           <div className="flex flex-col gap-2">
+            <Marca tamanho="g" className="mb-3 self-start" />
             <div className="font-display text-[13px] font-bold tracking-[0.08em] text-mrv-600">INGRESSOS MRV</div>
             <h1 className="text-[32px] leading-tight font-bold">Entrar no sistema</h1>
             {!MODO_DEMO && <p className="text-base leading-relaxed text-cinza">Enviamos um link de acesso para o seu e-mail. Não há senha.</p>}

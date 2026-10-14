@@ -3,6 +3,9 @@ import { cache } from "react";
 import { supabaseServico } from "@/lib/supabase/server";
 
 export const CHAVE_LOGIN = "login";
+export const CHAVE_LOGO = "logo-mrv"; // para fundo claro
+export const CHAVE_LOGO_ESCURO = "logo-mrv-escuro"; // para fundo escuro (opcional)
+export const CHAVE_ICONE = "icone"; // ícone da aba do navegador (opcional)
 export const CHAVE_ESCUDO_ATLETICO = "escudo-atletico";
 export const chaveEscudoAdversario = (evento: string) => `escudo-${evento}`;
 
