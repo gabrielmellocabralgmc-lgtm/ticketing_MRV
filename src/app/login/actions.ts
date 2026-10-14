@@ -22,3 +22,14 @@ export async function enviarLink(_: unknown, form: FormData): Promise<Resultado>
   }
   return { ok: true, mensagem: `Se ${email} tiver acesso, o link chega em instantes. Confira também o spam.` };
 }
+
+/** Modo demonstração: entra como um usuário do seed, sem e-mail. */
+export async function entrarDemo(form: FormData) {
+  const { MODO_DEMO, COOKIE_DEMO } = await import("@/lib/demo/constantes");
+  if (!MODO_DEMO) return;
+  const { cookies } = await import("next/headers");
+  const { redirect } = await import("next/navigation");
+  (await cookies()).set(COOKIE_DEMO, String(form.get("usuario")), { httpOnly: true, sameSite: "lax", path: "/" });
+  const next = String(form.get("next") ?? "/eventos");
+  redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/eventos");
+}

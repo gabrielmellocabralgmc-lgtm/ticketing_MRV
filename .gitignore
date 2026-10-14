@@ -44,3 +44,6 @@ next-env.d.ts
 *.xlsx
 *.csv
 !.env.example
+
+# banco do modo demonstração
+/.demo/

@@ -25,7 +25,7 @@ interface InfoIngresso {
 
 async function consultar(token: string) {
   if (!/^[A-Za-z0-9_-]{30,60}$/.test(token)) return null;
-  const { data } = await supabaseServico().rpc("consultar_link", { p_token: token });
+  const { data } = await (await supabaseServico()).rpc("consultar_link", { p_token: token });
   return data as InfoConvite | InfoIngresso | null;
 }
 
@@ -170,7 +170,7 @@ export default async function PaginaPublica({ params }: { params: Promise<{ toke
     );
   }
 
-  const { data: priv } = await supabaseServico().from("config").select("valor").eq("chave", "privacidade").maybeSingle();
+  const { data: priv } = await (await supabaseServico()).from("config").select("valor").eq("chave", "privacidade").maybeSingle();
   return (
     <Moldura>
       <CabecalhoEvento evento={info.evento} setor={info.setor} area={info.area} />

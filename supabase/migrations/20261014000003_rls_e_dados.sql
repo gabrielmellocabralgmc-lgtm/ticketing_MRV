@@ -106,7 +106,8 @@ insert into transicoes (de, para, papeis, torcedor, sistema) values
   ('facial_ok', 'cancelado', '{admin,marketing,responsavel}', true, true),
   ('lista_espera', 'cancelado', '{admin,marketing,responsavel}', true, true),
   ('enviado', 'cancelado', '{admin,marketing}', true, false),
-  ('confirmado', 'cancelado', '{admin,marketing}', true, false);
+  ('confirmado', 'cancelado', '{admin,marketing}', true, false),
+  ('enviado', 'facial_ok', '{admin,marketing}', false, false);
 
 -- ---------------------------------------------------------------- áreas e cotas do regulamento
 insert into areas (nome, slug, ordem) values

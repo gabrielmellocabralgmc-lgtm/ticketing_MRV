@@ -36,7 +36,8 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
         acoes={
           s.staff && (
             <>
-              <BotaoLink href={`/eventos/${id}/aprovacao`} variante="primario">Aprovação{pendenteAprovar > 0 && ` (${pendenteAprovar})`}</BotaoLink>
+              <BotaoLink href={`/eventos/${id}/lista`} variante="primario">Lista geral</BotaoLink>
+              <BotaoLink href={`/eventos/${id}/aprovacao`}>Aprovação{pendenteAprovar > 0 && ` (${pendenteAprovar})`}</BotaoLink>
               <BotaoLink href={`/eventos/${id}/envio`}>A enviar{aEnviar > 0 && ` (${aEnviar})`}</BotaoLink>
               <a href={`/eventos/${id}/exportar`} className="inline-flex items-center rounded-lg px-3.5 py-2 text-sm font-semibold text-mrv-700 ring-1 ring-mrv-700/30 hover:bg-mrv-50">Exportar XLSX</a>
               <BotaoLink href={`/eventos/${id}/editar`} variante="fantasma">Editar</BotaoLink>

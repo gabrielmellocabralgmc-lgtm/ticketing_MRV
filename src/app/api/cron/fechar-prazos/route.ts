@@ -6,7 +6,7 @@ import { cronNaoAutorizado } from "../autorizar";
 export async function GET(req: Request) {
   const negado = cronNaoAutorizado(req);
   if (negado) return negado;
-  const supabase = supabaseServico();
+  const supabase = (await supabaseServico());
   await supabase.rpc("expirar_convites");
   const { data: eventos, error } = await supabase.from("eventos").select("id, titulo").eq("status", "aberto").lt("prazo_solicitacao", new Date().toISOString());
   if (error) return NextResponse.json({ erro: error.message }, { status: 500 });

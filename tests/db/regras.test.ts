@@ -277,11 +277,18 @@ describe("pipeline completo e RLS", () => {
     const [h] = await b.sql<{ motivo: string }>(`select motivo from status_historico where ingresso_id = $1 order by id desc limit 1`, [r.ingressos[1]]);
     expect(h.motivo).toBe("enviado sem confirmação da facial");
 
+    // envio marcado por engano pode ser desfeito
+    await b.como(mkt, `select desfazer_envio($1)`, [[r.ingressos[0]]]);
+    const [desfeito] = await b.sql<{ status: string; enviado_em: string | null }>(`select status, enviado_em from ingressos where id = $1`, [r.ingressos[0]]);
+    expect(desfeito).toEqual({ status: "facial_ok", enviado_em: null });
+    await expect(b.como(respDH, `select desfazer_envio($1)`, [[r.ingressos[0]]])).rejects.toThrow(/SEM_PERMISSAO/);
+    await b.como(mkt, `select marcar_enviados($1)`, [[r.ingressos[0]]]);
+
     await b.como(null, `select acao_torcedor($1, 'recebido')`, [tok.token]);
     expect((await statusDe([r.ingressos[0]]))[0]).toBe("confirmado");
 
     const hist = await b.sql<{ para: string }>(`select para from status_historico where ingresso_id = $1 order by id`, [r.ingressos[0]]);
-    expect(hist.map((x) => x.para)).toEqual(["solicitado", "validado_area", "aprovado", "facial_pendente", "facial_ok", "enviado", "confirmado"]);
+    expect(hist.map((x) => x.para)).toEqual(["solicitado", "validado_area", "aprovado", "facial_pendente", "facial_ok", "enviado", "facial_ok", "enviado", "confirmado"]);
   });
 
   it("responsável só enxerga a própria área; operação não vê dados pessoais", async () => {

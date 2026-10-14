@@ -9,7 +9,7 @@ const tokenValido = (t: string) => /^[A-Za-z0-9_-]{30,60}$/.test(t);
 
 export async function preencherConvite(token: string, pessoas: { nome: string; cpf: string; celular: string; email?: string }[], aceite: boolean): Promise<Resultado> {
   if (!tokenValido(token)) return { ok: false, erro: "Link inválido." };
-  const { error } = await supabaseServico().rpc("preencher_convite", {
+  const { error } = await (await supabaseServico()).rpc("preencher_convite", {
     p_token: token,
     p_pessoas: pessoas.map((p) => ({ nome: p.nome, cpf: p.cpf, celular: p.celular, email: p.email || null })),
     p_aceite_privacidade: aceite,
@@ -21,7 +21,7 @@ export async function preencherConvite(token: string, pessoas: { nome: string; c
 
 export async function acaoTorcedor(token: string, acao: "facial_ok" | "recebido" | "cancelar"): Promise<Resultado> {
   if (!tokenValido(token)) return { ok: false, erro: "Link inválido." };
-  const { error } = await supabaseServico().rpc("acao_torcedor", { p_token: token, p_acao: acao });
+  const { error } = await (await supabaseServico()).rpc("acao_torcedor", { p_token: token, p_acao: acao });
   if (error) return falha(error);
   revalidatePath(`/i/${token}`);
   return { ok: true };

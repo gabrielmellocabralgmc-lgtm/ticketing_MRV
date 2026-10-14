@@ -11,7 +11,9 @@
     "test:watch": "vitest",
     "importar": "tsx scripts/importar-planilha.ts",
     "criar-admin": "tsx scripts/criar-admin.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "demo": "NEXT_PUBLIC_DEMO=1 NEXT_PUBLIC_SITE_URL=http://localhost:3000 next dev -p 3000",
+    "demo:zerar": "rm -rf .demo"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

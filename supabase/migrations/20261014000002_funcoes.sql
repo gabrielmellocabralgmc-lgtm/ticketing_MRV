@@ -311,7 +311,7 @@ begin
   update ingressos set
     status = p_para,
     facial_em = case when p_para = 'facial_ok' then now() else facial_em end,
-    enviado_em = case when p_para = 'enviado' then now() else enviado_em end,
+    enviado_em = case when p_para = 'enviado' then now() when v_ing.status = 'enviado' then null else enviado_em end,
     recebido_em = case when p_para = 'confirmado' then now() else recebido_em end,
     checkin_em = case when p_para = 'presente' then now() when v_ing.status = 'presente' then null else checkin_em end,
     lista_espera_desde = case when p_para = 'lista_espera' then now() else lista_espera_desde end
@@ -807,6 +807,18 @@ begin
     v_n := v_n + _em_lote(p_ids, 'enviado', 'enviado sem confirmação da facial', array['aprovado', 'facial_pendente']::status_ingresso[]);
   end if;
   perform registrar_auditoria('marcar_enviados', 'ingresso', null, jsonb_build_object('ids', p_ids, 'forcar', p_forcar, 'qtd', v_n));
+  return v_n;
+end $$;
+
+-- Desfaz um "Enviado" marcado por engano (volta para facial OK)
+create or replace function desfazer_envio(p_ids uuid[]) returns int
+language plpgsql security definer set search_path = public as $$
+declare
+  v_n int;
+begin
+  perform _exigir(eh_staff());
+  v_n := _em_lote(p_ids, 'facial_ok', 'envio desfeito (marcado por engano)', array['enviado']::status_ingresso[]);
+  perform registrar_auditoria('desfazer_envio', 'ingresso', null, jsonb_build_object('ids', p_ids, 'qtd', v_n));
   return v_n;
 end $$;
 

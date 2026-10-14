@@ -39,6 +39,9 @@ export const enviados = async (evento: string, ids: string[]) =>
 export const enviadosSemFacial = async (evento: string, ids: string[]) =>
   lote(evento, "marcar_enviados", { p_ids: ids, p_forcar: true }, (n) => `${n} marcado(s) como enviado(s) sem confirmação da facial.`);
 
+export const desfazerEnvio = async (evento: string, ids: string[]) =>
+  lote(evento, "desfazer_envio", { p_ids: ids }, (n) => `${n} envio(s) desfeito(s).`);
+
 export const cancelarMarketing = async (evento: string, ids: string[], motivo: string) =>
   lote(evento, "cancelar_ingressos", { p_ids: ids, p_motivo: motivo }, (n) => `${n} cancelado(s); a lista de espera foi chamada.`);
 
