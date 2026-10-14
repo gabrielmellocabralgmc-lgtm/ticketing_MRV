@@ -162,8 +162,16 @@ tests/                 unit/ e db/ (PGlite)
 - Exportação XLSX no layout da planilha (Arquibancada/Pista, Camarote, Convidados Camarote, Divisão)
 - Importação da planilha legada (tela e CLI) e das respostas do Microsoft Forms (CSV/XLSX, com mapeamento de colunas)
 
+## Fase 2 — entregue
+
+- **Central de pedidos do camarote** (aba Camarote do Painel do jogo): anfitrião, área, prioridade, convidados colados do WhatsApp, catering corporativo (centro de custo obrigatório) ou pessoal, indicação e observações. Se o anfitrião não estiver presente, o sistema orienta a usar a arquibancada.
+- **Jogo concorrido**: pedidos do camarote entram numa fila e o botão *Distribuir vagas pela prioridade* preenche as vagas na ordem Dir. Executiva/Presidência → Diretores → Gestores (e, entre iguais, quem pediu antes); pedido que não cabe inteiro é pulado. Em jogo tranquilo o pedido do Marketing já entra aprovado.
+- **Link para os convidados do anfitrião**: depois de aprovado, gera-se um link que o anfitrião manda aos convidados; quem preenche entra aprovado e vinculado a ele.
+- **Histórico de cada pedido** (quem lançou, aprovou, alterou e cada mudança de status) e edição de prioridade/catering com registro.
+- **Check-in**: pessoa fora da lista (a operação registra e o Marketing libera no painel; liberada, já entra como “chegou”), confirmações guardadas no celular quando a internet cai (enviadas depois com o horário real) e lista para imprimir/salvar em PDF.
+- **Encerrar evento** (botão no Admin e automático 6 h após o início): no camarote, quem teve a chegada confirmada vira *presente* e quem não teve vira *no-show*.
+
 ## Próximas fases
 
-- **Fase 2**: central de pedidos do camarote (fila por prioridade em jogo concorrido, catering e centro de custo, anfitrião obrigatório validado, sugestão de arquibancada), check-in mobile offline, PDF de impressão.
 - **Fase 3**: e-mails de convocação por área com template editável, disparo automático do passo a passo, lembretes D-2/D-1 e adapter da API do WhatsApp Business. A interface `CanalMensagem` já existe em `src/lib/mensagens`.
 - **Fase 4**: dashboard em tempo real, histórico de uso e no-show por área e por pessoa, relatório pós-evento, job de retenção/anonimização.

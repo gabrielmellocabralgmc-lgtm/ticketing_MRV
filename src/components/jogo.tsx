@@ -55,13 +55,13 @@ export function CabecalhoJogo({
   return (
     // ocupa a largura toda da tela, mesmo dentro do <main> com largura máxima
     <section className="relative left-1/2 -mt-8 mb-8 w-screen -translate-x-1/2 bg-preto text-white">
-      <div className={clsx("mx-auto flex max-w-7xl flex-wrap items-center px-4", grande ? "gap-6 py-8" : "gap-4 py-5")}>
+      <div className={clsx("mx-auto flex max-w-7xl items-center px-4", grande ? "gap-4 py-6 sm:gap-6 sm:py-8" : "gap-3 py-5 sm:gap-4")}>
         <Escudo url={escudoAtletico} nome="do Atlético" tamanho={grande ? "g" : "m"} />
-        <div className="flex min-w-0 flex-[1_1_280px] flex-col gap-1.5">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <div className="font-display text-[13px] font-bold tracking-[0.1em] text-amarelo-500 uppercase">
             {rotulo ?? [ev.competicao, "Arena MRV"].filter(Boolean).join(" · ")}
           </div>
-          <h1 className={clsx("font-display leading-none font-extrabold uppercase", grande ? "text-4xl sm:text-5xl" : "text-3xl")}>{ev.titulo}</h1>
+          <h1 className={clsx("font-display leading-none font-extrabold uppercase", grande ? "text-3xl sm:text-5xl" : "text-2xl sm:text-3xl")}>{ev.titulo}</h1>
           <div className="text-[15px] text-white/80 first-letter:uppercase">
             {dataLonga(ev.inicio)}{ev.abertura_portoes ? ` · portões ${dataLonga(ev.abertura_portoes).split(" às ")[1] ?? ""}` : ""}
           </div>

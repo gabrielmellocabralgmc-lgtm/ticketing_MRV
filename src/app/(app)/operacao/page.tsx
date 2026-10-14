@@ -5,7 +5,7 @@ import { CabecalhoJogo } from "@/components/jogo";
 import { CHAVE_ESCUDO_ATLETICO, chaveEscudoAdversario, imagensDisponiveis } from "@/lib/imagens";
 import { exigirSessao } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
-import { ListaChegada, type Convidado } from "./lista-chegada";
+import { ListaChegada, type Convidado, type WalkinOperacao } from "./lista-chegada";
 
 export const metadata = { title: "Camarote" };
 
@@ -25,7 +25,9 @@ export default async function Operacao({ searchParams }: { searchParams: Promise
   if (!ev) {
     return <p className="py-16 text-center text-tinta/60">Nenhum jogo próximo.</p>;
   }
-  const [{ data, error }, img] = await Promise.all([supabase.rpc("lista_camarote", { p_evento: ev.id }), imagensDisponiveis()]);
+  const [{ data, error }, img, { data: walkins }] = await Promise.all([
+    supabase.rpc("lista_camarote", { p_evento: ev.id }), imagensDisponiveis(), supabase.rpc("lista_walkins", { p_evento: ev.id }),
+  ]);
 
   return (
     <>
@@ -41,7 +43,13 @@ export default async function Operacao({ searchParams }: { searchParams: Promise
           ))}
         </div>
       )}
-      {error ? <p className="text-red-700">Sem acesso à lista do camarote.</p> : <ListaChegada convidados={(data ?? []) as Convidado[]} />}
+      <div className="mb-3 flex justify-end">
+        <a href={`/eventos/${ev.id}/camarote/imprimir`} target="_blank" rel="noopener" className="text-sm font-semibold text-mrv-700 underline">
+          Imprimir lista (reserva sem internet)
+        </a>
+      </div>
+      {error ? <p className="text-red-700">Sem acesso à lista do camarote.</p>
+        : <ListaChegada evento={ev.id} convidados={(data ?? []) as Convidado[]} walkins={(walkins ?? []) as WalkinOperacao[]} />}
     </div>
     </>
   );

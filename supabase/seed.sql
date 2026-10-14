@@ -126,4 +126,15 @@ begin
     jsonb_build_object('nome', 'Investidor Convidado', 'cpf', pg_temp.cpf_fake(n + 1), 'celular', '31991113333'),
     jsonb_build_object('nome', 'Parceira Convidada', 'cpf', pg_temp.cpf_fake(n + 2), 'celular', '31991114444')),
     '{"origem":"marketing","prioridade":"exec_presidencia","catering":"corporativo","centro_custo":"CC-1000","indicacao_de":"Presidência"}');
+  -- jogo concorrido: pedidos de camarote entram na fila; o Marketing distribui pela prioridade
+  perform distribuir_camarote(v_ev);
+  perform criar_pedido(v_ev, 'camarote', (select id from areas where slug = 'comercial-corporativo'), jsonb_build_array(
+    jsonb_build_object('nome', 'Diretor Comercial', 'cpf', pg_temp.cpf_fake(n + 3)),
+    jsonb_build_object('nome', 'Cliente Construtora', 'cpf', pg_temp.cpf_fake(n + 4)),
+    jsonb_build_object('nome', 'Cliente Incorporadora', 'cpf', pg_temp.cpf_fake(n + 5))),
+    '{"origem":"marketing","prioridade":"diretor","catering":"pessoal","indicacao_de":"Diretoria Comercial"}');
+  perform criar_pedido(v_ev, 'camarote', (select id from areas where slug = 'dh'), jsonb_build_array(
+    jsonb_build_object('nome', 'Gestora DH', 'cpf', pg_temp.cpf_fake(n + 6)),
+    jsonb_build_object('nome', 'Colaborador Destaque', 'cpf', pg_temp.cpf_fake(n + 7))),
+    '{"origem":"marketing","prioridade":"gestor","catering":"corporativo","centro_custo":"CC-2040","observacao":"Reconhecimento do time"}');
 end $$;

@@ -11,6 +11,7 @@ import { separarLista } from "@/lib/parse-lista";
 import { normalizarTexto } from "@/lib/texto";
 import { ROTULO_SETOR, type Setor, type StatusIngresso } from "@/lib/tipos";
 import { adicionarNomes, type ResultadoLinha } from "./actions";
+import { PainelCamarote, type LinhaCamarote, type Walkin } from "./camarote";
 
 export interface LinhaPainel {
   id: string;
@@ -45,15 +46,15 @@ const STATUS_SIMPLES: Partial<Record<StatusIngresso, { rotulo: string; tom: "cin
 };
 const ENVIADOS: StatusIngresso[] = ["enviado", "confirmado", "presente"];
 
-export function PainelJogo({ evento, linhas, setores, areas, areaPadrao }: {
+export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins, concorrido }: {
   evento: string; linhas: LinhaPainel[]; setores: SetorPainel[];
-  areas: { id: string; nome: string }[]; areaPadrao: string;
+  areas: { id: string; nome: string }[]; areaPadrao: string; walkins: Walkin[]; concorrido: boolean;
 }) {
   const [setor, setSetor] = useState<Setor>(setores.find((s) => s.setor === "arquibancada")?.setor ?? setores[0]?.setor ?? "arquibancada");
   const [busca, setBusca] = useState("");
   const [adicionando, setAdicionando] = useState(false);
 
-  const doSetor = linhas.filter((l) => l.setor === setor);
+  const doSetor = linhas.filter((l) => l.setor === setor && l.nome); // vagas de convite sem dados ficam fora da lista
   const ativos = doSetor.filter((l) => l.status !== "lista_espera");
   const espera = doSetor.filter((l) => l.status === "lista_espera").sort((a, b) => (a.lista_espera_desde ?? "").localeCompare(b.lista_espera_desde ?? ""));
   const filtrar = (ls: LinhaPainel[]) => {
@@ -76,13 +77,20 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao }: {
             <div className={clsx("tabular text-[13px]", s.setor === setor ? "text-white/85" : "text-cinza")}>{s.ocupados} de {s.capacidade}</div>
           </button>
         ))}
-        <Botao variante="laranja" className="ml-auto" onClick={() => setAdicionando((a) => !a)}>
-          {adicionando ? "Fechar" : "+ Adicionar nomes"}
-        </Botao>
+        {setor !== "camarote" && (
+          <Botao variante="laranja" className="ml-auto" onClick={() => setAdicionando((a) => !a)}>
+            {adicionando ? "Fechar" : "+ Adicionar nomes"}
+          </Botao>
+        )}
       </div>
 
+      {setor === "camarote" ? (
+        <PainelCamarote evento={evento} linhas={linhas.filter((l) => l.setor === "camarote") as unknown as LinhaCamarote[]} walkins={walkins}
+          capacidade={info?.capacidade ?? 44} concorrido={concorrido} areas={areas} />
+      ) : (<>
+
       {adicionando && (
-        <AdicionarNomes evento={evento} setores={setores.map((s) => s.setor)} setorInicial={setor} areas={areas} areaPadrao={areaPadrao}
+        <AdicionarNomes evento={evento} setores={setores.map((s) => s.setor).filter((x) => x !== "camarote")} setorInicial={setor} areas={areas} areaPadrao={areaPadrao}
           aoConcluir={() => setAdicionando(false)} />
       )}
 
@@ -111,6 +119,7 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao }: {
           <TabelaSimples linhas={filtrar(espera)} posicao vazio="" />
         </div>
       )}
+      </>)}
     </div>
   );
 }

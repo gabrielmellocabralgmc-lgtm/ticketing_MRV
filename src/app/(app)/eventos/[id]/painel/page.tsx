@@ -6,6 +6,7 @@ import { exigirStaff } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
 import { carregarEvento, carregarResumo } from "../dados";
 import { carregarIngressos } from "../ingressos";
+import { type Walkin } from "./camarote";
 import { PainelJogo, type LinhaPainel } from "./painel-jogo";
 
 export const metadata = { title: "Painel do jogo" };
@@ -17,10 +18,10 @@ export default async function Painel({ params }: { params: Promise<{ id: string 
   const supabase = await supabaseServidor();
   const [{ setores }, linhas, { data: areas }] = await Promise.all([
     carregarResumo(id),
-    carregarIngressos(id, ["solicitado", "validado_area", "aprovado", "facial_pendente", "facial_ok", "enviado", "confirmado", "presente", "lista_espera"], "painel"),
+    carregarIngressos(id, ["convite_enviado", "aguardando_preenchimento", "solicitado", "validado_area", "aprovado", "facial_pendente", "facial_ok", "enviado", "confirmado", "presente", "lista_espera"], "painel"),
     supabase.from("areas").select("id, nome, slug").eq("ativo", true).order("ordem"),
   ]);
-  const img = await imagensDisponiveis();
+  const [img, { data: walkins }] = await Promise.all([imagensDisponiveis(), supabase.rpc("lista_walkins", { p_evento: id })]);
   const areaPadrao = (areas ?? []).find((a) => a.slug === "marketing")?.id ?? areas?.[0]?.id ?? "";
 
   return (
@@ -35,6 +36,8 @@ export default async function Painel({ params }: { params: Promise<{ id: string 
         setores={setores.map((x) => ({ setor: x.setor, capacidade: x.capacidade, ocupados: x.ocupados }))}
         areas={(areas ?? []).map(({ id, nome }) => ({ id, nome }))}
         areaPadrao={areaPadrao}
+        walkins={(walkins ?? []) as Walkin[]}
+        concorrido={ev.concorrido}
       />
     </>
   );

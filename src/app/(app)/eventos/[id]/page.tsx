@@ -10,6 +10,7 @@ import { ROTULO_SETOR, ROTULO_STATUS_EVENTO } from "@/lib/tipos";
 import { CabecalhoJogo } from "@/components/jogo";
 import { CHAVE_ESCUDO_ATLETICO, chaveEscudoAdversario, imagensDisponiveis } from "@/lib/imagens";
 import { ajustarCota, mudarStatusEvento, remanejarCota } from "../actions";
+import { encerrarEvento } from "./painel/actions";
 import { carregarEvento, carregarResumo, type LinhaResumo } from "./dados";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -79,7 +80,10 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
                 confirmar="Encerrar o prazo? Áreas não poderão mais solicitar e o saldo não usado volta para o pool." />
             )}
             {ev.status === "fechado" && <BotaoAcao acao={mudarStatusEvento.bind(null, id, "aberto")} rotulo="Reabrir" />}
-            {ev.status === "fechado" && <BotaoAcao acao={mudarStatusEvento.bind(null, id, "realizado")} rotulo="Marcar como realizado" />}
+            {["aberto", "fechado"].includes(ev.status) && new Date(ev.inicio).getTime() < Date.now() && (
+              <BotaoAcao acao={encerrarEvento.bind(null, id)} rotulo="Encerrar evento" variante="laranja"
+                confirmar="Encerrar o evento? No camarote, quem não teve a chegada confirmada vira no-show." />
+            )}
           </div>
         </Cartao>
       )}
