@@ -5,22 +5,23 @@ import { sair } from "./actions";
 
 export default async function LayoutInterno({ children }: { children: React.ReactNode }) {
   const s = await exigirSessao();
-  const links = [
-    { href: "/eventos", rotulo: "Eventos" },
-    ...(s.staff ? [{ href: "/admin/areas", rotulo: "Áreas e responsáveis" }] : []),
-    ...(s.papel === "admin"
-      ? [
-          { href: "/admin/usuarios", rotulo: "Usuários" },
-          { href: "/admin/importar", rotulo: "Importar" },
-          { href: "/admin/auditoria", rotulo: "Auditoria" },
-        ]
-      : []),
-  ];
+  // Cada perfil vê só o que usa
+  const links =
+    s.papel === "operacao" ? [{ href: "/operacao", rotulo: "Camarote" }]
+      : s.papel === "admin"
+        ? [
+            { href: "/eventos", rotulo: "Eventos" },
+            { href: "/admin/areas", rotulo: "Áreas e responsáveis" },
+            { href: "/admin/usuarios", rotulo: "Usuários" },
+            { href: "/admin/importar", rotulo: "Importar" },
+            { href: "/admin/auditoria", rotulo: "Auditoria" },
+          ]
+        : [{ href: "/eventos", rotulo: "Jogos" }];
   return (
     <div className="min-h-dvh">
       <header className="bg-mrv-700 text-white">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
-          <Link href="/eventos" className="flex items-center gap-2 font-bold">
+          <Link href={s.papel === "operacao" ? "/operacao" : "/eventos"} className="flex items-center gap-2 font-bold">
             <span className="rounded-md bg-white px-1.5 py-0.5 text-xs font-black text-mrv-700">MRV</span>
             Ingressos · Arena MRV
           </Link>

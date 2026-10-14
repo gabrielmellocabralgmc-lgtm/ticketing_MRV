@@ -1,6 +1,6 @@
 // MODO DEMONSTRAÇÃO (npm run demo): imita a parte do cliente Supabase que o app usa
 // (from/select/eq/in/lt/order/limit/single, insert/update/upsert/delete, rpc, auth) sobre um
-// Postgres embutido (PGlite) gravado em .demo/. Sem Docker, sem conta, sem e-mail.
+// Postgres embutido (PGlite) gravado em .demo.nosync/. Sem Docker, sem conta, sem e-mail.
 // A RLS e as funções do banco são as mesmas de produção: cada consulta roda com o papel
 // "authenticated" e o usuário escolhido na tela de login. Nunca usar em produção.
 import { PGlite, type Transaction } from "@electric-sql/pglite";
@@ -19,12 +19,13 @@ const g = globalThis as Global;
 export function bancoDemo(): Promise<PGlite> {
   if (!g.__bancoDemo) {
     g.__bancoDemo = (async () => {
-      const dir = path.join(process.cwd(), ".demo");
+      // ".nosync": o iCloud não sincroniza (a pasta Desktop está no iCloud e corromperia o banco)
+      const dir = path.join(process.cwd(), ".demo.nosync");
       const novo = !existsSync(path.join(dir, "PG_VERSION"));
       mkdirSync(dir, { recursive: true });
       const db = new PGlite(dir);
       if (novo) {
-        console.log("[demo] criando banco de demonstração em .demo/ (migrações + seed)…");
+        console.log("[demo] criando banco de demonstração em .demo.nosync/ (migrações + seed)…");
         await prepararBanco(db, { seed: true });
         console.log("[demo] pronto.");
       }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AoVivo } from "@/components/ao-vivo";
 import { Titulo } from "@/components/ui";
-import { exigirStaff } from "@/lib/sessao";
+import { exigirAdmin } from "@/lib/sessao";
 import { carregarEvento } from "../dados";
 import { carregarIngressos } from "../ingressos";
 import { enviados, enviadosSemFacial, registrarCopia } from "../marketing-actions";
@@ -10,7 +10,7 @@ import { PainelEnvio } from "./painel-envio";
 export const metadata = { title: "A enviar" };
 
 export default async function Envio({ params }: { params: Promise<{ id: string }> }) {
-  await exigirStaff();
+  await exigirAdmin();
   const { id } = await params;
   const ev = await carregarEvento(id);
   const linhas = await carregarIngressos(id, ["aprovado", "facial_pendente", "facial_ok", "enviado", "confirmado"], "envio");

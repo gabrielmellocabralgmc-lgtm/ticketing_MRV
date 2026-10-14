@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { BotaoAcao, FormAcao } from "@/components/form-acao";
 import { AoVivo } from "@/components/ao-vivo";
 import { BotaoLink, Campo, Cartao, Entrada, Numero, Selecao, Selo, Tabela, Titulo, Vazio } from "@/components/ui";
@@ -7,7 +8,7 @@ import { exigirSessao } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
 import { ROTULO_SETOR, ROTULO_STATUS_EVENTO } from "@/lib/tipos";
 import { ajustarCota, mudarStatusEvento, remanejarCota } from "../actions";
-import { carregarEvento, carregarResumo } from "./dados";
+import { carregarEvento, carregarResumo, type LinhaResumo } from "./dados";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -17,8 +18,16 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function PaginaEvento({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const s = await exigirSessao();
+  if (s.papel === "marketing") redirect(`/eventos/${id}/painel`);
+  if (s.papel === "operacao") redirect(`/operacao?evento=${id}`);
   const ev = await carregarEvento(id);
   const { linhas, setores } = await carregarResumo(id);
+  if (s.papel === "responsavel") {
+    const minhas = linhas.filter((l) => l.cota !== null);
+    // uma área só: vai direto para a lista dela
+    if (minhas.length === 1) redirect(`/eventos/${id}/areas/${minhas[0].area_id}?setor=${minhas[0].setor}`);
+    return <VisaoResponsavel id={id} titulo={ev.titulo} inicio={ev.inicio} linhas={minhas} />;
+  }
   const supabase = await supabaseServidor();
   const { data: historico } = s.staff
     ? await supabase.from("cotas_historico").select("id, setor, area_id, de, para, motivo, em, areas(nome)").eq("evento_id", id).order("id", { ascending: false }).limit(15)
@@ -36,7 +45,8 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
         acoes={
           s.staff && (
             <>
-              <BotaoLink href={`/eventos/${id}/lista`} variante="primario">Lista geral</BotaoLink>
+              <BotaoLink href={`/eventos/${id}/painel`} variante="primario">Painel do jogo</BotaoLink>
+              <BotaoLink href={`/eventos/${id}/lista`}>Lista geral</BotaoLink>
               <BotaoLink href={`/eventos/${id}/aprovacao`}>Aprovação{pendenteAprovar > 0 && ` (${pendenteAprovar})`}</BotaoLink>
               <BotaoLink href={`/eventos/${id}/envio`}>A enviar{aEnviar > 0 && ` (${aEnviar})`}</BotaoLink>
               <a href={`/eventos/${id}/exportar`} className="inline-flex items-center rounded-lg px-3.5 py-2 text-sm font-semibold text-mrv-700 ring-1 ring-mrv-700/30 hover:bg-mrv-50">Exportar XLSX</a>
@@ -197,6 +207,34 @@ async function SeletorSetorArea({ setores, linhas, incluirCapacidade }: { setore
           {areas.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
         </Selecao>
       </Campo>
+    </>
+  );
+}
+
+/** Responsável de área: só as próprias cotas, sem os totais do setor. */
+function VisaoResponsavel({ id, titulo, inicio, linhas: minhas }: { id: string; titulo: string; inicio: string; linhas: LinhaResumo[] }) {
+  return (
+    <>
+      <Titulo sub={<span className="first-letter:uppercase">{dataLonga(inicio)}</span>}>{titulo}</Titulo>
+      {minhas.length === 0 ? (
+        <Vazio>Suas áreas não têm cota neste evento.</Vazio>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {minhas.map((l) => (
+            <Link key={`${l.setor}-${l.area_id}`} href={`/eventos/${id}/areas/${l.area_id}?setor=${l.setor}`}>
+              <Cartao className="transition hover:ring-mrv-600/40">
+                <h2 className="font-bold text-mrv-900">{l.area_nome} · {ROTULO_SETOR[l.setor]}</h2>
+                <div className="mt-3 grid grid-cols-3 gap-3">
+                  <Numero rotulo="Sua cota" valor={l.cota ?? 0} />
+                  <Numero rotulo="Usados" valor={l.ocupados} tom="cinza" />
+                  <Numero rotulo="Saldo" valor={Math.max(0, (l.cota ?? 0) - l.ocupados)} tom={(l.cota ?? 0) - l.ocupados <= 0 ? "laranja" : "mrv"} />
+                </div>
+                {l.em_espera > 0 && <p className="mt-2 text-xs text-amber-700">{l.em_espera} na lista de espera</p>}
+              </Cartao>
+            </Link>
+          ))}
+        </div>
+      )}
     </>
   );
 }

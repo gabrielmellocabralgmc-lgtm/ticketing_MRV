@@ -510,6 +510,8 @@ begin
     raise exception 'COTA_EXCEDIDA: a área não tem saldo para % ingresso(s) (saldo: %)',
       v_n, (select s.saldo from saldo(p_evento, p_setor, p_area) s);
   end if;
+  -- O Marketing é quem aprova: o que ele mesmo lança já entra aprovado
+  if v_origem = 'marketing' and v_status = 'solicitado' then v_status := 'aprovado'; end if;
 
   insert into pedidos (evento_id, setor, area_id, origem, solicitante, prioridade, catering, centro_custo, indicacao_de, observacao)
   values (p_evento, p_setor, p_area, v_origem, auth.uid(),
@@ -520,8 +522,13 @@ begin
   perform _ctx('usuario', coalesce(p_opcoes ->> 'motivo', case when v_status = 'lista_espera' then 'cota esgotada: entrou na lista de espera' end));
   for p in select * from jsonb_array_elements(p_pessoas) loop
     i := i + 1;
+    -- Marketing cola só nome + CPF; áreas e convidados informam também o celular
+    if v_origem = 'marketing' then
+      perform _exigir(limpar_nome(p ->> 'nome') is not null, 'DADOS_INCOMPLETOS: informe o nome');
+      perform _exigir(normalizar_cpf(p ->> 'cpf') is not null, format('DADOS_INCOMPLETOS: informe o CPF de %s', p ->> 'nome'));
+    end if;
     v_pessoa := _upsert_pessoa(p || jsonb_build_object('colaborador', coalesce((p ->> 'colaborador')::boolean, i = 1 and p_setor <> 'camarote')),
-                               not v_importacao);
+                               not v_importacao and v_origem <> 'marketing');
     if not v_liberar then perform _checar_duplicado(p_evento, v_pessoa); end if;
     insert into ingressos (evento_id, setor, area_id, pedido_id, pessoa_id, convidado_de, status, preenchido_por,
                            cpf_duplicado_liberado, observacao)

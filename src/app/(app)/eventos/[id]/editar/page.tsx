@@ -1,5 +1,5 @@
 import { Cartao, Titulo } from "@/components/ui";
-import { exigirStaff } from "@/lib/sessao";
+import { exigirAdmin } from "@/lib/sessao";
 import { atualizarEvento } from "../../actions";
 import { FormEvento } from "../../form-evento";
 import { carregarEvento } from "../dados";
@@ -7,7 +7,7 @@ import { carregarEvento } from "../dados";
 export const metadata = { title: "Editar evento" };
 
 export default async function EditarEvento({ params }: { params: Promise<{ id: string }> }) {
-  await exigirStaff();
+  await exigirAdmin();
   const { id } = await params;
   const ev = await carregarEvento(id);
   return (

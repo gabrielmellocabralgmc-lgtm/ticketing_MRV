@@ -167,7 +167,7 @@ describe("CPF", () => {
     await expect(pedir(respLuggo, ev, luggo, [nova(), { ...p, nome: "Outra grafia" }])).rejects.toThrow(/CPF_DUPLICADO/);
     // Marketing pode liberar a exceção
     const r = await pedir(mkt, ev, presid, [p], { liberar_duplicado: true }, "camarote");
-    expect(r.status).toBe("solicitado");
+    expect(r.status).toBe("aprovado"); // o que o Marketing lança já entra aprovado
   });
 
   it("CPF de pedido cancelado pode ser usado de novo", async () => {
@@ -341,8 +341,11 @@ describe("resumos", () => {
     expect(visao[0]).toMatchObject({ area_id: dh, ocupados: 3, solicitados: 2, convites_aguardando: 1, cota: 10 });
     const tudo = await b.como<{ setor: string }>(mkt, `select * from resumo_evento($1)`, [ev]);
     expect(tudo.filter((r) => r.setor === "arquibancada")).toHaveLength(10);
-    const [arq] = await b.como<{ alocado: number; ocupados: number }>(oper, `select * from resumo_setores($1) where setor = 'arquibancada'`, [ev]);
+    const [arq] = await b.como<{ alocado: number; ocupados: number }>(mkt, `select * from resumo_setores($1) where setor = 'arquibancada'`, [ev]);
     expect(arq).toMatchObject({ alocado: 100, ocupados: 4 });
+    // totais do setor só para Admin/Marketing
+    expect(await b.como(respDH, `select * from resumo_setores($1)`, [ev])).toEqual([]);
+    expect(await b.como(oper, `select * from resumo_setores($1)`, [ev])).toEqual([]);
   });
 });
 
@@ -371,5 +374,52 @@ describe("configuração de áreas e responsáveis", () => {
 
     await expect(b.como(respDH, `select salvar_area(null, 'Hack', 'hack', null, true)`)).rejects.toThrow(/SEM_PERMISSAO/);
     await expect(b.como(mkt, `select salvar_area(null, 'Jurídico', 'juridico-2', null, true)`)).rejects.toThrow(/AREA_DUPLICADA/);
+  });
+});
+
+describe("perfis simplificados", () => {
+  it("responsável vê só a própria cota (sem o total do setor)", async () => {
+    const ev = await novoEvento();
+    await pedir(respLuggo, ev, luggo, [nova(), nova()]);
+    const [vResp] = await b.como<Record<string, number | null>>(respDH, `select * from saldo($1, 'arquibancada', $2)`, [ev, dh]);
+    expect(vResp).toMatchObject({ capacidade: null, ocupados_setor: null, cota: 10, saldo: 10 });
+    const [vMkt] = await b.como<Record<string, number | null>>(mkt, `select * from saldo($1, 'arquibancada', $2)`, [ev, dh]);
+    expect(vMkt).toMatchObject({ capacidade: 100, ocupados_setor: 2 });
+  });
+
+  it("Marketing lança só com nome + CPF e já entra aprovado; área continua exigindo celular", async () => {
+    const ev = await novoEvento();
+    const p = nova("Convidada Marketing");
+    const r = await pedir(mkt, ev, dh, [{ nome: p.nome, cpf: p.cpf }]);
+    expect(r.status).toBe("aprovado");
+    await expect(pedir(mkt, ev, dh, [{ nome: "Sem CPF" }])).rejects.toThrow(/DADOS_INCOMPLETOS/);
+    await expect(pedir(respDH, ev, dh, [{ nome: "Sem Celular", cpf: nova().cpf }])).rejects.toThrow(/DADOS_INCOMPLETOS/);
+  });
+
+  it("operação vê só os aprovados do camarote e marca a chegada sem mexer no status", async () => {
+    const ev = await novoEvento();
+    const ok = await pedir(mkt, ev, presid, [nova("Anfitrião"), nova("Convidado A")], {}, "camarote");
+    const [pend] = (await b.sql<{ id: string }>(`select id from ingressos where pedido_id = $1`, [ok.pedido_id]));
+    expect(pend).toBeTruthy();
+    // um pedido ainda não aprovado (área lançou na arquibancada) não aparece
+    await pedir(respDH, ev, dh, [nova()]);
+    const lista = await b.como<{ ingresso_id: string; nome: string; anfitriao: string; cpf_mascarado: string; chegada_em: string | null }>(
+      oper, `select * from lista_camarote($1)`, [ev]);
+    expect(lista.map((l) => [l.nome, l.anfitriao])).toEqual([["Anfitrião", "Anfitrião"], ["Convidado A", "Anfitrião"]]);
+    expect(lista[0].cpf_mascarado).toMatch(/^\*\*\*/);
+
+    const alvo = lista[1].ingresso_id;
+    const [{ registrar_chegada: em }] = await b.como<{ registrar_chegada: string }>(oper, `select registrar_chegada($1, true)`, [alvo]);
+    expect(em).toBeTruthy();
+    const [st] = await b.sql<{ status: string; chegada_em: string }>(`select status, chegada_em from ingressos where id = $1`, [alvo]);
+    expect(st.status).toBe("aprovado"); // envio/status intactos
+    // confirmar de novo não muda o horário; desfazer limpa
+    const [{ registrar_chegada: em2 }] = await b.como<{ registrar_chegada: string }>(oper, `select registrar_chegada($1, true)`, [alvo]);
+    expect(String(em2)).toBe(String(em));
+    await b.como(oper, `select registrar_chegada($1, false)`, [alvo]);
+    expect((await b.sql<{ chegada_em: string | null }>(`select chegada_em from ingressos where id = $1`, [alvo]))[0].chegada_em).toBeNull();
+
+    await expect(b.como(respDH, `select * from lista_camarote($1)`, [ev])).rejects.toThrow(/SEM_PERMISSAO/);
+    expect(await b.como(oper, `select * from v_ingressos`)).toEqual([]);
   });
 });

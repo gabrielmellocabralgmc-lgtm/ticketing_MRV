@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AoVivo } from "@/components/ao-vivo";
 import { BotaoAcao } from "@/components/form-acao";
 import { Cartao, Tabela, Titulo } from "@/components/ui";
-import { exigirStaff } from "@/lib/sessao";
+import { exigirAdmin } from "@/lib/sessao";
 import { ROTULO_SETOR } from "@/lib/tipos";
 import { carregarEvento, carregarResumo } from "../dados";
 import { carregarIngressos } from "../ingressos";
@@ -12,7 +12,7 @@ import { TabelaSelecao } from "../tabela-selecao";
 export const metadata = { title: "Aprovação" };
 
 export default async function Aprovacao({ params }: { params: Promise<{ id: string }> }) {
-  await exigirStaff();
+  await exigirAdmin();
   const { id } = await params;
   const ev = await carregarEvento(id);
   const [{ linhas: resumo }, ingressos] = await Promise.all([

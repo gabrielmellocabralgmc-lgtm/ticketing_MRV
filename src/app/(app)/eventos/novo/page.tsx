@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Cartao, Titulo } from "@/components/ui";
-import { exigirStaff } from "@/lib/sessao";
+import { exigirAdmin } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
 import { criarEvento } from "../actions";
 import { FormEvento } from "../form-evento";
@@ -8,7 +8,7 @@ import { FormEvento } from "../form-evento";
 export const metadata: Metadata = { title: "Novo evento" };
 
 export default async function NovoEvento() {
-  await exigirStaff();
+  await exigirAdmin();
   const supabase = await supabaseServidor();
   const { data } = await supabase.from("eventos").select("id, titulo, inicio").order("inicio", { ascending: false }).limit(20);
   return (

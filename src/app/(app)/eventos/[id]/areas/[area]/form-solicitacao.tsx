@@ -22,7 +22,6 @@ function problemas(p: PessoaForm) {
 export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados }: { evento: string; setor: Setor; area: string; saldo: number; padraoConvidados: number }) {
   const [pessoas, setPessoas] = useState<PessoaForm[]>(() => Array.from({ length: 1 + padraoConvidados }, vazia));
   const [tocado, setTocado] = useState(false);
-  const [listaEspera, setListaEspera] = useState(true);
   const [colar, setColar] = useState(false);
   const [texto, setTexto] = useState("");
   const [retorno, setRetorno] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -33,6 +32,7 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados }
   const valido = erros.every((e) => Object.keys(e).length === 0);
   const cpfs = preenchidas.map((p) => somenteDigitos(p.cpf).padStart(11, "0"));
   const repetido = cpfs.some((c, i) => c !== "00000000000" && cpfs.indexOf(c) !== i);
+  // Sem saldo para o pedido inteiro: só dá para entrar na lista de espera (sem garantia)
   const excede = preenchidas.length > saldo;
 
   const set = (i: number, campo: keyof PessoaForm, v: string) => setPessoas((ps) => ps.map((p, j) => (j === i ? { ...p, [campo]: v } : p)));
@@ -41,7 +41,7 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados }
     setTocado(true);
     if (!valido || repetido) return;
     iniciar(async () => {
-      const r = await solicitar(evento, setor, area, preenchidas, listaEspera);
+      const r = await solicitar(evento, setor, area, preenchidas, excede);
       if (r.ok) {
         setRetorno({ ok: true, msg: r.mensagem ?? "Pronto." });
         setPessoas(Array.from({ length: 1 + padraoConvidados }, vazia));
@@ -97,15 +97,22 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados }
       })}
       <div className="flex flex-wrap items-center gap-4">
         <Botao type="button" variante="fantasma" onClick={() => setPessoas((ps) => [...ps, vazia()])} disabled={pessoas.length >= 20}>+ Convidado</Botao>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={listaEspera} onChange={(e) => setListaEspera(e.target.checked)} className="size-4 accent-mrv-700" />
-          Sem saldo? Colocar na lista de espera
-        </label>
       </div>
-      {excede && <Aviso tom="alerta">O pedido tem {preenchidas.length} ingresso(s) e a área só tem {saldo} de saldo. {listaEspera ? "Ele vai inteiro para a lista de espera." : "Ele será recusado."}</Aviso>}
+      {excede && (
+        <Aviso tom="alerta">
+          <p className="font-semibold">{saldo === 0 ? "A cota da sua área acabou." : `Sua área tem só ${saldo} ingresso(s) de saldo e este pedido tem ${preenchidas.length}.`}</p>
+          <p className="mt-1">
+            Você pode adicionar à <b>lista de espera</b>, mas <b>não é garantia</b>: a vaga só é liberada se sobrarem ingressos
+            não usados por outras áreas ou se houver cancelamentos, a critério do Marketing MRV. Se for liberado, o pedido aparece
+            nesta lista como “Solicitado”.
+          </p>
+        </Aviso>
+      )}
       {tocado && repetido && <Aviso tom="erro">O mesmo CPF aparece duas vezes neste pedido.</Aviso>}
       {retorno && <Aviso tom={retorno.ok ? "ok" : "erro"}>{retorno.msg}</Aviso>}
-      <Botao type="button" onClick={enviar} disabled={pendente}>{pendente ? "Enviando…" : `Solicitar ${preenchidas.length} ingresso(s)`}</Botao>
+      <Botao type="button" variante={excede ? "laranja" : "primario"} onClick={enviar} disabled={pendente}>
+        {pendente ? "Enviando…" : excede ? `Adicionar ${preenchidas.length} à lista de espera` : `Solicitar ${preenchidas.length} ingresso(s)`}
+      </Botao>
       <p className="text-xs text-tinta/60">
         Ao enviar, você confirma que as pessoas foram informadas de que a MRV usará nome, CPF e celular só para emitir o ingresso e orientar o cadastro no Galo ID.
       </p>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AoVivo } from "@/components/ao-vivo";
 import { Titulo } from "@/components/ui";
-import { exigirStaff } from "@/lib/sessao";
+import { exigirAdmin } from "@/lib/sessao";
 import { carregarEvento } from "../dados";
 import { carregarIngressos } from "../ingressos";
 import { desfazerEnvio, enviados, enviadosSemFacial, registrarCopia } from "../marketing-actions";
@@ -10,7 +10,7 @@ import { ListaGeral, type LinhaGeral } from "./lista-geral";
 export const metadata = { title: "Lista geral" };
 
 export default async function PaginaLista({ params }: { params: Promise<{ id: string }> }) {
-  await exigirStaff();
+  await exigirAdmin();
   const { id } = await params;
   const ev = await carregarEvento(id);
   const linhas = (await carregarIngressos(id, [

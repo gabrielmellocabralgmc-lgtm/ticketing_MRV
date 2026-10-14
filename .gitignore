@@ -47,3 +47,5 @@ next-env.d.ts
 
 # banco do modo demonstração
 /.demo/
+/.demo.nosync/
+/.next.nosync/

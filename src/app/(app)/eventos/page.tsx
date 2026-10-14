@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { BotaoLink, Cartao, Selo, Titulo, Vazio } from "@/components/ui";
 import { dataLonga, dataHora } from "@/lib/formato";
 import { exigirSessao } from "@/lib/sessao";
@@ -10,13 +11,22 @@ export const metadata: Metadata = { title: "Eventos" };
 
 export default async function Eventos() {
   const s = await exigirSessao();
+  if (s.papel === "operacao") redirect("/operacao");
   const supabase = await supabaseServidor();
   const { data } = await supabase.from("eventos").select("*").order("inicio", { ascending: false }).limit(60);
   const eventos = ((data ?? []) as Evento[]).filter((e) => s.staff || e.status !== "rascunho");
+  // Staff vê o total do setor; responsável, só a cota das próprias áreas
+  type Linha = { setor: Setor; rotulo: string; ocupados: number; capacidade: number; em_espera: number };
   const resumos = await Promise.all(
-    eventos.map(async (e) => {
-      const { data: r } = await supabase.rpc("resumo_setores", { p_evento: e.id });
-      return [e.id, (r ?? []) as { setor: Setor; capacidade: number; ocupados: number; em_espera: number }[]] as const;
+    eventos.map(async (e): Promise<readonly [string, Linha[]]> => {
+      if (s.staff) {
+        const { data: r } = await supabase.rpc("resumo_setores", { p_evento: e.id });
+        return [e.id, ((r ?? []) as Omit<Linha, "rotulo">[]).map((x) => ({ ...x, rotulo: ROTULO_SETOR[x.setor] }))] as const;
+      }
+      const { data: r } = await supabase.rpc("resumo_evento", { p_evento: e.id });
+      return [e.id, ((r ?? []) as { setor: Setor; area_nome: string; cota: number | null; ocupados: number; em_espera: number }[])
+        .filter((x) => x.cota !== null)
+        .map((x) => ({ setor: x.setor, rotulo: `${x.area_nome} · ${ROTULO_SETOR[x.setor].split(" ")[0]} (sua cota)`, ocupados: x.ocupados, capacidade: x.cota!, em_espera: x.em_espera }))] as const;
     }),
   );
   const porEvento = Object.fromEntries(resumos);
@@ -45,8 +55,8 @@ export default async function Eventos() {
               </div>
               <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm">
                 {(porEvento[e.id] ?? []).map((r) => (
-                  <div key={r.setor}>
-                    <span className="text-tinta/60">{ROTULO_SETOR[r.setor]}: </span>
+                  <div key={r.rotulo}>
+                    <span className="text-tinta/60">{r.rotulo}: </span>
                     <span className="tabular font-semibold">{r.ocupados}/{r.capacidade}</span>
                     {r.em_espera > 0 && <span className="text-xs text-amber-700"> · {r.em_espera} em espera</span>}
                   </div>
@@ -65,9 +75,9 @@ export default async function Eventos() {
     <>
       <Titulo
         sub={s.staff ? "Jogos e shows na Arena MRV" : `Você responde por: ${s.areas.map((a) => a.nome).join(", ") || "nenhuma área"}`}
-        acoes={s.staff && <BotaoLink href="/eventos/novo" variante="primario">Novo evento</BotaoLink>}
+        acoes={s.papel === "admin" && <BotaoLink href="/eventos/novo" variante="primario">Novo evento</BotaoLink>}
       >
-        Eventos
+        {s.papel === "marketing" ? "Jogos" : "Eventos"}
       </Titulo>
       <h2 className="mb-3 text-sm font-semibold tracking-wide text-tinta/60 uppercase">Próximos</h2>
       <Lista itens={proximos} />

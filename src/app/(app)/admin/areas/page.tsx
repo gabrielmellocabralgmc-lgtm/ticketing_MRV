@@ -1,13 +1,13 @@
 import { BotaoAcao, FormAcao } from "@/components/form-acao";
 import { Campo, Cartao, Entrada, Selo, Titulo } from "@/components/ui";
-import { exigirStaff } from "@/lib/sessao";
+import { exigirAdmin } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
 import { adicionarResponsavel, removerResponsavel, salvarArea } from "./actions";
 
 export const metadata = { title: "Áreas e responsáveis" };
 
 export default async function Areas() {
-  await exigirStaff();
+  await exigirAdmin();
   const supabase = await supabaseServidor();
   const [{ data: areas }, { data: resp }] = await Promise.all([
     supabase.from("areas").select("id, nome, centro_custo, ativo, ordem").order("ativo", { ascending: false }).order("ordem"),

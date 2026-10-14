@@ -69,8 +69,9 @@ export default async function PainelArea({ params, searchParams }: { params: Pro
 
       {saldo && (
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Numero rotulo={saldo.cota !== null ? "Cota da área" : "Vagas do setor"} valor={saldo.cota ?? saldo.capacidade} />
-          <Numero rotulo="Ocupados" valor={saldo.cota !== null ? saldo.ocupados_area : saldo.ocupados_setor} tom="cinza" />
+          {/* responsável vê só a cota da área; o total do setor é só para Admin/Marketing */}
+          <Numero rotulo={saldo.cota !== null || !s.staff ? "Cota da área" : "Vagas do setor"} valor={saldo.cota ?? (s.staff ? saldo.capacidade : 0)} />
+          <Numero rotulo="Usados" valor={saldo.cota !== null || !s.staff ? saldo.ocupados_area : saldo.ocupados_setor} tom="cinza" />
           <Numero rotulo="Saldo" valor={saldo.saldo} tom={saldo.saldo === 0 ? "laranja" : "mrv"} />
           <Numero rotulo="Lista de espera" valor={saldo.em_espera} tom={saldo.em_espera ? "laranja" : "cinza"} />
         </div>
