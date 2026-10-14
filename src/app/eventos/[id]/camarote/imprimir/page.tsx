@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { BotaoImprimir } from "./botao";
+import { BotaoImprimir } from "@/components/botao-imprimir";
 import { dataHora, dataLonga } from "@/lib/formato";
 import { exigirSessao } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";

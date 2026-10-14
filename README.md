@@ -180,6 +180,10 @@ tests/                 unit/ e db/ (PGlite)
 - Sem `RESEND_API_KEY` (modo demo/local) nada sai de verdade: os e-mails ficam na caixa de saída como “simulado”.
 - WhatsApp continua por *click-to-chat*; a interface `CanalMensagem` está pronta para a API oficial do WhatsApp Business.
 
-## Próximas fases
+## Fase 4 — entregue
 
-- **Fase 4**: dashboard em tempo real, histórico de uso e no-show por área e por pessoa, relatório pós-evento, job de retenção/anonimização.
+- **Dashboard** (Admin, atualiza sozinho): cada próximo jogo com o funil por setor (solicitados → aprovados → enviados → confirmados → presentes) e as **pendências com atalho** (áreas sem pedido, listas sem validar, convites aguardando/expirando, a aprovar, facial pendente, a enviar, fila do camarote, gente na porta).
+- **Histórico** (3, 6 ou 12 meses): por área (uso da cota, no-show, ingressos não aceitos, cancelamentos, pedidos de última hora), pessoas com mais faltas e jogos do período (ocupação, quem ficou na espera, última hora). Dados importados da planilha não entram em “última hora” nem “não aceitos”.
+- **Relatório pós-evento por área** (botão *Relatório* no jogo): imprimir ou salvar em PDF, sem dados pessoais.
+- **Privacidade (LGPD)**: prazo de retenção (padrão 12 meses após o último jogo da pessoa), anonimização automática diária e manual, e pedido do titular por CPF (bloqueado se houver ingresso para jogo futuro). Nome, CPF, celular e e-mail são apagados; ingressos e métricas ficam.
+- Menu do Admin agrupado em **Configurações**.
