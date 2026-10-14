@@ -457,3 +457,19 @@ describe("comunicação", () => {
     expect(await b.como(respDH, `select * from envios`)).toEqual([]);
   });
 });
+
+describe("Marketing sem aprovação", () => {
+  it("convite gerado pelo Marketing: quem preenche entra aprovado", async () => {
+    const ev = await novoEvento();
+    const mk = await b.areaId("marketing");
+    const [{ r }] = await b.como<{ r: { token: string } }>(mkt, `select criar_convite($1, 'arquibancada', $2, 1, 'Convidado do Marketing') as r`, [ev, mk]);
+    await b.como(null, `select preencher_convite($1, $2, true)`, [r.token, JSON.stringify([nova("Convidado Mkt")])]);
+    const [i] = await b.sql<{ status: string }>(`select i.status from ingressos i join pessoas p on p.id = i.pessoa_id where p.nome = 'Convidado Mkt'`);
+    expect(i.status).toBe("aprovado");
+    // convite de responsável de área continua precisando de validação
+    const [{ r: r2 }] = await b.como<{ r: { token: string } }>(respDH, `select criar_convite($1, 'arquibancada', $2, 1, 'Convidado DH') as r`, [ev, dh]);
+    await b.como(null, `select preencher_convite($1, $2, true)`, [r2.token, JSON.stringify([nova("Convidado da Área")])]);
+    const [i2] = await b.sql<{ status: string }>(`select i.status from ingressos i join pessoas p on p.id = i.pessoa_id where p.nome = 'Convidado da Área'`);
+    expect(i2.status).toBe("solicitado");
+  });
+});

@@ -6,7 +6,7 @@ describe("seed de desenvolvimento", () => {
     const b = await BancoTeste.criar();
     await b.rodarSeed();
     const [{ n }] = await b.sql<{ n: number }>(`select count(*)::int n from perfis`);
-    expect(n).toBe(3 + 11);
+    expect(n).toBe(3 + 10);
     const st = await b.sql<{ status: string; n: number }>(
       `select i.status, count(*)::int n from ingressos i join eventos e on e.id = i.evento_id where e.titulo = 'Galo × Cruzeiro' group by 1 order by 1`);
     const m = Object.fromEntries(st.map((x) => [x.status, x.n]));

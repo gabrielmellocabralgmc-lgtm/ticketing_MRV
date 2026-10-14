@@ -6,7 +6,7 @@ import { supabaseServidor } from "@/lib/supabase/server";
 import { ROTULO_SETOR, type Setor } from "@/lib/tipos";
 import { dataHora, deInputLocal } from "@/lib/formato";
 import { linkTorcedor } from "@/lib/mensagens";
-import { enviarModelo, resumoEnvio, varsEvento, type EventoVars } from "@/lib/mensagens/envio";
+import { avisarAprovadosDoEvento, enviarModelo, resumoEnvio, varsEvento, type EventoVars } from "@/lib/mensagens/envio";
 
 export interface PessoaForm {
   nome: string;
@@ -19,19 +19,21 @@ const caminho = (evento: string, area: string) => `/eventos/${evento}/areas/${ar
 
 /** Modo A: o responsável digita titular (+ convidados). */
 export async function solicitar(evento: string, setor: Setor, area: string, pessoas: PessoaForm[], listaEspera: boolean): Promise<Resultado<{ status: string }>> {
-  await exigirSessao();
+  const s = await exigirSessao();
   const supabase = await supabaseServidor();
   const { data, error } = await supabase.rpc("criar_pedido", {
     p_evento: evento, p_setor: setor, p_area: area,
     p_pessoas: pessoas.map((p) => ({ nome: p.nome, cpf: p.cpf, celular: p.celular, email: p.email || null })),
-    p_opcoes: { lista_espera: listaEspera, origem: "responsavel" },
+    // Marketing/Admin não passam por validação nem aprovação: já entra aprovado
+    p_opcoes: { lista_espera: listaEspera, origem: s.staff ? "marketing" : "responsavel" },
   });
   if (error) return falha(error);
   revalidatePath(caminho(evento, area));
   const status = (data as { status: string }).status;
+  if (status === "aprovado") await avisarAprovadosDoEvento(evento, s.userId);
   return {
     ok: true, dados: { status },
-    mensagem: status === "lista_espera"
+    mensagem: status === "aprovado" ? "Adicionado já aprovado. Segue para a facial do Galo ID e o envio." : status === "lista_espera"
       ? "A cota da área está esgotada: o pedido entrou na lista de espera e sobe sozinho se abrir vaga."
       : `${pessoas.length === 1 ? "Solicitação registrada" : `${pessoas.length} ingressos solicitados`}. Lembre de validar a lista quando terminar.`,
   };

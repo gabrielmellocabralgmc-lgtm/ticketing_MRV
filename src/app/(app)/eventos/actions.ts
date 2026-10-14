@@ -6,20 +6,34 @@ import { deInputLocal } from "@/lib/formato";
 import { exigirStaff } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
 
+/** Título sempre automático: "Galo × Adversário" (jogo) ou o nome do show. */
+function tituloEvento(tipo: string, adversario: string | null, atracao: string | null) {
+  return tipo === "jogo" ? (adversario ? `Galo × ${adversario}` : "") : atracao ?? "";
+}
+
+/** Portões: jogo = 3 h antes do início; show = horário informado, no mesmo dia do show. */
+function aberturaPortoes(tipo: string, inicio: string | null, horaShow: string) {
+  if (!inicio) return null;
+  if (tipo === "jogo") return new Date(new Date(inicio).getTime() - 3 * 3600e3).toISOString();
+  if (!/^\d{2}:\d{2}$/.test(horaShow)) return null;
+  const dia = inicio.slice(0, 10); // inicio vem como "AAAA-MM-DDTHH:MM:00-03:00" (horário de Brasília)
+  return `${dia}T${horaShow}:00-03:00`;
+}
+
 function dadosEvento(form: FormData) {
   const tipo = String(form.get("tipo") ?? "jogo");
   const adversario = String(form.get("adversario") ?? "").trim() || null;
   const atracao = String(form.get("atracao") ?? "").trim() || null;
-  const titulo = String(form.get("titulo") ?? "").trim() || (tipo === "jogo" && adversario ? `Galo × ${adversario}` : atracao ?? "");
+  const inicio = deInputLocal(form.get("inicio"));
   return {
     tipo,
-    titulo,
+    titulo: tituloEvento(tipo, adversario, atracao),
     adversario: tipo === "jogo" ? adversario : null,
     atracao: tipo === "show" ? atracao : null,
     competicao: String(form.get("competicao") ?? "").trim() || null,
     show_proprio: tipo === "show" ? form.get("show_proprio") === "on" : null,
-    inicio: deInputLocal(form.get("inicio")),
-    abertura_portoes: deInputLocal(form.get("abertura_portoes")),
+    inicio,
+    abertura_portoes: aberturaPortoes(tipo, inicio, String(form.get("portoes_hora") ?? "")),
     prazo_solicitacao: deInputLocal(form.get("prazo_solicitacao")),
     prazo_validacao: deInputLocal(form.get("prazo_validacao")),
     concorrido: form.get("concorrido") === "on",
@@ -30,7 +44,7 @@ function dadosEvento(form: FormData) {
 export async function criarEvento(_: unknown, form: FormData): Promise<Resultado> {
   await exigirStaff();
   const p = { ...dadosEvento(form), status: String(form.get("status") ?? "rascunho"), duplicar_de: String(form.get("duplicar_de") ?? "") || null };
-  if (!p.titulo || !p.inicio) return { ok: false, erro: "Informe o adversário/atração e a data do evento." };
+  if (!p.titulo || !p.inicio) return { ok: false, erro: "Informe o adversário (ou o nome do show) e a data." };
   const supabase = await supabaseServidor();
   const { data, error } = await supabase.rpc("criar_evento", { p });
   if (error) return falha(error);
@@ -40,7 +54,7 @@ export async function criarEvento(_: unknown, form: FormData): Promise<Resultado
 export async function atualizarEvento(id: string, _: unknown, form: FormData): Promise<Resultado> {
   await exigirStaff();
   const p = dadosEvento(form);
-  if (!p.titulo || !p.inicio) return { ok: false, erro: "Informe o adversário/atração e a data do evento." };
+  if (!p.titulo || !p.inicio) return { ok: false, erro: "Informe o adversário (ou o nome do show) e a data." };
   const campos: Partial<typeof p> = { ...p };
   delete campos.tipo; // o tipo não muda depois de criado
   const supabase = await supabaseServidor();

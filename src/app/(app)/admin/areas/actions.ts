@@ -48,3 +48,40 @@ export async function removerResponsavel(area: string, user: string): Promise<Re
   revalidatePath("/admin/areas");
   return { ok: true };
 }
+
+type Padrao = Record<"jogo" | "show", Record<string, { capacidade: number; cota_por_area?: boolean; areas: Record<string, number | { quantidade: number; sob_demanda?: boolean }> }>>;
+
+/** Cotas padrão aplicadas a cada evento novo (config.cotas_padrao). Eventos já criados não mudam. */
+export async function salvarCotasPadrao(_: unknown, form: FormData): Promise<Resultado> {
+  const s = await exigirStaff();
+  if (s.papel !== "admin") return { ok: false, erro: "Só o Admin altera as cotas padrão." };
+  const supabase = await supabaseServidor();
+  const { data } = await supabase.from("config").select("valor").eq("chave", "cotas_padrao").single();
+  const padrao = structuredClone(data!.valor) as Padrao;
+  const num = (k: string) => { const v = Number(form.get(k)); return Number.isInteger(v) && v >= 0 ? v : null; };
+  for (const [tipo, setor] of [["jogo", "arquibancada"], ["show", "pista"]] as const) {
+    const cfg = padrao[tipo][setor];
+    const cap = num(`cap-${tipo}-${setor}`);
+    if (cap !== null) cfg.capacidade = cap;
+    for (const [chave] of form.entries()) {
+      const m = chave.match(new RegExp(`^cota-${tipo}-(.+)$`));
+      if (!m) continue;
+      const v = num(chave);
+      if (v === null) continue;
+      const atual = cfg.areas[m[1]];
+      if (v === 0) delete cfg.areas[m[1]];
+      else cfg.areas[m[1]] = typeof atual === "object" ? { ...atual, quantidade: v } : v;
+    }
+    const soma = Object.values(cfg.areas).reduce<number>((n, x) => n + (typeof x === "object" ? x.quantidade : x), 0);
+    if (soma > cfg.capacidade) return { ok: false, erro: `${setor === "arquibancada" ? "Arquibancada" : "Pista"}: a soma das áreas (${soma}) passa da capacidade (${cfg.capacidade}).` };
+  }
+  for (const tipo of ["jogo", "show"] as const) {
+    const cap = num(`cap-${tipo}-camarote`);
+    if (cap !== null) padrao[tipo].camarote.capacidade = cap;
+  }
+  const { error } = await supabase.from("config").update({ valor: padrao }).eq("chave", "cotas_padrao");
+  if (error) return falha(error);
+  await supabase.rpc("registrar_auditoria", { p_acao: "alterar", p_entidade: "config", p_entidade_id: "cotas_padrao", p_detalhes: null });
+  revalidatePath("/admin/areas");
+  return { ok: true, mensagem: "Cotas padrão salvas. Valem para os próximos eventos criados." };
+}

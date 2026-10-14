@@ -34,6 +34,7 @@ export async function aplicarPlano(plano: PlanoImportacao, rpc: Rpc, op: OpcoesA
       adversario: plano.adversario,
       competicao: op.competicao ?? null,
       inicio: op.inicio,
+      abertura_portoes: new Date(new Date(op.inicio).getTime() - 3 * 3600e3).toISOString(),
       status: op.status ?? (futuro ? "aberto" : "realizado"),
       observacoes: "Importado da planilha legada",
     },

@@ -159,14 +159,15 @@ export interface AreaConvocacao {
 export async function areasParaConvocar(evento: string): Promise<AreaConvocacao[]> {
   const sb = await supabaseServico();
   const [{ data: cotas }, { data: resp }, { data: envs }, { data: ocup }] = await Promise.all([
-    sb.from("cotas").select("setor, area_id, quantidade, sob_demanda, areas(nome, ordem)").eq("evento_id", evento).neq("setor", "camarote").gt("quantidade", 0),
+    sb.from("cotas").select("setor, area_id, quantidade, sob_demanda, areas(nome, ordem, slug)").eq("evento_id", evento).neq("setor", "camarote").gt("quantidade", 0),
     sb.from("area_responsaveis").select("area_id, perfis(nome, email, ativo)"),
     sb.from("envios").select("tipo, area_id, criado_em").eq("evento_id", evento).in("tipo", ["convocacao_area", "lembrete_area"]),
     sb.from("ingressos").select("area_id, setor, status").eq("evento_id", evento).neq("setor", "camarote"),
   ]);
   const mapa = new Map<string, AreaConvocacao & { ordem: number }>();
-  for (const c of (cotas ?? []) as unknown as { setor: Setor; area_id: string; quantidade: number; sob_demanda: boolean; areas: { nome: string; ordem: number } }[]) {
-    if (c.sob_demanda) continue;
+  for (const c of (cotas ?? []) as unknown as { setor: Setor; area_id: string; quantidade: number; sob_demanda: boolean; areas: { nome: string; ordem: number; slug: string } }[]) {
+    // a área Marketing é do próprio perfil Marketing: não recebe convocação
+    if (c.sob_demanda || c.areas.slug === "marketing") continue;
     const a = mapa.get(c.area_id) ?? { area_id: c.area_id, area_nome: c.areas.nome, ordem: c.areas.ordem, cotas: [], responsaveis: [], ultima_convocacao: null, ultimo_lembrete: null };
     const doSetor = ((ocup ?? []) as { area_id: string; setor: string; status: string }[]).filter((i) => i.area_id === c.area_id && i.setor === c.setor);
     a.cotas.push({

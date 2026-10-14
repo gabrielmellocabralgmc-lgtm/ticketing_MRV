@@ -55,7 +55,8 @@ begin
   v_admin := pg_temp.criar_usuario('admin@exemplo.com', 'Admin act.3', 'admin');
   perform pg_temp.criar_usuario('marketing@exemplo.com', 'Gestora Marketing', 'marketing');
   perform pg_temp.criar_usuario('operacao@exemplo.com', 'Operação Camarote', 'operacao');
-  for ar in select id, slug, nome from areas order by ordem loop
+  -- a área Marketing é gerida pelo próprio perfil Marketing (sem responsável separado)
+  for ar in select id, slug, nome from areas where slug <> 'marketing' order by ordem loop
     v_resp := pg_temp.criar_usuario('responsavel.' || ar.slug || '@exemplo.com', 'Responsável ' || ar.nome, 'responsavel');
     insert into area_responsaveis (area_id, user_id) values (ar.id, v_resp);
   end loop;
