@@ -15,6 +15,7 @@ export default async function LayoutInterno({ children }: { children: React.Reac
             { href: "/eventos", rotulo: "Eventos" },
             { href: "/admin/areas", rotulo: "Áreas e responsáveis" },
             { href: "/admin/aparencia", rotulo: "Aparência" },
+            { href: "/admin/emails", rotulo: "E-mails" },
             { href: "/admin/usuarios", rotulo: "Usuários" },
             { href: "/admin/importar", rotulo: "Importar" },
             { href: "/admin/auditoria", rotulo: "Auditoria" },

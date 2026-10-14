@@ -37,7 +37,7 @@ export function canalEmail(opcoes: { apiKey?: string; remetente?: string; respon
           to: [m.para.email],
           subject: m.assunto,
           text: m.texto,
-          html: htmlDoTexto(m),
+          html: m.html ?? htmlDoTexto(m),
           ...(responderPara ? { reply_to: responderPara } : {}),
         }),
       });

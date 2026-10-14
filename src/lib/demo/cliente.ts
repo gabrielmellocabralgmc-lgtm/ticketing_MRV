@@ -125,7 +125,7 @@ function lerSelect(s: string) {
   return { simples, embeds };
 }
 
-type Filtro = { col: string; op: "=" | "in" | "<"; valor: unknown };
+type Filtro = { col: string; op: "=" | "<>" | "in" | "<" | ">" | ">=" | "<="; valor: unknown };
 
 class Consulta implements PromiseLike<Resposta> {
   private op: "select" | "insert" | "update" | "upsert" | "delete" = "select";
@@ -146,6 +146,10 @@ class Consulta implements PromiseLike<Resposta> {
   eq(col: string, valor: unknown) { this.filtros.push({ col, op: "=", valor }); return this; }
   in(col: string, valor: unknown[]) { this.filtros.push({ col, op: "in", valor }); return this; }
   lt(col: string, valor: unknown) { this.filtros.push({ col, op: "<", valor }); return this; }
+  neq(col: string, valor: unknown) { this.filtros.push({ col, op: "<>", valor }); return this; }
+  gt(col: string, valor: unknown) { this.filtros.push({ col, op: ">", valor }); return this; }
+  gte(col: string, valor: unknown) { this.filtros.push({ col, op: ">=", valor }); return this; }
+  lte(col: string, valor: unknown) { this.filtros.push({ col, op: "<=", valor }); return this; }
   order(col: string, o: { ascending?: boolean } = {}) { this.ordens.push({ col, asc: o.ascending !== false }); return this; }
   limit(n: number) { this.limite = n; return this; }
   single() { this.unico = "single"; return this; }

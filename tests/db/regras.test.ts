@@ -438,3 +438,22 @@ describe("imagens do layout", () => {
     expect(disp.map((d) => d.chave)).toContain("login");
   });
 });
+
+describe("comunicação", () => {
+  it("só o servidor marca o passo a passo como enviado (aprovado → facial pendente)", async () => {
+    const ev = await novoEvento();
+    const r = await pedir(mkt, ev, dh, [nova()]);
+    await expect(b.como(mkt, `select registrar_orientacao($1)`, [r.ingressos])).rejects.toThrow(/permission denied/);
+    const [{ registrar_orientacao: n }] = await b.como<{ registrar_orientacao: number }>(null, `select registrar_orientacao($1)`, [r.ingressos]);
+    expect(n).toBe(1);
+    expect(await statusDe(r.ingressos)).toEqual(["facial_pendente"]);
+  });
+
+  it("modelos de e-mail: Marketing edita, responsável não vê", async () => {
+    await b.como(mkt, `update modelos_email set assunto = 'Novo assunto' where chave = 'convocacao_area'`);
+    const [m] = await b.sql<{ assunto: string }>(`select assunto from modelos_email where chave = 'convocacao_area'`);
+    expect(m.assunto).toBe("Novo assunto");
+    expect(await b.como(respDH, `select * from modelos_email`)).toEqual([]);
+    expect(await b.como(respDH, `select * from envios`)).toEqual([]);
+  });
+});

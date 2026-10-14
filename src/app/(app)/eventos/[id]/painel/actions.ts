@@ -5,6 +5,7 @@ import { linkTorcedor } from "@/lib/mensagens";
 import { exigirStaff } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
 import type { Setor } from "@/lib/tipos";
+import { avisarAprovadosDoEvento } from "@/lib/mensagens/envio";
 
 export interface ResultadoLinha {
   nome: string;
@@ -35,6 +36,7 @@ export async function adicionarNomes(
     if (error && agrupar) break;
   }
   revalidatePath(`/eventos/${evento}`, "layout");
+  await avisarAprovadosDoEvento(evento);
   const ok = resultado.filter((r) => r.ok).length;
   const espera = resultado.filter((r) => r.status === "lista_espera").length;
   return {
@@ -73,6 +75,7 @@ export async function criarPedidoCamarote(evento: string, f: PedidoCamaroteForm)
   if (error) return falha(error);
   atualizar(evento);
   const status = (data as { status: string }).status;
+  if (status === "aprovado") await avisarAprovadosDoEvento(evento);
   return { ok: true, dados: { status }, mensagem: status === "lista_espera" ? "Pedido na fila. Distribua as vagas pela prioridade quando quiser." : "Pedido aprovado." };
 }
 
@@ -81,6 +84,7 @@ export async function aprovarDaFila(evento: string, pedido: string): Promise<Res
   const { data, error } = await (await supabaseServidor()).rpc("aprovar_pedido_fila", { p_pedido: pedido });
   if (error) return falha(error);
   atualizar(evento);
+  await avisarAprovadosDoEvento(evento);
   return { ok: true, mensagem: `${data} lugar(es) aprovado(s).` };
 }
 
@@ -89,6 +93,7 @@ export async function distribuirCamarote(evento: string): Promise<Resultado> {
   const { data, error } = await (await supabaseServidor()).rpc("distribuir_camarote", { p_evento: evento });
   if (error) return falha(error);
   atualizar(evento);
+  await avisarAprovadosDoEvento(evento);
   return { ok: true, mensagem: data ? `${data} lugar(es) distribuído(s) pela prioridade.` : "Nenhum pedido da fila cabe nas vagas livres." };
 }
 

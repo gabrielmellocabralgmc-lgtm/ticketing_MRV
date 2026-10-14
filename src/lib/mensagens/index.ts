@@ -8,6 +8,7 @@ export interface Mensagem {
   para: { nome: string; celular?: string | null; email?: string | null };
   assunto: string;
   texto: string;
+  html?: string;
 }
 
 export interface CanalMensagem {

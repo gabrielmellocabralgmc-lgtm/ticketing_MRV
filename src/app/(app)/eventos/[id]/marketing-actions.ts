@@ -4,6 +4,7 @@ import { falha, type Resultado } from "@/lib/erros";
 import { exigirStaff } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
 import type { Setor } from "@/lib/tipos";
+import { avisarAprovados, avisarEnviados, resumoEnvio } from "@/lib/mensagens/envio";
 
 async function lote(evento: string, fn: string, args: Record<string, unknown>, msg: (n: number) => string): Promise<Resultado> {
   await exigirStaff();
@@ -14,8 +15,14 @@ async function lote(evento: string, fn: string, args: Record<string, unknown>, m
   return { ok: true, mensagem: msg(Number(data ?? 0)) };
 }
 
-export const aprovar = async (evento: string, ids: string[]) =>
-  lote(evento, "aprovar_ingressos", { p_ids: ids }, (n) => `${n} aprovado(s). Agora envie o passo a passo do Galo ID.`);
+export async function aprovar(evento: string, ids: string[]): Promise<Resultado> {
+  const r = await lote(evento, "aprovar_ingressos", { p_ids: ids }, (n) => `${n} aprovado(s).`);
+  if (!r.ok) return r;
+  const s = await exigirStaff();
+  const e = await avisarAprovados(ids, s.userId);
+  const total = e.enviados + e.simulados;
+  return { ok: true, mensagem: `${r.mensagem} ${total ? `Passo a passo do Galo ID por e-mail: ${resumoEnvio(e)}.` : ""} Quem não tem e-mail: use o botão “Galo ID” (WhatsApp).` };
+}
 
 export const recusar = async (evento: string, ids: string[], motivo: string) =>
   lote(evento, "recusar_ingressos", { p_ids: ids, p_motivo: motivo }, (n) => `${n} recusado(s).`);
@@ -32,12 +39,19 @@ export const orientacaoEnviada = async (evento: string, ids: string[]) =>
 export const facialOk = async (evento: string, ids: string[]) =>
   lote(evento, "marcar_facial_ok", { p_ids: ids }, (n) => `${n} com facial confirmada.`);
 
+async function comAvisoDeEnvio(r: Resultado, ids: string[]): Promise<Resultado> {
+  if (!r.ok) return r;
+  const s = await exigirStaff();
+  const e = await avisarEnviados(ids, s.userId);
+  return e.enviados + e.simulados ? { ok: true, mensagem: `${r.mensagem} Aviso por e-mail: ${resumoEnvio(e)}.` } : r;
+}
+
 export const enviados = async (evento: string, ids: string[]) =>
-  lote(evento, "marcar_enviados", { p_ids: ids, p_forcar: false }, (n) => `${n} marcado(s) como enviado(s).`);
+  comAvisoDeEnvio(await lote(evento, "marcar_enviados", { p_ids: ids, p_forcar: false }, (n) => `${n} marcado(s) como enviado(s).`), ids);
 
 /** Envia mesmo sem a facial confirmada (fica registrado no histórico). */
 export const enviadosSemFacial = async (evento: string, ids: string[]) =>
-  lote(evento, "marcar_enviados", { p_ids: ids, p_forcar: true }, (n) => `${n} marcado(s) como enviado(s) sem confirmação da facial.`);
+  comAvisoDeEnvio(await lote(evento, "marcar_enviados", { p_ids: ids, p_forcar: true }, (n) => `${n} marcado(s) como enviado(s) sem confirmação da facial.`), ids);
 
 export const desfazerEnvio = async (evento: string, ids: string[]) =>
   lote(evento, "desfazer_envio", { p_ids: ids }, (n) => `${n} envio(s) desfeito(s).`);

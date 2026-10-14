@@ -171,7 +171,15 @@ tests/                 unit/ e db/ (PGlite)
 - **Check-in**: pessoa fora da lista (a operação registra e o Marketing libera no painel; liberada, já entra como “chegou”), confirmações guardadas no celular quando a internet cai (enviadas depois com o horário real) e lista para imprimir/salvar em PDF.
 - **Encerrar evento** (botão no Admin e automático 6 h após o início): no camarote, quem teve a chegada confirmada vira *presente* e quem não teve vira *no-show*.
 
+## Fase 3 — entregue
+
+- **Convocação das áreas** (página do evento, Admin): e-mail para cada responsável com a cota, os prazos e o link da lista da área; prévia, “enviar teste para mim” e registro de quando cada área foi avisada.
+- **Lembretes automáticos** (cron de hora em hora, ou “Rodar lembretes agora”): às áreas com saldo ou pedidos sem validar nas últimas 24 h antes do prazo (uma vez) e aos convidados com a facial pendente no D-2 e D-1.
+- **E-mails aos convidados** (só para quem tem e-mail cadastrado; os demais seguem pelo WhatsApp): convite do Modo B (campo de e-mail opcional ao gerar o link), passo a passo do Galo ID ao ser aprovado (o status passa para “facial pendente”) e aviso de ingresso enviado.
+- **E-mails › Modelos**: textos editáveis com variáveis `{{...}}`, prévia ao vivo com a identidade MRV e envio de teste. **Caixa de saída**: tudo o que foi enviado, com status.
+- Sem `RESEND_API_KEY` (modo demo/local) nada sai de verdade: os e-mails ficam na caixa de saída como “simulado”.
+- WhatsApp continua por *click-to-chat*; a interface `CanalMensagem` está pronta para a API oficial do WhatsApp Business.
+
 ## Próximas fases
 
-- **Fase 3**: e-mails de convocação por área com template editável, disparo automático do passo a passo, lembretes D-2/D-1 e adapter da API do WhatsApp Business. A interface `CanalMensagem` já existe em `src/lib/mensagens`.
 - **Fase 4**: dashboard em tempo real, histórico de uso e no-show por área e por pessoa, relatório pós-evento, job de retenção/anonimização.

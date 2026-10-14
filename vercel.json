@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/encerrar-eventos",
       "schedule": "15 * * * *"
+    },
+    {
+      "path": "/api/cron/lembretes",
+      "schedule": "0 * * * *"
     }
   ]
 }

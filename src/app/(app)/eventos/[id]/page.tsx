@@ -11,6 +11,8 @@ import { CabecalhoJogo } from "@/components/jogo";
 import { CHAVE_ESCUDO_ATLETICO, chaveEscudoAdversario, imagensDisponiveis } from "@/lib/imagens";
 import { ajustarCota, mudarStatusEvento, remanejarCota } from "../actions";
 import { encerrarEvento } from "./painel/actions";
+import { Convocacao } from "./convocacao";
+import { areasParaConvocar, envioReal } from "@/lib/mensagens/envio";
 import { carregarEvento, carregarResumo, type LinhaResumo } from "./dados";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -149,6 +151,14 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
           </Cartao>
         );
       })}
+
+      {s.staff && (
+        <Cartao className="mb-6">
+          <h2 className="mb-1 text-lg font-bold">E-mails para as áreas</h2>
+          <p className="mb-4 text-sm text-cinza">Convocação com a cota, os prazos e o link da lista de cada área. O texto se edita em E-mails › Modelos.</p>
+          <Convocacao evento={id} areas={await areasParaConvocar(id)} envioReal={envioReal()} />
+        </Cartao>
+      )}
 
       {s.staff && (
         <div className="grid gap-6 lg:grid-cols-3">

@@ -26,7 +26,7 @@ export function FormConvite({ evento, setor, area, areaNome, eventoInfo, saldo, 
           const f = new FormData(ref.current!);
           ultimo.current = { nome: String(f.get("nome_previsto") ?? ""), contato: String(f.get("contato") ?? ""), qtd: Number(f.get("qtd") ?? 1) };
         }}
-        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1.2fr_1.4fr_auto] lg:items-end"
+        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 lg:items-end"
       >
         <Campo rotulo="Para quem (referência)"><Entrada name="nome_previsto" required placeholder="João – Comercial" /></Campo>
         <Campo rotulo="Lugares">
@@ -35,6 +35,7 @@ export function FormConvite({ evento, setor, area, areaNome, eventoInfo, saldo, 
           </Selecao>
         </Campo>
         <Campo rotulo="Celular (opcional)"><Entrada name="contato" inputMode="tel" placeholder="(31) 9…" /></Campo>
+        <Campo rotulo="E-mail (opcional)" dica="Se preencher, o convite vai por e-mail"><Entrada name="email" type="email" placeholder="convidado@email.com" /></Campo>
         <Campo rotulo="Validade do link" dica="Em branco: até o prazo de solicitação">
           <Entrada name="expira_em" type="datetime-local" max={maxValidade || undefined} />
         </Campo>
