@@ -9,6 +9,7 @@ const ITENS = [
   { href: "/admin/usuarios", titulo: "Usuários", texto: "Perfis de acesso: Admin, Marketing, responsáveis e operação." },
   { href: "/admin/emails", titulo: "E-mails", texto: "Textos enviados às áreas e aos convidados, e a caixa de saída." },
   { href: "/admin/aparencia", titulo: "Aparência", texto: "Logo da MRV, foto do login e escudo do Atlético." },
+  { href: "/admin/operacao", titulo: "Operação do camarote", texto: "Itens dos check-lists (antes e depois do jogo) e bebidas controladas." },
   { href: "/admin/importar", titulo: "Importar", texto: "Planilha de controle antiga e respostas do Microsoft Forms." },
   { href: "/admin/privacidade", titulo: "Privacidade (LGPD)", texto: "Prazo de retenção, anonimização e pedidos dos titulares." },
   { href: "/admin/auditoria", titulo: "Auditoria", texto: "Quem viu, copiou, exportou ou alterou dados pessoais." },

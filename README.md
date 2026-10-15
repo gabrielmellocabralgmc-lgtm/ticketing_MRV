@@ -187,3 +187,14 @@ tests/                 unit/ e db/ (PGlite)
 - **Relatório pós-evento por área** (botão *Relatório* no jogo): imprimir ou salvar em PDF, sem dados pessoais.
 - **Privacidade (LGPD)**: prazo de retenção (padrão 12 meses após o último jogo da pessoa), anonimização automática diária e manual, e pedido do titular por CPF (bloqueado se houver ingresso para jogo futuro). Nome, CPF, celular e e-mail são apagados; ingressos e métricas ficam.
 - Menu do Admin agrupado em **Configurações**.
+
+## Operação do camarote
+
+Aba **Operação camarote** (perfis Operação do camarote e Admin): check-list antes e depois do jogo,
+controle de bebidas (a sobra vem da contagem final do jogo anterior), relatório geral e fotos de comprovação.
+
+- Itens dos check-lists e bebidas: **Configurações › Operação do camarote** (Admin).
+- Fotos: reduzidas no celular (~1600 px, JPEG ≈ 200–400 KB) e guardadas **fora do banco**, no Supabase Storage
+  (bucket privado `operacao`, criado pela migração). O banco guarda só o registro, com o horário de envio.
+  No modo demo ficam em `.demo.nosync/fotos/`.
+- Relatório completo para imprimir/PDF: `/operacao-camarote/<evento>/imprimir`.
