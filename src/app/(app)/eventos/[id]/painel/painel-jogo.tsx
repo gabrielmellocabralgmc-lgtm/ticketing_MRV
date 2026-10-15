@@ -1,18 +1,20 @@
 "use client";
 // Painel do jogo (Marketing): um setor por aba, lista com o status de cada ingresso,
-// lista de espera e "adicionar nomes" colando nome + CPF.
-import { useMemo, useState, useTransition } from "react";
+// lista de espera e "+ Adicionar convidado" (os mesmos poderes do Admin).
+import { useState, useTransition } from "react";
 import clsx from "clsx";
 import { BotaoCopiar } from "@/components/copiar";
-import { AreaTexto, Aviso, Botao, Campo, Entrada, Selecao, Selo } from "@/components/ui";
+import { Aviso, Entrada, Selo } from "@/components/ui";
 import { formatarCpf } from "@/lib/cpf";
 import { dataHora } from "@/lib/formato";
-import { separarLista } from "@/lib/parse-lista";
 import { normalizarTexto } from "@/lib/texto";
 import { ROTULO_SETOR, type Setor, type StatusIngresso } from "@/lib/tipos";
-import { adicionarNomes, type ResultadoLinha } from "./actions";
 import { facialOk, pendenteFacial } from "../marketing-actions";
 import { PainelCamarote, type LinhaCamarote, type Walkin } from "./camarote";
+import { AdicionarConvidado } from "../adicionar-convidado";
+import { atualizarDadosAdmin } from "../adicionar-actions";
+import type { OpcaoSetor } from "../adicionar-opcoes";
+import { NomeEditavel } from "../nome-editavel";
 
 export interface LinhaPainel {
   id: string;
@@ -21,6 +23,9 @@ export interface LinhaPainel {
   status: StatusIngresso;
   nome: string | null;
   cpf: string | null;
+  celular: string | null;
+  email: string | null;
+  manual_admin?: boolean;
   convidado_de: string | null;
   convidado_de_nome: string | null;
   enviado_em: string | null;
@@ -47,13 +52,13 @@ const STATUS_SIMPLES: Partial<Record<StatusIngresso, { rotulo: string; tom: "cin
 };
 const ENVIADOS: StatusIngresso[] = ["enviado", "confirmado", "presente"];
 
-export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins, concorrido }: {
+export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins, concorrido, opcoes }: {
   evento: string; linhas: LinhaPainel[]; setores: SetorPainel[];
   areas: { id: string; nome: string }[]; areaPadrao: string; walkins: Walkin[]; concorrido: boolean;
+  opcoes: OpcaoSetor[];
 }) {
   const [setor, setSetor] = useState<Setor>(setores.find((s) => s.setor === "arquibancada")?.setor ?? setores[0]?.setor ?? "arquibancada");
   const [busca, setBusca] = useState("");
-  const [adicionando, setAdicionando] = useState(false);
 
   const doSetor = linhas.filter((l) => l.setor === setor && l.nome); // vagas de convite sem dados ficam fora da lista
   const ativos = doSetor.filter((l) => l.status !== "lista_espera");
@@ -78,22 +83,17 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
             <div className={clsx("tabular text-[13px]", s.setor === setor ? "text-white/85" : "text-cinza")}>{s.ocupados} de {s.capacidade}</div>
           </button>
         ))}
-        {setor !== "camarote" && (
-          <Botao variante="laranja" className="ml-auto" onClick={() => setAdicionando((a) => !a)}>
-            {adicionando ? "Fechar" : "+ Adicionar nomes"}
-          </Botao>
-        )}
+      </div>
+
+      {/* mesmo "+ Adicionar convidado" do Admin: abate da cota e entra aprovado (camarote concorrido inclusive) */}
+      <div className="flex justify-end">
+        <AdicionarConvidado key={setor} evento={evento} areas={areas} setores={opcoes} setorInicial={setor} areaInicial={areaPadrao} />
       </div>
 
       {setor === "camarote" ? (
         <PainelCamarote evento={evento} linhas={linhas.filter((l) => l.setor === "camarote") as unknown as LinhaCamarote[]} walkins={walkins}
           capacidade={info?.capacidade ?? 44} concorrido={concorrido} areas={areas} />
       ) : (<>
-
-      {adicionando && (
-        <AdicionarNomes evento={evento} setores={setores.map((s) => s.setor).filter((x) => x !== "camarote")} setorInicial={setor} areas={areas} areaPadrao={areaPadrao}
-          aoConcluir={() => setAdicionando(false)} />
-      )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Grande rotulo="Ocupados" valor={`${info?.ocupados ?? 0} / ${info?.capacidade ?? 0}`} />
@@ -156,7 +156,11 @@ function TabelaSimples({ linhas, vazio, posicao, evento }: { linhas: LinhaPainel
               <tr key={l.id} className="border-t border-black/5">
                 <td className="tabular px-4 py-2 text-xs text-tinta/40">{i + 1}</td>
                 <td className={clsx("px-4 py-2", l.convidado_de ? "pl-8" : "font-medium")}>
-                  {l.convidado_de && <span className="text-tinta/40">↳ </span>}{l.nome}
+                  {evento ? (
+                    <NomeEditavel linha={l} salvar={(id, d) => atualizarDadosAdmin(evento, id, d)}>
+                      <span>{l.convidado_de && <span className="text-tinta/40">↳ </span>}{l.nome}</span>
+                    </NomeEditavel>
+                  ) : <>{l.convidado_de && <span className="text-tinta/40">↳ </span>}{l.nome}</>}
                   {l.convidado_de && <span className="block text-xs font-normal text-tinta/50">convidado de {l.convidado_de_nome}</span>}
                 </td>
                 <td className="px-4 py-2 font-mono text-xs whitespace-nowrap">{l.cpf ? formatarCpf(l.cpf) : "—"}</td>
@@ -179,83 +183,6 @@ function TabelaSimples({ linhas, vazio, posicao, evento }: { linhas: LinhaPainel
         </tbody>
       </table>
       {msg && <div className="px-4 pt-3"><Aviso tom={msg.ok ? "ok" : "erro"}>{msg.texto}</Aviso></div>}
-    </div>
-  );
-}
-
-function AdicionarNomes({ evento, setores, setorInicial, areas, areaPadrao, aoConcluir }: {
-  evento: string; setores: Setor[]; setorInicial: Setor; areas: { id: string; nome: string }[]; areaPadrao: string; aoConcluir: () => void;
-}) {
-  const [setor, setSetor] = useState<Setor>(setorInicial);
-  const [area, setArea] = useState(areaPadrao);
-  const [texto, setTexto] = useState("");
-  const [agrupar, setAgrupar] = useState(setorInicial === "camarote");
-  const [resultado, setResultado] = useState<{ msg: string; linhas: ResultadoLinha[] } | null>(null);
-  const [erro, setErro] = useState<string | null>(null);
-  const [pendente, iniciar] = useTransition();
-  const lidas = useMemo(() => separarLista(texto).map((l) => ({ ...l, problemas: l.problemas.filter((p) => p !== "sem celular") })), [texto]);
-  const validas = lidas.filter((l) => !l.problemas.length);
-
-  return (
-    <div className="rounded-2xl bg-white p-4 ring-2 ring-laranja-500/40">
-      <h2 className="font-bold text-mrv-900">Adicionar nomes</h2>
-      <p className="mb-3 text-sm text-tinta/60">Cole uma pessoa por linha, com nome e CPF (pode vir do WhatsApp ou do Excel). Entram já aprovados.</p>
-      <div className="grid gap-3 lg:grid-cols-[1fr_320px]">
-        <AreaTexto rows={8} value={texto} onChange={(e) => { setTexto(e.target.value); setResultado(null); }}
-          placeholder={"Maria Souza 123.456.789-09\nJoão Lima; 98765432100"} aria-label="Nomes e CPFs" />
-        <div className="space-y-3">
-          <Campo rotulo="Setor">
-            <Selecao value={setor} onChange={(e) => { setSetor(e.target.value as Setor); setAgrupar(e.target.value === "camarote"); }}>
-              {setores.map((s) => <option key={s} value={s}>{ROTULO_SETOR[s]}</option>)}
-            </Selecao>
-          </Campo>
-          <Campo rotulo="Conta na cota de qual área">
-            <Selecao value={area} onChange={(e) => setArea(e.target.value)}>
-              {areas.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
-            </Selecao>
-          </Campo>
-          <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" checked={agrupar} onChange={(e) => setAgrupar(e.target.checked)} className="mt-0.5 size-4 accent-mrv-700" />
-            <span>A 1ª pessoa é o anfitrião e as demais são convidados dele</span>
-          </label>
-        </div>
-      </div>
-
-      {lidas.length > 0 && (
-        <ul className="mt-3 max-h-48 space-y-1 overflow-y-auto rounded-lg bg-fundo p-2 text-sm">
-          {lidas.map((l, i) => (
-            <li key={i} className="flex items-center justify-between gap-2">
-              <span>
-                {agrupar && i > 0 && <span className="text-tinta/40">↳ </span>}
-                <b>{l.nome || "(sem nome)"}</b> <span className="font-mono text-xs text-tinta/60">{l.cpf ? formatarCpf(l.cpf) : ""}</span>
-              </span>
-              {l.problemas.length ? <Selo tom="vermelho">{l.problemas.join(", ")}</Selo> : <Selo tom="verde">ok</Selo>}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {erro && <div className="mt-3"><Aviso tom="erro">{erro}</Aviso></div>}
-      {resultado && (
-        <div className="mt-3 space-y-2">
-          <Aviso tom="ok">{resultado.msg}</Aviso>
-          {resultado.linhas.filter((r) => !r.ok).map((r, i) => <Aviso key={i} tom="erro">{r.nome}: {r.erro}</Aviso>)}
-        </div>
-      )}
-
-      <div className="mt-3 flex gap-2">
-        <Botao disabled={pendente || !validas.length || validas.length !== lidas.length}
-          onClick={() => iniciar(async () => {
-            setErro(null);
-            const r = await adicionarNomes(evento, setor, area, validas.map((l) => ({ nome: l.nome, cpf: l.cpf! })), agrupar);
-            if (!r.ok) return setErro(r.erro);
-            setResultado({ msg: r.mensagem ?? "", linhas: r.dados ?? [] });
-            if (r.dados?.every((x) => x.ok)) { setTexto(""); setTimeout(aoConcluir, 1500); }
-          })}>
-          {pendente ? "Adicionando…" : `Adicionar ${validas.length || ""} pessoa(s)`}
-        </Botao>
-        {lidas.length > validas.length && <span className="self-center text-xs text-red-700">Corrija as linhas marcadas para continuar.</span>}
-      </div>
     </div>
   );
 }

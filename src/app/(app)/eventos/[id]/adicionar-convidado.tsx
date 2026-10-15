@@ -3,22 +3,20 @@ import { useState } from "react";
 import { Aviso, Botao, Campo, Cartao, Entrada } from "@/components/ui";
 import { ROTULO_SETOR, type Setor } from "@/lib/tipos";
 import { adicionarConvidadoAdmin } from "./adicionar-actions";
+import type { OpcaoSetor } from "./adicionar-opcoes";
 import { FormSolicitacao } from "./areas/[area]/form-solicitacao";
 
-export interface OpcaoSetor {
-  setor: Setor;
-  /** Saldo por área (cota − ocupados); null = setor sem cota por área. */
-  saldos: Record<string, number | null>;
-  disponiveis: number;
-  /** Cota ainda não distribuída a nenhuma área. */
-  livre: number;
-}
 
-/** Admin: adiciona convidado que chegou por WhatsApp, e-mail etc. Abate da cota da área e entra pronto para envio. */
-export function AdicionarConvidado({ evento, areas, setores }: { evento: string; areas: { id: string; nome: string }[]; setores: OpcaoSetor[] }) {
+/**
+ * Admin e Marketing: adicionam convidado que chegou por WhatsApp, e-mail etc. Abate da cota da área
+ * e entra aprovado (pronto para envio) — inclusive no camarote de jogo concorrido.
+ */
+export function AdicionarConvidado({ evento, areas, setores, setorInicial, areaInicial = "" }: {
+  evento: string; areas: { id: string; nome: string }[]; setores: OpcaoSetor[]; setorInicial?: Setor; areaInicial?: string;
+}) {
   const [aberto, setAberto] = useState(false);
-  const [setor, setSetor] = useState<Setor>(setores.find((s) => s.setor !== "camarote")?.setor ?? setores[0]?.setor ?? "arquibancada");
-  const [area, setArea] = useState("");
+  const [setor, setSetor] = useState<Setor>(setorInicial ?? setores.find((s) => s.setor !== "camarote")?.setor ?? setores[0]?.setor ?? "arquibancada");
+  const [area, setArea] = useState(areaInicial);
   const [semSaldo, setSemSaldo] = useState<"espera" | "abater">("espera");
   // "" = nenhuma escolhida; "livre" = saldo livre do setor; senão, id da área que cede a cota
   const [doador, setDoador] = useState("");
@@ -39,7 +37,7 @@ export function AdicionarConvidado({ evento, areas, setores }: { evento: string;
           <h2 className="text-lg font-bold text-mrv-900">Adicionar convidado</h2>
           <p className="text-sm text-tinta/60">
             Para pedidos que chegaram por WhatsApp, e-mail etc. Vale tudo da regra (CPF válido, sem duplicidade no evento, cota da área),
-            mas <b>sem validação</b>: entra direto na lista final como <b>Pronto para envio</b>.
+            mas <b>sem validação nem fila</b>: entra direto na lista final como <b>Pronto para envio</b> — inclusive no camarote de jogo concorrido.
           </p>
         </div>
         <button type="button" onClick={() => setAberto(false)} className="text-sm font-semibold text-tinta/60 hover:text-tinta">Fechar ✕</button>

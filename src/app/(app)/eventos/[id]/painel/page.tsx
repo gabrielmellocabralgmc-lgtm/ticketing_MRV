@@ -8,6 +8,7 @@ import { carregarEvento, carregarResumo } from "../dados";
 import { carregarIngressos } from "../ingressos";
 import { type Walkin } from "./camarote";
 import { PainelJogo, type LinhaPainel } from "./painel-jogo";
+import { opcoesAdicionar } from "../adicionar-opcoes";
 
 export const metadata = { title: "Painel do jogo" };
 
@@ -16,7 +17,7 @@ export default async function Painel({ params }: { params: Promise<{ id: string 
   const { id } = await params;
   const ev = await carregarEvento(id);
   const supabase = await supabaseServidor();
-  const [{ setores }, linhas, { data: areas }] = await Promise.all([
+  const [{ setores, linhas: resumo }, linhas, { data: areas }] = await Promise.all([
     carregarResumo(id),
     carregarIngressos(id, ["convite_enviado", "aguardando_preenchimento", "solicitado", "validado_area", "aprovado", "facial_pendente", "facial_ok", "enviado", "confirmado", "presente", "lista_espera"], "painel"),
     supabase.from("areas").select("id, nome, slug").eq("ativo", true).order("ordem"),
@@ -38,6 +39,7 @@ export default async function Painel({ params }: { params: Promise<{ id: string 
         areaPadrao={areaPadrao}
         walkins={(walkins ?? []) as Walkin[]}
         concorrido={ev.concorrido}
+        opcoes={opcoesAdicionar(setores, resumo, areas ?? [])}
       />
     </>
   );

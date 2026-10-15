@@ -73,7 +73,7 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-tinta/70">{avulsos ? "Cada pessoa é um convidado independente (sem titular). Chegou só o CPF? Pode adicionar e informar o nome depois, na Lista geral — mesmo após o envio." : "A 1ª pessoa é o titular (colaborador); as demais ficam como convidadas dele."}</p>
+        <p className="text-sm text-tinta/70">{avulsos ? "Cada pessoa é um convidado independente (sem titular). Chegou só o CPF? Pode adicionar e informar o nome depois, na própria lista do jogo (botão “Informar nome”) — mesmo após o envio." : "A 1ª pessoa é o titular (colaborador); as demais ficam como convidadas dele."}</p>
         <button type="button" onClick={() => setColar((c) => !c)} className="text-sm font-semibold text-mrv-700 hover:underline">
           {colar ? "Fechar" : "Colar lista (WhatsApp/Excel)"}
         </button>

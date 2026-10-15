@@ -2,6 +2,8 @@
 // Central de pedidos do camarote (Marketing): novo pedido com anfitrião, prioridade e catering;
 // fila por prioridade em jogo concorrido; links para os convidados do anfitrião; histórico;
 // entradas não listadas vindas da operação.
+import { atualizarDadosAdmin } from "../adicionar-actions";
+import { NomeEditavel } from "../nome-editavel";
 import { useMemo, useState, useTransition } from "react";
 import clsx from "clsx";
 import { BotaoCopiar, BotaoWhatsApp } from "@/components/copiar";
@@ -23,6 +25,9 @@ export interface LinhaCamarote {
   status: StatusIngresso;
   nome: string | null;
   cpf: string | null;
+  celular: string | null;
+  email: string | null;
+  manual_admin?: boolean;
   convidado_de: string | null;
   convite_id: string | null;
   prioridade: "exec_presidencia" | "diretor" | "gestor" | null;
@@ -195,7 +200,10 @@ function CartaoPedido({ evento, p, posicao, pendente, rodar }: {
       <header className="flex flex-wrap items-center gap-3 border-b border-[#edeeed] px-5 py-3">
         {posicao && <span className="font-display text-xl font-bold text-laranja-700">{posicao}º</span>}
         <div className="min-w-0 flex-1">
-          <div className="font-bold">{a.nome} <span className="font-normal text-cinza">· anfitrião · {a.area_nome}</span></div>
+          <div className="font-bold">
+            {a.manual_admin ? <>Adicionados pela equipe <span className="font-normal text-cinza">· {a.area_nome}</span></>
+              : <>{a.nome} <span className="font-normal text-cinza">· anfitrião · {a.area_nome}</span></>}
+          </div>
           <div className="mt-1 flex flex-wrap gap-1.5 text-xs">
             {a.prioridade && <Selo tom="azul">{PRIORIDADE[a.prioridade].curto}</Selo>}
             <Selo tom={a.catering === "corporativo" ? "verde" : "cinza"}>
@@ -219,7 +227,11 @@ function CartaoPedido({ evento, p, posicao, pendente, rodar }: {
       <ul className="divide-y divide-[#edeeed] text-sm">
         {[a, ...p.convidados].map((l) => (
           <li key={l.id} className="flex flex-wrap items-center gap-3 px-5 py-2.5">
-            <span className={clsx("min-w-0 flex-1", l === a ? "font-semibold" : "pl-4")}>{l !== a && <span className="text-tinta/40">↳ </span>}{l.nome}</span>
+            <span className={clsx("min-w-0 flex-1", l === a || a.manual_admin ? "font-semibold" : "pl-4")}>
+              <NomeEditavel linha={l} salvar={(id, d) => atualizarDadosAdmin(evento, id, d)}>
+                <span>{l !== a && !a.manual_admin && <span className="text-tinta/40">↳ </span>}{l.nome}</span>
+              </NomeEditavel>
+            </span>
             <span className="font-mono text-xs text-cinza">{l.cpf ? formatarCpf(l.cpf) : ""}</span>
             {l.chegada_em && <Selo tom="verde">Chegou {dataHora(l.chegada_em).split(" ")[1]}</Selo>}
           </li>

@@ -12,6 +12,7 @@ import { CHAVE_ESCUDO_ATLETICO, chaveEscudoAdversario, imagensDisponiveis } from
 import { mudarStatusEvento } from "../actions";
 import { EditorCotas } from "./editor-cotas";
 import { AdicionarConvidado } from "./adicionar-convidado";
+import { opcoesAdicionar } from "./adicionar-opcoes";
 import { encerrarEvento } from "./painel/actions";
 import { Convocacao } from "./convocacao";
 import { areasParaConvocar, envioReal } from "@/lib/mensagens/envio";
@@ -72,17 +73,8 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
           <a href={`/eventos/${id}/exportar`} className="inline-flex min-h-10 items-center rounded-lg px-4 py-2 text-sm font-bold text-mrv-700 ring-1 ring-mrv-600 hover:bg-mrv-50">Exportar XLSX</a>
           <BotaoLink href={`/eventos/${id}/relatorio`} variante="fantasma">Relatório</BotaoLink>
           <BotaoLink href={`/eventos/${id}/editar`} variante="fantasma">Editar</BotaoLink>
-          {s.papel === "admin" && (
-            <AdicionarConvidado evento={id} areas={areasAtivas ?? []}
-              setores={setores.map((st) => ({
-                setor: st.setor,
-                disponiveis: Math.max(0, st.capacidade - st.ocupados),
-                livre: st.cota_por_area ? Math.max(0, st.capacidade - st.alocado) : 0,
-                saldos: Object.fromEntries((areasAtivas ?? []).map((a) => {
-                  const l = linhas.find((x) => x.setor === st.setor && x.area_id === a.id);
-                  return [a.id, st.cota_por_area ? Math.max(0, (l?.cota ?? 0) - (l?.ocupados ?? 0)) : null];
-                })),
-              }))} />
+          {s.staff && (
+            <AdicionarConvidado evento={id} areas={areasAtivas ?? []} setores={opcoesAdicionar(setores, linhas, areasAtivas ?? [])} />
           )}
         </div>
       )}

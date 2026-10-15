@@ -573,8 +573,9 @@ describe("Admin adiciona só com CPF e informa o nome depois", () => {
     const r = await pedir(adm, ev, dh, [soCpf], { origem: "marketing", avulsos: true });
     const [p0] = await b.sql<{ nome: string; manual_admin: boolean }>(`select nome, manual_admin from v_ingressos where id = $1`, [r.ingressos[0]]);
     expect(p0).toMatchObject({ nome: "(sem nome)", manual_admin: true });
-    // sem avulsos (ou feito pelo Marketing) o nome continua obrigatório
-    await expect(pedir(mkt, ev, dh, [{ cpf: nova().cpf }], { origem: "marketing", avulsos: true })).rejects.toThrow(/DADOS_INCOMPLETOS/);
+    // o Marketing também pode; fora do "adicionar convidado" (sem avulsos) o nome continua obrigatório
+    await pedir(mkt, ev, dh, [{ cpf: nova().cpf }], { origem: "marketing", avulsos: true });
+    await expect(pedir(mkt, ev, dh, [{ cpf: nova().cpf }], { origem: "marketing" })).rejects.toThrow(/DADOS_INCOMPLETOS/);
 
     await b.como(adm, `select marcar_enviados($1, true)`, [r.ingressos]);
     await b.como(adm, `select atualizar_dados_admin($1, 'Nome Chegou Depois', '31999998888')`, [r.ingressos[0]]);
@@ -584,7 +585,21 @@ describe("Admin adiciona só com CPF e informa o nome depois", () => {
     // pedido normal da área: não pode
     const normal = await pedir(respDH, ev, dh, [nova()]);
     await expect(b.como(adm, `select atualizar_dados_admin($1, 'Outro Nome')`, [normal.ingressos[0]])).rejects.toThrow(/SEM_PERMISSAO/);
-    // e só o Admin
-    await expect(b.como(mkt, `select atualizar_dados_admin($1, 'Outro Nome')`, [r.ingressos[0]])).rejects.toThrow();
+    // o Marketing também pode; responsável de área não
+    await b.como(mkt, `select atualizar_dados_admin($1, 'Nome Pelo Marketing')`, [r.ingressos[0]]);
+    await expect(b.como(respDH, `select atualizar_dados_admin($1, 'Outro Nome')`, [r.ingressos[0]])).rejects.toThrow();
+  });
+});
+
+describe("Admin/Marketing adicionando no camarote de jogo concorrido", () => {
+  it("entra aprovado direto, sem passar pela fila de prioridade", async () => {
+    const ev = await novoEvento({ concorrido: true });
+    for (const quem of [adm, mkt]) {
+      const r = await pedir(quem, ev, presid, [nova(), nova()], { origem: "marketing", avulsos: true }, "camarote");
+      expect(await statusDe(r.ingressos)).toEqual(["facial_ok", "facial_ok"]);
+    }
+    // pedido registrado na central do camarote continua indo para a fila
+    const fila = await pedir(mkt, ev, presid, [nova()], { origem: "marketing", prioridade: "diretor" }, "camarote");
+    expect(fila.status).toBe("lista_espera");
   });
 });

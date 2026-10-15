@@ -4,7 +4,6 @@
 import { useMemo, useState, useTransition } from "react";
 import clsx from "clsx";
 import { Aviso, Entrada, Selecao, Selo, SeloStatus } from "@/components/ui";
-import { SEM_NOME } from "@/lib/texto";
 import { formatarCpf, somenteDigitos } from "@/lib/cpf";
 import { celular, dataHora } from "@/lib/formato";
 import { linkWhatsApp, textoGaloId } from "@/lib/mensagens";
@@ -12,6 +11,7 @@ import type { Resultado } from "@/lib/erros";
 import { normalizarTexto } from "@/lib/texto";
 import { ROTULO_SETOR, type Setor, type StatusIngresso } from "@/lib/tipos";
 import type { LinhaIngresso } from "../tabela-selecao";
+import { NomeEditavel, semNome } from "../nome-editavel";
 
 export type LinhaGeral = LinhaIngresso & { pedido_id: string };
 
@@ -42,10 +42,8 @@ interface Acoes {
   atualizarDados: (id: string, p: { nome: string; celular: string; email: string }) => Promise<Resultado>;
 }
 
-type Dados = { nome: string; celular: string; email: string };
-const semNome = (l: LinhaGeral) => !l.nome || l.nome === SEM_NOME;
 const passaFiltro = (f: (typeof FILTROS)[number], l: LinhaGeral) =>
-  f.id === "sem_nome" ? semNome(l) && !["cancelado", "recusado"].includes(l.status) : !f.status || f.status.includes(l.status);
+  f.id === "sem_nome" ? semNome(l.nome) && !["cancelado", "recusado"].includes(l.status) : !f.status || f.status.includes(l.status);
 
 export function ListaGeral({ linhas, acoes }: { linhas: LinhaGeral[]; acoes: Acoes }) {
   const [filtro, setFiltro] = useState<Filtro>("ativos");
@@ -129,18 +127,6 @@ function TabelaSetor({ setor, todas, linhas, ordem, nomesPorId, pendente, acoes,
   pendente: boolean; acoes: Acoes; rodar: (l: LinhaGeral, f: (ids: string[]) => Promise<Resultado>, confirmar?: string) => void;
 }) {
   const [copiado, setCopiado] = useState<string | null>(null);
-  const [editando, setEditando] = useState<string | null>(null);
-  const [dados, setDados] = useState<Dados>({ nome: "", celular: "", email: "" });
-  const [erroEdicao, setErroEdicao] = useState<string | null>(null);
-  const [salvando, iniciarSalvar] = useTransition();
-  const abrirEdicao = (l: LinhaGeral) => {
-    setEditando(l.id); setErroEdicao(null);
-    setDados({ nome: semNome(l) ? "" : l.nome ?? "", celular: l.celular ?? "", email: l.email ?? "" });
-  };
-  const salvar = (l: LinhaGeral) => iniciarSalvar(async () => {
-    const r = await acoes.atualizarDados(l.id, dados);
-    if (r.ok) setEditando(null); else setErroEdicao(r.erro);
-  });
   const ordenadas = [...linhas];
   if (ordem === "nome") ordenadas.sort((a, b) => (a.nome ?? "").localeCompare(b.nome ?? "", "pt-BR"));
   if (ordem === "status") ordenadas.sort((a, b) => a.status.localeCompare(b.status));
@@ -187,42 +173,15 @@ function TabelaSetor({ setor, todas, linhas, ordem, nomesPorId, pendente, acoes,
                 <tr key={l.id} className="border-t border-[#edeeed] even:bg-fundo/50 hover:bg-mrv-50/60">
                   <td className="tabular px-3 py-1.5 text-xs text-tinta/40">{i + 1}</td>
                   <td className="px-3 py-1.5">
-                    {editando === l.id ? (
-                      // só para quem o Admin adicionou: nome e contato, em qualquer etapa (inclusive já enviado)
-                      <div className="flex min-w-72 flex-col gap-1.5 py-1">
-                        <Entrada autoFocus value={dados.nome} onChange={(e) => setDados({ ...dados, nome: e.target.value })} placeholder="Nome completo" aria-label="Nome" />
-                        <div className="flex gap-1.5">
-                          <Entrada value={dados.celular} onChange={(e) => setDados({ ...dados, celular: e.target.value })} placeholder="Celular (opcional)" inputMode="tel" aria-label="Celular" />
-                          <Entrada value={dados.email} onChange={(e) => setDados({ ...dados, email: e.target.value })} placeholder="E-mail (opcional)" aria-label="E-mail" />
-                        </div>
-                        {erroEdicao && <span className="text-xs text-red-700">{erroEdicao}</span>}
-                        <div className="flex gap-2">
-                          <button disabled={salvando || !dados.nome.trim()} onClick={() => salvar(l)}
-                            className="rounded-lg bg-mrv-600 px-3 py-1 text-xs font-bold text-white hover:bg-mrv-700 disabled:opacity-50">{salvando ? "Salvando…" : "Salvar"}</button>
-                          <button onClick={() => setEditando(null)} className="text-xs text-cinza hover:underline">cancelar</button>
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5">
-                        {semNome(l) ? (
-                          <Selo tom="laranja">Nome a informar</Selo>
-                        ) : (
-                          /* detalhes ao passar o mouse (ou focar com o teclado) */
-                          <span className="group relative inline-block" tabIndex={0}>
-                            <span className="cursor-default font-medium underline decoration-dotted decoration-tinta/30 underline-offset-4">{l.nome}</span>
-                            <span role="tooltip" className="pointer-events-none invisible absolute top-full left-0 z-20 mt-1 w-max max-w-72 rounded-lg bg-preto px-3 py-2 text-xs leading-relaxed text-white opacity-0 shadow-lg transition group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100">
-                              {detalhes.map((d) => <span key={d} className="block">{d}</span>)}
-                            </span>
-                          </span>
-                        )}
-                        {l.manual_admin && (
-                          <button onClick={() => abrirEdicao(l)} title="Adicionado pelo Admin: dá para informar ou corrigir o nome a qualquer momento"
-                            className="rounded px-1.5 py-0.5 text-xs font-semibold text-mrv-700 hover:bg-mrv-100">
-                            {semNome(l) ? "Informar nome" : "✎"}
-                          </button>
-                        )}
+                    <NomeEditavel linha={l} salvar={acoes.atualizarDados}>
+                      {/* detalhes ao passar o mouse (ou focar com o teclado) */}
+                      <span className="group relative inline-block" tabIndex={0}>
+                        <span className="cursor-default font-medium underline decoration-dotted decoration-tinta/30 underline-offset-4">{l.nome}</span>
+                        <span role="tooltip" className="pointer-events-none invisible absolute top-full left-0 z-20 mt-1 w-max max-w-72 rounded-lg bg-preto px-3 py-2 text-xs leading-relaxed text-white opacity-0 shadow-lg transition group-hover:visible group-hover:opacity-100 group-focus:visible group-focus:opacity-100">
+                          {detalhes.map((d) => <span key={d} className="block">{d}</span>)}
+                        </span>
                       </span>
-                    )}
+                    </NomeEditavel>
                   </td>
                   <td className="px-3 py-1.5">
                     {l.cpf ? (
