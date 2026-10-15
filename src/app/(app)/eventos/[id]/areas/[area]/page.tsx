@@ -14,6 +14,7 @@ import { validarLista } from "./actions";
 import { FormConvite } from "./form-convite";
 import { FormSolicitacao } from "./form-solicitacao";
 import { ListaArea, type LinhaLista } from "./lista";
+import { ModoPreenchimento } from "./modo-preenchimento";
 
 export const metadata = { title: "Lista da área" };
 
@@ -55,7 +56,7 @@ export default async function PainelArea({ params, searchParams }: { params: Pro
       <AoVivo evento={id} />
       <CabecalhoJogo ev={ev} tamanho="m" escudoAtletico={img[CHAVE_ESCUDO_ATLETICO]} escudoAdversario={img[chaveEscudoAdversario(id)]}
         rotulo={`${areaRow.nome} · ${ROTULO_SETOR[setor]}`}>
-        <div className="text-sm text-white/70">Solicitar até {dataHora(ev.prazo_solicitacao)} · validar até {dataHora(ev.prazo_validacao)}</div>
+        <div className="text-sm text-white/70">Prazo para solicitar, alterar e validar: {dataHora(ev.prazo_solicitacao)}</div>
       </CabecalhoJogo>
 
       {setores.length > 1 && (
@@ -92,20 +93,18 @@ export default async function PainelArea({ params, searchParams }: { params: Pro
       )}
 
       {podeSolicitar && (
-        <div className="mb-6 grid gap-6 xl:grid-cols-2">
-          <Cartao>
-            <h2 className="font-bold text-mrv-900">Modo A · eu preencho</h2>
-            <p className="mb-4 text-sm text-tinta/60">Digite os dados de cada pessoa (padrão: colaborador + 1 convidado).</p>
-            <FormSolicitacao evento={id} setor={setor} area={area} saldo={saldo?.saldo ?? 0} padraoConvidados={camarote ? 0 : 1} />
-          </Cartao>
-          <Cartao>
-            <h2 className="font-bold text-mrv-900">Modo B · o convidado preenche</h2>
-            <p className="mb-4 text-sm text-tinta/60">
-              Reserve vagas e mande o link. A vaga conta na cota desde já; se não for preenchida até a validade, volta para o saldo.
-            </p>
-            <FormConvite evento={id} setor={setor} area={area} areaNome={areaRow.nome} eventoInfo={eventoInfo} saldo={saldo?.saldo ?? 0}
-              maxValidade={paraInputLocal(ev.prazo_solicitacao)} />
-          </Cartao>
+        <div className="mb-6">
+          <ModoPreenchimento prazo={dataHora(ev.prazo_solicitacao)}
+            gestor={<FormSolicitacao evento={id} setor={setor} area={area} saldo={saldo?.saldo ?? 0} padraoConvidados={camarote ? 0 : 1} />}
+            convidado={
+              <>
+                <p className="mb-4 text-sm text-tinta/60">
+                  Reserve as vagas e mande o link. A vaga conta na cota desde já; se não for preenchida até a validade, volta para o saldo.
+                </p>
+                <FormConvite evento={id} setor={setor} area={area} areaNome={areaRow.nome} eventoInfo={eventoInfo} saldo={saldo?.saldo ?? 0}
+                  maxValidade={paraInputLocal(ev.prazo_solicitacao)} />
+              </>
+            } />
         </div>
       )}
 
@@ -114,16 +113,19 @@ export default async function PainelArea({ params, searchParams }: { params: Pro
           <div>
             <h2 className="font-bold text-mrv-900">Lista da área</h2>
             <p className="text-sm text-tinta/60">
-              {validacao ? <>Última validação: {dataHora(validacao.em)} por {(validacao.perfis as unknown as { nome: string } | null)?.nome ?? "—"} ({validacao.qtd})</> : "A lista ainda não foi validada."}
+              {aValidar > 0
+                ? <>{aValidar} convidado(s) preencheram pelo link e aguardam a sua validação (até {dataHora(ev.prazo_solicitacao)}).</>
+                : validacao ? <>Última validação: {dataHora(validacao.em)} por {(validacao.perfis as unknown as { nome: string } | null)?.nome ?? "—"} ({validacao.qtd}).</> : "Tudo validado."}
               {!s.staff && " CPFs aparecem mascarados."}
             </p>
           </div>
           {aValidar > 0 && (
-            <BotaoAcao acao={validarLista.bind(null, id, setor, area)} rotulo={`Validar lista (${aValidar})`} variante="primario"
-              confirmar={`Confirmar os ${aValidar} ingresso(s) solicitados e enviar para a aprovação do Marketing?`} />
+            <BotaoAcao acao={validarLista.bind(null, id, setor, area)} rotulo={`Validar lista dos convidados (${aValidar})`} variante="primario"
+              confirmar={`Validar os ${aValidar} convidado(s) que preencheram pelo link? Eles ficam prontos para envio.`} />
           )}
         </div>
-        <ListaArea evento={id} setor={setor} area={area} areaNome={areaRow.nome} linhas={lista} eventoInfo={eventoInfo} />
+        <ListaArea evento={id} setor={setor} area={area} areaNome={areaRow.nome} linhas={lista} eventoInfo={eventoInfo}
+          podeAlterar={s.staff || !prazoPassou} prazo={dataHora(ev.prazo_solicitacao)} />
       </Cartao>
     </>
   );

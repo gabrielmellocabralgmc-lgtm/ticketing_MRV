@@ -75,7 +75,7 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
       {s.staff && (
         <Cartao className="mb-6 flex flex-wrap items-center gap-4">
           <div className="text-sm text-tinta/70">
-            Prazo de solicitação: <b>{dataHora(ev.prazo_solicitacao)}</b> · validação: <b>{dataHora(ev.prazo_validacao)}</b>
+            Prazo de solicitação, alteração e validação: <b>{dataHora(ev.prazo_solicitacao)}</b>
             {pendenteValidar > 0 && <> · <span className="text-amber-700">{pendenteValidar} aguardando validação das áreas</span></>}
           </div>
           <div className="ml-auto flex flex-wrap gap-2">

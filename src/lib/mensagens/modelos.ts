@@ -8,12 +8,13 @@ export const VARIAVEIS: Record<string, string> = {
   portoes: "Abertura dos portões",
   prazo: "Prazo para as áreas solicitarem (por extenso)",
   prazo_curto: "Prazo curto (Quarta-feira, 07/10, às 16h)",
-  prazo_validacao: "Prazo para validar a lista",
+  prazo_validacao: "Prazo para validar a lista (igual ao de solicitação)",
   area: "Nome da área",
   responsavel: "Primeiro nome do responsável",
   cota: "Cota da área (ex.: 10)",
   saldo: "Saldo ainda não usado pela área",
-  pendentes: "Pedidos aguardando validação",
+  pendentes: "Convidados aguardando validação",
+  lista: "Lista dos convidados aguardando validação (um por linha)",
   setor: "Setor (Arquibancada, Pista, Camarote)",
   nome: "Primeiro nome do convidado",
   lugares: "Quantidade de lugares do convite",
@@ -24,9 +25,9 @@ export const VARIAVEIS: Record<string, string> = {
 /** Exemplo usado na prévia do editor. */
 export const EXEMPLO: Record<string, string> = {
   jogo: "Galo × Coritiba", quando: "Sábado, 17/10 | 19:00h", prazo_curto: "Sexta-feira, 16/10, às 12h", data: "sábado, 17 de outubro às 19:00", portoes: "16:00",
-  prazo: "sexta, 16/10 às 12:00", prazo_validacao: "sexta, 16/10 às 18:00", area: "DH", responsavel: "Ana",
+  prazo: "sexta, 16/10 às 12:00", prazo_validacao: "sexta, 16/10 às 12:00", area: "DH", responsavel: "Ana",
   cota: "10", saldo: "4", pendentes: "2", setor: "Arquibancada (Inter Oeste)", nome: "João", lugares: "2 lugares",
-  validade: "16/10 às 12:00", link: "https://ingressos.weareact3.com/…",
+  validade: "16/10 às 12:00", lista: "• João Silva\n• Maria Souza", link: "https://ingressos.weareact3.com/…",
 };
 
 export function preencher(texto: string, vars: Record<string, string | number | null | undefined>) {

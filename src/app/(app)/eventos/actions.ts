@@ -35,7 +35,6 @@ function dadosEvento(form: FormData) {
     inicio,
     abertura_portoes: aberturaPortoes(tipo, inicio, String(form.get("portoes_hora") ?? "")),
     prazo_solicitacao: deInputLocal(form.get("prazo_solicitacao")),
-    prazo_validacao: deInputLocal(form.get("prazo_validacao")),
     concorrido: form.get("concorrido") === "on",
     observacoes: String(form.get("observacoes") ?? "").trim() || null,
   };

@@ -104,9 +104,10 @@ describe("cota estourando e lista de espera", () => {
     expect(await statusDe(espera.ingressos)).toEqual(["lista_espera", "lista_espera"]);
 
     await b.como(respLuggo, `select cancelar_ingressos($1, 'pedi mas não vou')`, [[pedidos[0].ingressos[0]]]);
-    expect(await statusDe(espera.ingressos)).toEqual(["solicitado", "solicitado"]);
+    // pedido feito pelo gestor: ao subir da espera já fica pronto para envio
+    expect(await statusDe(espera.ingressos)).toEqual(["facial_ok", "facial_ok"]);
     const [h] = await b.sql<{ motivo: string; autor_tipo: string }>(
-      `select motivo, autor_tipo from status_historico where ingresso_id = $1 order by id desc limit 1`, [espera.ingressos[0]]);
+      `select motivo, autor_tipo from status_historico where ingresso_id = $1 and para = 'solicitado' order by id desc limit 1`, [espera.ingressos[0]]);
     expect(h).toEqual({ motivo: "promovido da lista de espera", autor_tipo: "sistema" });
   });
 
@@ -115,7 +116,7 @@ describe("cota estourando e lista de espera", () => {
     for (let i = 0; i < 3; i++) await pedir(respLuggo, ev, luggo, [nova(), nova()]);
     const espera = await pedir(respLuggo, ev, luggo, [nova(), nova()]);
     await b.como(mkt, `select remanejar_cota($1, 'arquibancada', $2, $3, 2, 'DH não vai usar')`, [ev, dh, luggo]);
-    expect(await statusDe(espera.ingressos)).toEqual(["solicitado", "solicitado"]);
+    expect(await statusDe(espera.ingressos)).toEqual(["facial_ok", "facial_ok"]);
     expect((await saldo(ev, dh)).cota).toBe(8);
   });
 
@@ -236,7 +237,7 @@ describe("Modo B — convites", () => {
     await expect(b.como(null, `select preencher_convite($1, $2, true)`, [r.token, JSON.stringify([nova()])])).rejects.toThrow(/CONVITE_EXPIRADO/);
     const [{ expirar_convites }] = await b.como<{ expirar_convites: number }>(null, `select expirar_convites()`);
     expect(expirar_convites).toBe(1);
-    expect(await statusDe(espera.ingressos)).toEqual(["solicitado"]);
+    expect(await statusDe(espera.ingressos)).toEqual(["facial_ok"]);
     expect((await saldo(ev, luggo)).saldo).toBe(5);
   });
 
@@ -254,11 +255,8 @@ describe("Modo B — convites", () => {
 describe("pipeline completo e RLS", () => {
   it("preenchido → área valida = pronto para envio → pendente facial (sinalizado) → convidado confirma → enviado → recebido", async () => {
     const ev = await novoEvento();
+    // modo gestor: o que o gestor preenche já entra validado = pronto para envio
     const r = await pedir(respDH, ev, dh, [nova(), nova()]);
-    expect(await statusDe(r.ingressos)).toEqual(["solicitado", "solicitado"]); // "Preenchido"
-
-    // área valida: já fica pronto para envio (sem etapa de aprovação do Marketing)
-    await b.como(respDH, `select validar_lista($1, 'arquibancada', $2)`, [ev, dh]);
     expect(await statusDe(r.ingressos)).toEqual(["facial_ok", "facial_ok"]);
 
     // no sistema do Atlético a facial do 2º não está cadastrada: a equipe sinaliza
@@ -343,7 +341,7 @@ describe("resumos", () => {
     const visao = await b.como<{ area_id: string; ocupados: number; solicitados: number; convites_aguardando: number; cota: number }>(
       respDH, `select * from resumo_evento($1)`, [ev]);
     expect(visao).toHaveLength(1);
-    expect(visao[0]).toMatchObject({ area_id: dh, ocupados: 3, solicitados: 2, convites_aguardando: 1, cota: 10 });
+    expect(visao[0]).toMatchObject({ area_id: dh, ocupados: 3, solicitados: 0, facial_ok: 2, convites_aguardando: 1, cota: 10 });
     const tudo = await b.como<{ setor: string }>(mkt, `select * from resumo_evento($1)`, [ev]);
     expect(tudo.filter((r) => r.setor === "arquibancada")).toHaveLength(10);
     const [arq] = await b.como<{ alocado: number; ocupados: number }>(mkt, `select * from resumo_setores($1) where setor = 'arquibancada'`, [ev]);
@@ -496,5 +494,33 @@ describe("facial já conhecida", () => {
     expect(await statusDe(r3.ingressos)).toEqual(["facial_ok"]);
     const [h3] = await b.sql<{ motivo: string }>(`select motivo from status_historico where ingresso_id = $1 order by id desc limit 1`, [r3.ingressos[0]]);
     expect(h3.motivo).toBe("pronto para envio");
+  });
+});
+
+describe("lista da área: modo gestor × modo convidado", () => {
+  it("modo convidado precisa de validação do gestor; modo gestor não", async () => {
+    const ev = await novoEvento();
+    const [{ r }] = await b.como<{ r: { token: string } }>(respDH, `select criar_convite($1, 'arquibancada', $2, 1, 'Pelo link') as r`, [ev, dh]);
+    await b.como(null, `select preencher_convite($1, $2, true)`, [r.token, JSON.stringify([nova("Preencheu Pelo Link")])]);
+    const [c] = await b.sql<{ status: string }>(`select i.status from ingressos i join pessoas p on p.id = i.pessoa_id where p.nome = 'Preencheu Pelo Link'`);
+    expect(c.status).toBe("solicitado");
+    await b.como(respDH, `select validar_lista($1, 'arquibancada', $2)`, [ev, dh]);
+    const [c2] = await b.sql<{ status: string }>(`select i.status from ingressos i join pessoas p on p.id = i.pessoa_id where p.nome = 'Preencheu Pelo Link'`);
+    expect(c2.status).toBe("facial_ok");
+  });
+
+  it("gestor troca e cancela convidados só até o prazo de solicitação", async () => {
+    const ev = await novoEvento({ prazo_solicitacao: new Date(Date.now() + 3600e3).toISOString() });
+    const r = await pedir(respDH, ev, dh, [nova("Trocado")]);
+    await b.como(respDH, `select editar_pessoa_ingresso($1, $2)`, [r.ingressos[0], JSON.stringify(nova("Novo Convidado"))]);
+    const [x] = await b.sql<{ nome: string }>(`select p.nome from ingressos i join pessoas p on p.id = i.pessoa_id where i.id = $1`, [r.ingressos[0]]);
+    expect(x.nome).toBe("Novo Convidado");
+    // prazo passou
+    await b.sql(`update eventos set prazo_solicitacao = now() - interval '1 minute' where id = $1`, [ev]);
+    await expect(b.como(respDH, `select editar_pessoa_ingresso($1, $2)`, [r.ingressos[0], JSON.stringify(nova())])).rejects.toThrow(/PRAZO_ENCERRADO/);
+    await expect(b.como(respDH, `select cancelar_ingressos($1)`, [r.ingressos])).rejects.toThrow(/PRAZO_ENCERRADO/);
+    await expect(b.como(mkt, `select cancelar_ingressos($1)`, [r.ingressos])).resolves.toBeTruthy(); // Marketing pode
+    const [e] = await b.sql<{ prazo_validacao: string; prazo_solicitacao: string }>(`select prazo_validacao, prazo_solicitacao from eventos where id = $1`, [ev]);
+    expect(e.prazo_validacao).toEqual(e.prazo_solicitacao); // prazo único
   });
 });

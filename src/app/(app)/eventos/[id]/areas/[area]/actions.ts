@@ -31,11 +31,12 @@ export async function solicitar(evento: string, setor: Setor, area: string, pess
   revalidatePath(caminho(evento, area));
   const status = (data as { status: string }).status;
   if (status === "aprovado") await avisarAprovadosDoEvento(evento, s.userId);
+  const qtd = pessoas.length === 1 ? "1 convidado adicionado" : `${pessoas.length} convidados adicionados`;
   return {
     ok: true, dados: { status },
-    mensagem: status === "aprovado" ? "Adicionado já aprovado. Segue para a facial do Galo ID e o envio." : status === "lista_espera"
+    mensagem: status === "lista_espera"
       ? "A cota da área está esgotada: o pedido entrou na lista de espera e sobe sozinho se abrir vaga."
-      : `${pessoas.length === 1 ? "Solicitação registrada" : `${pessoas.length} ingressos solicitados`}. Lembre de validar a lista quando terminar.`,
+      : `${qtd} e já validado(s): pronto(s) para envio. Dá para trocar ou cancelar até o fim do prazo de solicitação.`,
   };
 }
 
@@ -110,5 +111,5 @@ export async function validarLista(evento: string, setor: Setor, area: string): 
   const { data, error } = await supabase.rpc("validar_lista", { p_evento: evento, p_setor: setor, p_area: area });
   if (error) return falha(error);
   revalidatePath(caminho(evento, area));
-  return { ok: true, mensagem: `Lista validada: ${data} ingresso(s) seguiram para a aprovação do Marketing.` };
+  return { ok: true, mensagem: `Lista validada: ${data} convidado(s) validados, prontos para envio.` };
 }

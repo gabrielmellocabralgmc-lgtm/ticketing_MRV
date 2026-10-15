@@ -87,11 +87,11 @@ begin
     'inicio', pg_temp.brt(10, '16:00'),
     'abertura_portoes', pg_temp.brt(10, '14:00'),
     'prazo_solicitacao', pg_temp.brt(7, '18:00'),
-    'prazo_validacao', pg_temp.brt(8, '12:00'),
     'concorrido', true, 'status', 'aberto'));
 
   n := 100;
-  for ar in select id, slug from areas where slug in ('dh', 'marketing', 'comercial-corporativo', 'di', 'urba') loop
+  -- DH e Marketing: modo gestor (já entram validados = pronto para envio)
+  for ar in select id, slug from areas where slug in ('dh', 'marketing') loop
     for i in 1..3 loop
       n := n + 1;
       perform criar_pedido(v_ev, 'arquibancada', ar.id, jsonb_build_array(
@@ -100,9 +100,22 @@ begin
         '{"origem":"responsavel"}');
     end loop;
   end loop;
-  perform validar_lista(v_ev, 'arquibancada', (select id from areas where slug = 'dh'));
-  perform validar_lista(v_ev, 'arquibancada', (select id from areas where slug = 'marketing'));
-  -- DH e Marketing validaram (= pronto para envio); no sistema do Atlético, os acompanhantes da DH estão sem facial
+  -- Comercial, DI e Urba: modo convidado (preencheram pelo link; o gestor ainda precisa validar)
+  for ar in select a2.id, a2.slug, (select user_id from area_responsaveis r where r.area_id = a2.id limit 1) resp
+            from areas a2 where a2.slug in ('comercial-corporativo', 'di', 'urba') loop
+    perform set_config('request.jwt.claim.sub', ar.resp::text, true);
+    for i in 1..3 loop
+      n := n + 1;
+      perform preencher_convite(
+        criar_convite(v_ev, 'arquibancada', ar.id, 2, nomes[1 + n % 20], null, null) ->> 'token',
+        jsonb_build_array(
+          jsonb_build_object('nome', nomes[1 + n % 20], 'cpf', pg_temp.cpf_fake(n), 'celular', '319' || lpad((90000000 + n)::text, 8, '0'), 'email', 'colab' || n || '@exemplo.com'),
+          jsonb_build_object('nome', nomes[1 + (n + 7) % 20] || ' Souza', 'cpf', pg_temp.cpf_fake(n + 900), 'celular', '319' || lpad((80000000 + n)::text, 8, '0'))),
+        true);
+    end loop;
+  end loop;
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  -- no sistema do Atlético, os acompanhantes da DH estão sem facial
   perform marcar_facial_pendente(array(select i.id from ingressos i join areas x on x.id = i.area_id where i.evento_id = v_ev and x.slug = 'dh' and i.convidado_de is not null));
 
   -- Luggo (cota 6) cheia + 1 pedido na lista de espera

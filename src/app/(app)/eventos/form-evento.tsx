@@ -58,11 +58,8 @@ export function FormEvento({ acao, evento, anteriores }: { acao: Acao; evento?: 
             <Entrada type="time" name="portoes_hora" defaultValue={paraInputLocal(evento?.abertura_portoes).slice(11, 16)} />
           </Campo>
         )}
-        <Campo rotulo="Prazo de solicitação (áreas)">
+        <Campo rotulo="Prazo de solicitação (áreas)" dica="Vale também para alterar convidados e validar a lista">
           <Entrada type="datetime-local" name="prazo_solicitacao" defaultValue={paraInputLocal(evento?.prazo_solicitacao)} />
-        </Campo>
-        <Campo rotulo="Prazo de validação (responsáveis)">
-          <Entrada type="datetime-local" name="prazo_validacao" defaultValue={paraInputLocal(evento?.prazo_validacao)} />
         </Campo>
       </div>
       <div className="flex flex-wrap gap-6 text-sm">

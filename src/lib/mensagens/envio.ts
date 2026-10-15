@@ -221,9 +221,55 @@ export function itensArea(tipo: "convocacao_area" | "lembrete_area", ev: EventoV
   }));
 }
 
+// ---------------------------------------------------------------- modo convidado: lista para validar
+const INTERVALO_VALIDACAO_H = 12;
+
+/**
+ * Áreas com convidados que preencheram pelo link e aguardam validação: o gestor recebe a lista
+ * e o botão "Validar lista". No máximo um e-mail a cada 12 h por área, e só até o prazo.
+ */
+export async function avisarValidacaoPendente(evento?: string, area?: string): Promise<ResultadoEnvio> {
+  const sb = await supabaseServico();
+  const agora = Date.now();
+  let q = sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, status").eq("status", "aberto");
+  if (evento) q = q.eq("id", evento);
+  const { data: evs } = await q;
+  const itens: ItemEnvio[] = [];
+  for (const ev of ((evs ?? []) as EventoVars[]).filter((e) => !e.prazo_solicitacao || new Date(e.prazo_solicitacao).getTime() > agora)) {
+    let qi = sb.from("v_ingressos").select("area_id, setor, nome, preenchido_por, criado_em").eq("evento_id", ev.id).eq("status", "solicitado");
+    if (area) qi = qi.eq("area_id", area);
+    const { data: ings } = await qi;
+    const porArea = new Map<string, { setor: Setor; nome: string | null }[]>();
+    for (const i of (ings ?? []) as { area_id: string; setor: Setor; nome: string | null; preenchido_por: string | null }[]) {
+      if (i.setor === "camarote" || i.preenchido_por !== "convidado") continue;
+      porArea.set(i.area_id, [...(porArea.get(i.area_id) ?? []), i]);
+    }
+    if (!porArea.size) continue;
+    const { data: recentes } = await sb.from("envios").select("area_id").eq("evento_id", ev.id).eq("tipo", "validacao_pendente")
+      .gt("criado_em", new Date(agora - INTERVALO_VALIDACAO_H * 3600e3).toISOString()).in("area_id", [...porArea.keys()]);
+    const jaAvisadas = new Set(((recentes ?? []) as { area_id: string }[]).map((r) => r.area_id));
+    for (const a of await areasParaConvocar(ev.id)) {
+      const pend = porArea.get(a.area_id);
+      if (!pend || jaAvisadas.has(a.area_id)) continue;
+      const link = `${siteUrl()}/eventos/${ev.id}/areas/${a.area_id}?setor=${pend[0].setor}`;
+      for (const r of a.responsaveis) {
+        itens.push({
+          tipo: "validacao_pendente", para: r, evento_id: ev.id, area_id: a.area_id,
+          vars: {
+            ...varsEvento(ev), area: a.area_nome, responsavel: primeiroNome(r.nome), pendentes: pend.length,
+            lista: pend.map((p) => `• ${p.nome ?? "—"}`).join("\n"), setor: ROTULO_SETOR[pend[0].setor], link,
+          },
+          botao: { rotulo: "Validar lista", url: link },
+        });
+      }
+    }
+  }
+  return enviarModelo(itens);
+}
+
 // ---------------------------------------------------------------- lembretes automáticos
 /** Lembrete às áreas perto do prazo (uma vez por área) e da facial no D-2 e D-1. */
-export async function executarLembretes(): Promise<{ areas: ResultadoEnvio; facial: ResultadoEnvio }> {
+export async function executarLembretes(): Promise<{ areas: ResultadoEnvio; facial: ResultadoEnvio; validacao: ResultadoEnvio }> {
   const sb = await supabaseServico();
   const agora = Date.now();
   const { data: cfg } = await sb.from("config").select("valor").eq("chave", "lembrete_area_horas").maybeSingle();
@@ -262,7 +308,7 @@ export async function executarLembretes(): Promise<{ areas: ResultadoEnvio; faci
       });
     }
   }
-  return { areas: await enviarModelo(itensAreas), facial: await enviarModelo(itensFacial) };
+  return { areas: await enviarModelo(itensAreas), facial: await enviarModelo(itensFacial), validacao: await avisarValidacaoPendente() };
 }
 
 /** Depois de qualquer aprovação no evento: avisa por e-mail quem foi aprovado e ainda não recebeu o passo a passo. */

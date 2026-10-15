@@ -33,9 +33,12 @@ export interface LinhaLista {
 const INATIVOS: StatusIngresso[] = ["cancelado", "recusado", "convite_expirado"];
 const POS_APROVACAO: StatusIngresso[] = ["aprovado", "facial_pendente", "facial_ok", "enviado", "confirmado"];
 
-export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo }: {
+const ALTERAVEIS: StatusIngresso[] = ["solicitado", "validado_area", "aprovado", "facial_ok", "facial_pendente", "lista_espera"];
+
+export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, podeAlterar, prazo }: {
   evento: string; setor: Setor; area: string; areaNome: string; linhas: LinhaLista[];
   eventoInfo: { titulo: string; inicio: string; abertura_portoes: string | null };
+  podeAlterar: boolean; prazo: string;
 }) {
   const [mostrarInativos, setMostrarInativos] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
@@ -60,6 +63,11 @@ export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo }:
   return (
     <div className="space-y-6">
       {retorno && <Aviso tom={retorno.ok ? "ok" : "erro"}>{retorno.msg}</Aviso>}
+      <p className="text-xs text-tinta/60">
+        {podeAlterar
+          ? <>Trocas e cancelamentos de convidados são permitidos até <b>{prazo}</b> (enquanto o ingresso não foi enviado).</>
+          : <>O prazo de solicitação terminou: a lista está travada. Para qualquer ajuste, fale com o Marketing MRV.</>}
+      </p>
 
       {aguardando.size > 0 && (
         <div>
@@ -143,10 +151,10 @@ export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo }:
                             )}
                           </>
                         )}
-                        {["solicitado", "lista_espera"].includes(l.status) && (
+                        {podeAlterar && ALTERAVEIS.includes(l.status) && (
                           <button className="rounded-md px-2 py-1 text-xs font-semibold text-mrv-700 hover:bg-mrv-50" onClick={() => setEditando(l.ingresso_id)}>Editar</button>
                         )}
-                        {!INATIVOS.includes(l.status) && !["enviado", "confirmado", "presente", "no_show"].includes(l.status) && (
+                        {podeAlterar && ALTERAVEIS.includes(l.status) && (
                           <button className="rounded-md px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50" disabled={pendente}
                             onClick={() => {
                               const motivo = prompt(`Cancelar o ingresso de ${l.nome}? Informe o motivo:`, "pedi mas não vou");

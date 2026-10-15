@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { falha, type Resultado } from "@/lib/erros";
-import { avisarAprovados } from "@/lib/mensagens/envio";
+import { avisarAprovados, avisarValidacaoPendente } from "@/lib/mensagens/envio";
 import { supabaseServico } from "@/lib/supabase/server";
 
 // Páginas públicas: o token (aleatório, 244 bits) é a credencial. As funções do banco só
@@ -21,6 +21,9 @@ export async function preencherConvite(token: string, pessoas: { nome: string; c
   if (tokens.length) {
     const { data: ings } = await (await supabaseServico()).from("ingressos").select("id").in("token", tokens).eq("status", "aprovado");
     if (ings?.length) await avisarAprovados(ings.map((i) => i.id as string));
+    // modo convidado: avisa o gestor da área que há lista para validar (no máximo a cada 12 h)
+    const { data: pend } = await (await supabaseServico()).from("ingressos").select("evento_id, area_id").in("token", tokens).eq("status", "solicitado").limit(1);
+    if (pend?.length) await avisarValidacaoPendente(pend[0].evento_id as string, pend[0].area_id as string).catch(() => null);
   }
   revalidatePath(`/i/${token}`);
   return { ok: true };
