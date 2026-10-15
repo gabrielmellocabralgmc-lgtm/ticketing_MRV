@@ -5,18 +5,18 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node scripts/migrar.mjs && next start",
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
     "importar": "tsx scripts/importar-planilha.ts",
-    "criar-admin": "tsx scripts/criar-admin.ts",
+    "criar-admin": "node scripts/criar-admin.mjs",
     "typecheck": "tsc --noEmit",
     "demo": "NEXT_PUBLIC_DEMO=1 NEXT_PUBLIC_SITE_URL=http://localhost:3000 next dev -p 3000",
-    "demo:zerar": "rm -rf .demo.nosync"
+    "demo:zerar": "rm -rf .demo.nosync",
+    "migrar": "node scripts/migrar.mjs"
   },
   "dependencies": {
-    "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.3",
     "clsx": "^2.1.1",
     "exceljs": "^4.4.0",
@@ -41,5 +41,8 @@
     "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "^5.0.4"
+  },
+  "engines": {
+    "node": ">=20.18"
   }
 }

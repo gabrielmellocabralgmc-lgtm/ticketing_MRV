@@ -72,7 +72,7 @@ async function CabecalhoEvento({ evento, setor, area }: { evento: EventoPublico;
 
 const ETAPAS: { rotulo: string; feitos: StatusIngresso[] }[] = [
   { rotulo: "Pedido registrado", feitos: ["solicitado", "validado_area", "aprovado", "facial_pendente", "facial_ok", "enviado", "confirmado", "presente"] },
-  { rotulo: "Aprovado pela MRV", feitos: ["aprovado", "facial_pendente", "facial_ok", "enviado", "confirmado", "presente"] },
+  { rotulo: "Validado pela área", feitos: ["aprovado", "facial_pendente", "facial_ok", "enviado", "confirmado", "presente"] },
   { rotulo: "Facial confirmada", feitos: ["facial_ok", "enviado", "confirmado", "presente"] },
   { rotulo: "Ingresso enviado", feitos: ["enviado", "confirmado", "presente"] },
   { rotulo: "Ingresso recebido", feitos: ["confirmado", "presente"] },
@@ -107,7 +107,7 @@ async function PaginaIngresso({ token, info, acompanhantes }: { token: string; i
           </ol>
         )}
         {(info.status === "solicitado" || info.status === "validado_area") && (
-          <div className="mt-4"><Aviso tom="info">Recebemos seus dados. O pedido ainda vai ser aprovado pela MRV; avisaremos pelo WhatsApp. Enquanto isso, confira o cadastro facial (abaixo).</Aviso></div>
+          <div className="mt-4"><Aviso tom="info">Recebemos seus dados. Agora o pedido passa pela validação do responsável da área que convidou você; avisaremos quando for liberado. Enquanto isso, confira o cadastro facial (abaixo).</Aviso></div>
         )}
         {info.status === "lista_espera" && <div className="mt-4"><Aviso tom="alerta">Você está na lista de espera. Se abrir vaga, avisamos.</Aviso></div>}
         {info.status === "cancelado" && <div className="mt-4"><Aviso tom="info">Este ingresso foi cancelado.</Aviso></div>}
@@ -191,7 +191,7 @@ export default async function PaginaPublica({ params }: { params: Promise<{ toke
       <Cartao>
         <h2 className="font-bold text-mrv-900">Preencha para garantir {info.qtd_lugares > 1 ? `até ${info.qtd_lugares} ingressos` : "seu ingresso"}</h2>
         <p className="mt-1 mb-4 text-sm text-tinta/70">
-          Válido até {dataHora(info.expira_em)}. Depois de enviar, o pedido passa pela validação da área e pela aprovação da MRV.
+          Válido até {dataHora(info.expira_em)}. Depois de enviar, o pedido passa pela validação do responsável da área que convidou você.
           {info.setor === "camarote" && " Camarote: quem convidou precisa estar presente; o ingresso não pode ser repassado."}
         </p>
         <FormConvidado token={token} lugares={info.qtd_lugares} privacidade={String(priv?.valor ?? "")} />

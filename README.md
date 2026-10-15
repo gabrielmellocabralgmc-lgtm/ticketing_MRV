@@ -198,3 +198,32 @@ controle de bebidas (a sobra vem da contagem final do jogo anterior), relatório
   (bucket privado `operacao`, criado pela migração). O banco guarda só o registro, com o horário de envio.
   No modo demo ficam em `.demo.nosync/fotos/`.
 - Relatório completo para imprimir/PDF: `/operacao-camarote/<evento>/imprimir`.
+
+
+## Deploy: Railway (app) + Neon (banco) + Resend (e-mail)
+
+O sistema roda em qualquer Postgres. Em produção: **Neon** (mesma conta do adidas_ingressos, num
+banco separado) e o app no **Railway** (fora da Vercel). A camada que imitava o Supabase
+(`supabase/shim.sql` + `src/lib/db/cliente.ts`) mantém a RLS e todas as regras no banco.
+
+| Antes (Supabase) | Agora |
+|---|---|
+| Login por link mágico | Próprio sistema: link por e-mail (Resend), vale 20 min e 1 uso; sessão em cookie assinado (`AUTH_SECRET`), 30 dias |
+| Realtime | Telas atualizam sozinhas a cada 20 s |
+| Storage (fotos da operação) | Tabela `op_arquivos` no próprio banco (fotos já chegam reduzidas, ~300 KB) |
+| Vercel Cron | Agendador interno (`src/lib/agenda.ts`), ligado quando `CRON_SECRET` existe |
+
+**Passo a passo**
+1. **Neon**: no projeto do adidas, crie o banco `ticketing_mrv` (Databases → New database). Copie as duas
+   connection strings: com pooler → `DATABASE_URL`; sem pooler → `DATABASE_URL_DIRETA`.
+2. **GitHub**: suba este repositório (privado).
+3. **Railway**: New Project → Deploy from GitHub repo. Em *Variables*, preencha o `.env.example`
+   (inclusive `ADMIN_EMAIL`/`ADMIN_NOME` para o primeiro Admin). O `railway.json` já define build,
+   start (`npm start` = migrações + servidor) e a verificação de saúde (`/api/saude`).
+4. **Domínio**: Settings → Networking → Generate Domain (ou um subdomínio próprio). Coloque o endereço
+   final em `NEXT_PUBLIC_SITE_URL` e faça um novo deploy.
+5. **Resend**: use a chave da conta existente; o domínio `ingressos.weareact3.com` precisa estar verificado.
+6. Entre em `/login` com o `ADMIN_EMAIL` e cadastre os demais usuários em Configurações › Usuários.
+
+A cada deploy, `scripts/migrar.mjs` aplica só as migrações novas (tabela `_migracoes`).
+Local, sem e-mail: sem `RESEND_API_KEY`, o link de acesso aparece no terminal.

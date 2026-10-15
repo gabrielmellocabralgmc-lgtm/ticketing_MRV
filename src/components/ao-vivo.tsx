@@ -1,28 +1,23 @@
 "use client";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { supabaseNavegador } from "@/lib/supabase/navegador";
+
+const INTERVALO_MS = 20_000;
 
 /**
- * Recarrega os dados da página quando algum ingresso muda (Supabase Realtime, respeita RLS).
- * Sem `evento`, escuta todos (dashboard).
+ * Mantém a tela atualizada: recarrega os dados a cada 20 s enquanto a aba está visível
+ * e logo que a pessoa volta para ela. (Sem Supabase Realtime: funciona em qualquer Postgres.)
  */
-export function AoVivo({ evento }: { evento?: string }) {
+export function AoVivo(_: { evento?: string }) {
   const router = useRouter();
   useEffect(() => {
-    const supabase = supabaseNavegador();
-    let t: ReturnType<typeof setTimeout> | undefined;
-    const canal = supabase
-      .channel(`ingressos-${evento ?? "todos"}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "ingressos", ...(evento ? { filter: `evento_id=eq.${evento}` } : {}) }, () => {
-        clearTimeout(t);
-        t = setTimeout(() => router.refresh(), 600);
-      })
-      .subscribe();
+    const atualizar = () => { if (document.visibilityState === "visible") router.refresh(); };
+    const t = setInterval(atualizar, INTERVALO_MS);
+    document.addEventListener("visibilitychange", atualizar);
     return () => {
-      clearTimeout(t);
-      supabase.removeChannel(canal);
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", atualizar);
     };
-  }, [evento, router]);
+  }, [router]);
   return null;
 }

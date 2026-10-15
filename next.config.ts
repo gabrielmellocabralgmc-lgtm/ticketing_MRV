@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["@electric-sql/pglite"],
   // Fora da Vercel, gera em ".next.nosync": a pasta Desktop sincroniza com o iCloud, que
   // duplica arquivos gerados ("arquivo 2.json"); pastas terminadas em .nosync são ignoradas.
-  distDir: process.env.VERCEL ? ".next" : ".next.nosync",
+  distDir: process.env.NEXT_DIST_DIR ?? (process.env.VERCEL ? ".next" : ".next.nosync"),
   // upload da foto do login e dos escudos (já redimensionados no navegador)
   experimental: { serverActions: { bodySizeLimit: "6mb" } },
 };

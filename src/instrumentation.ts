@@ -1,0 +1,8 @@
+// Ao subir o servidor (Node): liga as rotinas automáticas, exceto no modo demo ou sem CRON_SECRET.
+// Para desligar (ex.: se um dia voltar a usar um cron externo): CRON_INTERNO=0.
+export async function register() {
+  if (process.env.NEXT_RUNTIME !== "nodejs") return;
+  if (process.env.NEXT_PUBLIC_DEMO === "1" || !process.env.CRON_SECRET || process.env.CRON_INTERNO === "0") return;
+  const { iniciarAgenda } = await import("./lib/agenda");
+  iniciarAgenda();
+}
