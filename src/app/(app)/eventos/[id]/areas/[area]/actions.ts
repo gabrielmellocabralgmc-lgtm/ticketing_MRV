@@ -113,3 +113,13 @@ export async function validarLista(evento: string, setor: Setor, area: string): 
   revalidatePath(caminho(evento, area));
   return { ok: true, mensagem: `Lista validada: ${data} convidado(s) validados, prontos para envio.` };
 }
+
+/** Validação nome a nome (só quem está como "Preenchido"). */
+export async function validarIngresso(evento: string, area: string, ingresso: string): Promise<Resultado> {
+  await exigirSessao();
+  const supabase = await supabaseServidor();
+  const { error } = await supabase.rpc("validar_ingressos", { p_ids: [ingresso] });
+  if (error) return falha(error);
+  revalidatePath(caminho(evento, area));
+  return { ok: true, mensagem: "Convidado validado: pronto para envio." };
+}

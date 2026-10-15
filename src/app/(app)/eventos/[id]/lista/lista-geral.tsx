@@ -35,6 +35,7 @@ interface Acoes {
   evento: { titulo: string; inicio: string; abertura_portoes: string | null };
   pendenteFacial: (ids: string[]) => Promise<Resultado>;
   facialOk: (ids: string[]) => Promise<Resultado>;
+  validar: (ids: string[]) => Promise<Resultado>;
   enviados: (ids: string[]) => Promise<Resultado>;
   enviadosSemFacial: (ids: string[]) => Promise<Resultado>;
   desfazerEnvio: (ids: string[]) => Promise<Resultado>;
@@ -217,6 +218,12 @@ function TabelaSetor({ setor, todas, linhas, ordem, nomesPorId, pendente, acoes,
                         <Selo tom="verde">Enviado</Selo>
                         <button disabled={pendente} onClick={() => rodar(l, acoes.desfazerEnvio, `Desfazer o envio de ${l.nome}?`)}
                           className="text-xs text-cinza hover:text-tinta hover:underline">desfazer</button>
+                      </span>
+                    ) : l.status === "solicitado" ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <SeloStatus status={l.status} />
+                        <button disabled={pendente} onClick={() => rodar(l, acoes.validar, `Validar ${l.nome} em nome da área ${l.area_nome}?`)}
+                          className="rounded-lg bg-mrv-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-mrv-700 disabled:opacity-50">Validar</button>
                       </span>
                     ) : <SeloStatus status={l.status} />}
                   </td>

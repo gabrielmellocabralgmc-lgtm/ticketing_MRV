@@ -5,7 +5,7 @@ import { Aviso, Botao, Entrada, Selo, SeloStatus, Tabela, Vazio } from "@/compon
 import { celular, dataHora } from "@/lib/formato";
 import { linkTorcedor, linkWhatsApp, textoConvite, textoGaloId } from "@/lib/mensagens";
 import type { Setor, StatusIngresso } from "@/lib/tipos";
-import { cancelarConvite, cancelarIngresso, editarPessoa } from "./actions";
+import { cancelarConvite, cancelarIngresso, editarPessoa, validarIngresso } from "./actions";
 
 export interface LinhaLista {
   ingresso_id: string;
@@ -143,6 +143,12 @@ export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, p
                     <td><SeloStatus status={l.status} /></td>
                     <td>
                       <div className="flex flex-wrap justify-end gap-1.5">
+                        {l.status === "solicitado" && podeAlterar && (
+                          <button className="rounded-md bg-mrv-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-mrv-700 disabled:opacity-50" disabled={pendente}
+                            onClick={() => rodar(() => validarIngresso(evento, area, l.ingresso_id))}>
+                            Validar
+                          </button>
+                        )}
                         {POS_APROVACAO.includes(l.status) && (
                           <>
                             <BotaoCopiar texto={linkTorcedor(l.token)} rotulo="Link do torcedor" />

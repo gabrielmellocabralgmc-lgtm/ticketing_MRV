@@ -119,13 +119,13 @@ export default async function PainelArea({ params, searchParams }: { params: Pro
             <h2 className="font-bold text-mrv-900">Lista da área</h2>
             <p className="text-sm text-tinta/60">
               {aValidar > 0
-                ? <>{aValidar} convidado(s) preencheram pelo link e aguardam a sua validação (até {dataHora(ev.prazo_solicitacao)}).</>
+                ? <>{aValidar} convidado(s) preencheram pelo link e aguardam a sua validação (até {dataHora(ev.prazo_solicitacao)}). Valide nome a nome na lista ou todos de uma vez.</>
                 : validacao ? <>Última validação: {dataHora(validacao.em)} por {(validacao.perfis as unknown as { nome: string } | null)?.nome ?? "—"} ({validacao.qtd}).</> : "Tudo validado."}
               {!s.staff && " CPFs aparecem mascarados."}
             </p>
           </div>
           {aValidar > 0 && (
-            <BotaoAcao acao={validarLista.bind(null, id, setor, area)} rotulo={`Validar lista dos convidados (${aValidar})`} variante="primario"
+            <BotaoAcao acao={validarLista.bind(null, id, setor, area)} rotulo={`Validar todos (${aValidar})`} variante="primario"
               confirmar={`Validar os ${aValidar} convidado(s) que preencheram pelo link? Eles ficam prontos para envio.`} />
           )}
         </div>

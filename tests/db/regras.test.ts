@@ -604,3 +604,18 @@ describe("Admin/Marketing adicionando no camarote de jogo concorrido", () => {
     expect(outro.status).toBe("aprovado");
   });
 });
+
+describe("validação nome a nome", () => {
+  it("gestor valida só quem escolher; não valida outra área nem quem não está Preenchido", async () => {
+    const ev = await novoEvento();
+    const [{ r }] = await b.como<{ r: { token: string } }>(respDH, `select criar_convite($1, 'arquibancada', $2, 2, 'Dois') as r`, [ev, dh]);
+    await b.como(null, `select preencher_convite($1, $2, true)`, [r.token, JSON.stringify([nova("Um Validado"), nova("Outro Esperando")])]);
+    const ids = (await b.sql<{ id: string; nome: string }>(`select i.id, p.nome from ingressos i join pessoas p on p.id = i.pessoa_id where i.evento_id = $1 order by p.nome desc`, [ev]));
+    const um = ids.find((x) => x.nome === "Um Validado")!.id, outro = ids.find((x) => x.nome === "Outro Esperando")!.id;
+    await expect(b.como(respLuggo, `select validar_ingressos($1)`, [[um]])).rejects.toThrow();
+    const [{ validar_ingressos: n }] = await b.como<{ validar_ingressos: number }>(respDH, `select validar_ingressos($1)`, [[um]]);
+    expect(n).toBe(1);
+    expect(await statusDe([um, outro])).toEqual(["facial_ok", "solicitado"]);
+    await expect(b.como(respDH, `select validar_ingressos($1)`, [[um]])).rejects.toThrow(/Preenchido/);
+  });
+});

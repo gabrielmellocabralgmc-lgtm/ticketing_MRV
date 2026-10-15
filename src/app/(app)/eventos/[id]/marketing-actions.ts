@@ -73,3 +73,7 @@ export async function registrarCopia(evento: string, tipo: "cpfs" | "nome_cpf", 
   const supabase = await supabaseServidor();
   await supabase.rpc("registrar_auditoria", { p_acao: "copiar_cpfs", p_entidade: "evento", p_entidade_id: evento, p_detalhes: { tipo, qtd } });
 }
+
+/** Validar em nome da área, nome a nome (quem preencheu pelo link). */
+export const validarIngressos = async (evento: string, ids: string[]) =>
+  lote(evento, "validar_ingressos", { p_ids: ids }, (n) => `${n} validado(s): pronto para envio.`);

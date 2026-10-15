@@ -3,7 +3,7 @@ import { Titulo } from "@/components/ui";
 import { exigirAdmin } from "@/lib/sessao";
 import { carregarEvento } from "../dados";
 import { carregarIngressos } from "../ingressos";
-import { desfazerEnvio, enviados, enviadosSemFacial, facialOk, pendenteFacial, registrarCopia } from "../marketing-actions";
+import { desfazerEnvio, enviados, enviadosSemFacial, facialOk, pendenteFacial, registrarCopia, validarIngressos } from "../marketing-actions";
 import { ListaGeral, type LinhaGeral } from "./lista-geral";
 import { atualizarDadosAdmin } from "../adicionar-actions";
 
@@ -32,6 +32,7 @@ export default async function PaginaLista({ params }: { params: Promise<{ id: st
           evento: { titulo: ev.titulo, inicio: ev.inicio, abertura_portoes: ev.abertura_portoes },
           pendenteFacial: pendenteFacial.bind(null, id),
           facialOk: facialOk.bind(null, id),
+          validar: validarIngressos.bind(null, id),
           enviados: enviados.bind(null, id),
           enviadosSemFacial: enviadosSemFacial.bind(null, id),
           desfazerEnvio: desfazerEnvio.bind(null, id),
