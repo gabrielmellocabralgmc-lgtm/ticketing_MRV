@@ -213,7 +213,7 @@ banco separado) e o app no **Railway** (fora da Vercel). A camada que imitava o 
 | Storage (fotos da operação) | Tabela `op_arquivos` no próprio banco (fotos já chegam reduzidas, ~300 KB) |
 | Vercel Cron | Agendador interno (`src/lib/agenda.ts`), ligado quando `CRON_SECRET` existe |
 
-**Passo a passo**
+**Passo a passo detalhado:** [docs/DEPLOY.md](docs/DEPLOY.md). Resumo:
 1. **Neon**: no projeto do adidas, crie o banco `ticketing_mrv` (Databases → New database). Copie as duas
    connection strings: com pooler → `DATABASE_URL`; sem pooler → `DATABASE_URL_DIRETA`.
 2. **GitHub**: suba este repositório (privado).
