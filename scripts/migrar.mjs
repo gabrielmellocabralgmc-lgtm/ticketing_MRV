@@ -8,7 +8,34 @@ import path from "node:path";
 import pg from "pg";
 
 const raiz = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
-const url = process.env.DATABASE_URL_DIRETA || process.env.DATABASE_URL;
+// Confere as variáveis antes de conectar, com mensagens claras (sem mostrar a senha)
+function conferir(nome) {
+  const bruto = process.env[nome];
+  if (!bruto) return null;
+  const v = bruto.trim();
+  const problema =
+    /COLE_AQUI/i.test(v) ? "ainda está com o texto de exemplo (COLE_AQUI…)"
+    : /^["']|["']$/.test(v) ? "está entre aspas — tire as aspas"
+    : /^psql\s/i.test(v) ? "começa com 'psql' — cole só a URL postgresql://…"
+    : /^\w+=/.test(v) ? "tem um 'NOME=' dentro do valor — cole só a URL"
+    : !/^postgres(ql)?:\/\//i.test(v) ? "não começa com postgresql://"
+    : null;
+  if (problema) {
+    console.error(`[migrar] ${nome} inválida: ${problema}. Corrija em Railway → Variables.`);
+    process.exit(1);
+  }
+  try {
+    const u = new URL(v);
+    console.log(`[migrar] ${nome}: host ${u.hostname}, banco ${u.pathname.slice(1) || "(sem nome!)"}`);
+  } catch {
+    console.error(`[migrar] ${nome} inválida: não é uma URL. Se a senha tiver caracteres especiais, copie de novo pelo botão Connect do Neon.`);
+    process.exit(1);
+  }
+  return v;
+}
+const diretaOk = conferir("DATABASE_URL_DIRETA");
+const appOk = conferir("DATABASE_URL");
+const url = diretaOk || appOk;
 if (!url) {
   console.error("[migrar] DATABASE_URL não configurada");
   process.exit(1);
