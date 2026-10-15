@@ -13,22 +13,23 @@ import type { PessoaForm } from "./areas/[area]/actions";
  */
 export async function adicionarConvidadoAdmin(
   evento: string, setor: Setor, area: string, pessoas: PessoaForm[],
-  semSaldo: "espera" | "acima", origem: string,
+  semSaldo: "espera" | { doador: string | null }, origem: string,
 ): Promise<Resultado<{ status: string }>> {
   await exigirAdmin();
   const supabase = await supabaseServidor();
-  const { data, error } = await supabase.rpc("criar_pedido", {
-    p_evento: evento, p_setor: setor, p_area: area,
-    p_pessoas: pessoas.map((p) => ({ nome: p.nome, cpf: p.cpf, celular: p.celular, email: p.email || null })),
-    p_opcoes: {
-      origem: "marketing",
-      avulsos: true,
-      lista_espera: semSaldo === "espera",
-      ignorar_cota: semSaldo === "acima",
-      observacao: origem.trim() || null,
-      motivo: `adicionado manualmente pelo Admin${origem.trim() ? ` (${origem.trim()})` : ""}${semSaldo === "acima" ? " · acima da cota" : ""}`,
-    },
-  });
+  const o = origem.trim();
+  const opcoes = {
+    origem: "marketing",
+    avulsos: true,
+    lista_espera: true,
+    observacao: o || null,
+    motivo: `adicionado manualmente pelo Admin${o ? ` (${o})` : ""}`,
+  };
+  const p_pessoas = pessoas.map((p) => ({ nome: p.nome, cpf: p.cpf, celular: p.celular, email: p.email || null }));
+  const { data, error } = semSaldo === "espera"
+    ? await supabase.rpc("criar_pedido", { p_evento: evento, p_setor: setor, p_area: area, p_pessoas, p_opcoes: opcoes })
+    // sem saldo: o que falta sai da cota de outra área (ou do saldo livre do setor)
+    : await supabase.rpc("adicionar_abatendo", { p_evento: evento, p_setor: setor, p_area: area, p_doador: semSaldo.doador, p_pessoas, p_opcoes: opcoes });
   if (error) return falha(error);
   revalidatePath(`/eventos/${evento}`);
   const status = (data as { status: string }).status;
@@ -37,6 +38,6 @@ export async function adicionarConvidadoAdmin(
     ok: true, dados: { status },
     mensagem: status === "lista_espera"
       ? `Sem saldo na área: ${n === 1 ? "o convidado entrou" : `os ${n} convidados entraram`} na lista de espera.`
-      : `${n === 1 ? "Convidado adicionado" : `${n} convidados adicionados`} direto na lista final (pronto para envio).`,
+      : `${n === 1 ? "Convidado adicionado" : `${n} convidados adicionados`} direto na lista final (pronto para envio)${semSaldo === "espera" ? "" : ", com a cota remanejada"}.`,
   };
 }

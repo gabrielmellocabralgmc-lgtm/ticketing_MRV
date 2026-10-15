@@ -541,13 +541,27 @@ describe("Admin adiciona convidado manualmente", () => {
     await expect(pedir(mkt, ev, dh, [cpfRepetido], { origem: "marketing" })).rejects.toThrow(/CPF/);
   });
 
-  it("sem saldo: vai para a lista de espera, ou acima da cota se o Admin escolher", async () => {
+  it("sem saldo: lista de espera, ou abate da cota de outra área", async () => {
     const ev = await novoEvento();
     const livre = (await saldo(ev, luggo)).saldo;
     await pedir(mkt, ev, luggo, Array.from({ length: livre }, () => nova()), { origem: "marketing" });
     const espera = await pedir(mkt, ev, luggo, [nova()], { origem: "marketing", lista_espera: true });
     expect(espera.status).toBe("lista_espera");
-    const acima = await pedir(mkt, ev, luggo, [nova()], { origem: "marketing", ignorar_cota: true });
-    expect(await statusDe(acima.ingressos)).toEqual(["facial_ok"]);
+
+    const dhAntes = await saldo(ev, dh);
+    const [{ r }] = await b.como<{ r: { status: string; ingressos: string[] } }>(mkt,
+      `select adicionar_abatendo($1, 'arquibancada', $2, $3, $4, '{"origem":"marketing","avulsos":true}') as r`,
+      [ev, luggo, dh, JSON.stringify([nova(), nova()])]);
+    expect(await statusDe(r.ingressos)).toEqual(["facial_ok", "facial_ok"]);
+    // a cota saiu da DH e foi para a Luggo; a lista de espera da Luggo não foi furada por outro pedido
+    expect((await saldo(ev, dh)).cota).toBe(dhAntes.cota - 2);
+    expect((await saldo(ev, luggo)).saldo).toBe(0);
+    expect(await statusDe(espera.ingressos)).toEqual(["lista_espera"]);
+    const [h] = await b.sql<{ motivo: string }>(`select motivo from cotas_historico order by id desc limit 1`);
+    expect(h.motivo).toMatch(/2 ingresso\(s\) de DH para Luggo/);
+
+    // doador sem saldo suficiente
+    await expect(b.como(mkt, `select adicionar_abatendo($1, 'arquibancada', $2, $3, $4, '{"origem":"marketing"}')`,
+      [ev, luggo, dh, JSON.stringify(Array.from({ length: 30 }, () => nova()).slice(0, 20))])).rejects.toThrow(/COTA_EXCEDIDA/);
   });
 });

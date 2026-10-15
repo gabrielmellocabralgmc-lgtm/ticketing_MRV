@@ -10,6 +10,8 @@ export interface OpcaoSetor {
   /** Saldo por área (cota − ocupados); null = setor sem cota por área. */
   saldos: Record<string, number | null>;
   disponiveis: number;
+  /** Cota ainda não distribuída a nenhuma área. */
+  livre: number;
 }
 
 /** Admin: adiciona convidado que chegou por WhatsApp, e-mail etc. Abate da cota da área e entra pronto para envio. */
@@ -17,7 +19,9 @@ export function AdicionarConvidado({ evento, areas, setores }: { evento: string;
   const [aberto, setAberto] = useState(false);
   const [setor, setSetor] = useState<Setor>(setores.find((s) => s.setor !== "camarote")?.setor ?? setores[0]?.setor ?? "arquibancada");
   const [area, setArea] = useState("");
-  const [semSaldo, setSemSaldo] = useState<"espera" | "acima">("espera");
+  const [semSaldo, setSemSaldo] = useState<"espera" | "abater">("espera");
+  // "" = nenhuma escolhida; "livre" = saldo livre do setor; senão, id da área que cede a cota
+  const [doador, setDoador] = useState("");
   const [origem, setOrigem] = useState("");
 
   if (!aberto) {
@@ -60,13 +64,36 @@ export function AdicionarConvidado({ evento, areas, setores }: { evento: string;
         <FormSolicitacao key={`${setor}-${area}`} evento={evento} setor={setor} area={area} saldo={saldo}
           padraoConvidados={0} avulsos
           excedeVaiParaEspera={semSaldo === "espera"}
-          enviarCom={(pessoas) => adicionarConvidadoAdmin(evento, setor, area, pessoas, semSaldo, origem)}
+          enviarCom={async (pessoas) => {
+            if (semSaldo === "abater" && pessoas.length > saldo && !doador) return { ok: false, erro: "Escolha de qual área sai o ingresso." };
+            return adicionarConvidadoAdmin(evento, setor, area, pessoas,
+              semSaldo === "abater" && pessoas.length > saldo ? { doador: doador === "livre" ? null : doador } : "espera", origem);
+          }}
           avisoExcede={
             <Aviso tom="alerta">
-              <p className="font-semibold">{saldo === 0 ? "A área não tem saldo." : `A área tem só ${saldo} de saldo para este pedido.`} O que fazer?</p>
-              <div className="mt-2 space-y-1">
-                <label className="flex items-center gap-2"><input type="radio" checked={semSaldo === "espera"} onChange={() => setSemSaldo("espera")} className="accent-mrv-700" /> Colocar na lista de espera da área</label>
-                <label className="flex items-center gap-2"><input type="radio" checked={semSaldo === "acima"} onChange={() => setSemSaldo("acima")} className="accent-mrv-700" /> Adicionar mesmo assim, acima da cota (fica registrado)</label>
+              <p className="font-semibold">{saldo === 0 ? "A área não tem saldo." : `A área tem só ${saldo} de saldo para este pedido.`}</p>
+              <div className="mt-2 space-y-2">
+                <label className="flex items-center gap-2"><input type="radio" checked={semSaldo === "espera"} onChange={() => setSemSaldo("espera")} className="accent-mrv-700" /> Adicionar na lista de espera</label>
+                {saldoArea !== null && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="flex items-center gap-2"><input type="radio" checked={semSaldo === "abater"} onChange={() => setSemSaldo("abater")} className="accent-mrv-700" /> Adicionar mesmo assim e abater da cota de</label>
+                    <select value={doador} onChange={(e) => { setDoador(e.target.value); setSemSaldo("abater"); }}
+                      className="min-h-9 rounded-lg bg-white px-2 text-sm text-tinta ring-1 ring-black/15">
+                      <option value="">escolha…</option>
+                      {(op?.livre ?? 0) > 0 && <option value="livre">Saldo livre do setor (saldo {op!.livre})</option>}
+                      {areas.filter((a) => a.id !== area).map((a) => {
+                        const sa = op?.saldos[a.id] ?? 0;
+                        return <option key={a.id} value={a.id} disabled={sa === 0}>{a.nome} (saldo {sa})</option>;
+                      })}
+                    </select>
+                  </div>
+                )}
+                {semSaldo === "abater" && doador && (
+                  <p className="text-xs">
+                    O que faltar sai da cota de <b>{doador === "livre" ? "saldo livre do setor" : areas.find((a) => a.id === doador)?.nome}</b>
+                    {" "}(saldo dessa área: {doador === "livre" ? op?.livre : op?.saldos[doador] ?? 0}) e passa para a área escolhida. Fica no histórico de cotas.
+                  </p>
+                )}
               </div>
             </Aviso>
           } />

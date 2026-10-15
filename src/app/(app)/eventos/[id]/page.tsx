@@ -77,6 +77,7 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
               setores={setores.map((st) => ({
                 setor: st.setor,
                 disponiveis: Math.max(0, st.capacidade - st.ocupados),
+                livre: st.cota_por_area ? Math.max(0, st.capacidade - st.alocado) : 0,
                 saldos: Object.fromEntries((areasAtivas ?? []).map((a) => {
                   const l = linhas.find((x) => x.setor === st.setor && x.area_id === a.id);
                   return [a.id, st.cota_por_area ? Math.max(0, (l?.cota ?? 0) - (l?.ocupados ?? 0)) : null];
