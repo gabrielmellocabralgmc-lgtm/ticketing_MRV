@@ -58,8 +58,8 @@ describe("leitura da planilha legada", () => {
     expect(porStatus).toEqual([
       { setor: "camarote", status: "convite_enviado", n: 2 },
       { setor: "camarote", status: "enviado", n: 4 },
-      { setor: "arquibancada", status: "aprovado", n: 1 },
       { setor: "arquibancada", status: "facial_pendente", n: 1 },
+      { setor: "arquibancada", status: "facial_ok", n: 1 },
       { setor: "arquibancada", status: "enviado", n: 8 },
     ]);
     const [cap] = await b.sql<{ capacidade: number }>(`select capacidade from evento_setores where evento_id = $1 and setor = 'camarote'`, [r.eventoId]);

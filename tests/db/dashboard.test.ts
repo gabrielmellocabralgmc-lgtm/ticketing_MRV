@@ -60,11 +60,12 @@ describe("histórico e relatório", () => {
   it("dashboard lista os próximos jogos com funil e pendências", async () => {
     const ev = await evento(new Date(Date.now() + 5 * 24 * 3600e3).toISOString(), "Galo × Futuro");
     await pedir(ev, dh, [nova(), nova()]);
-    const linhas = await b.como<{ evento: { titulo: string; setores: { setor: string; aprovados: number }[]; pendencias: { areas_sem_pedido: string[]; facial_pendente: number } } }>(
+    const linhas = await b.como<{ evento: { titulo: string; setores: { setor: string; aprovados: number }[]; pendencias: { areas_sem_pedido: string[]; facial_pendente: number; a_enviar: number } } }>(
       mkt, `select * from dashboard_eventos()`);
     const d = linhas.map((l) => l.evento).find((e) => e.titulo === "Galo × Futuro")!;
     expect(d.setores.find((s) => s.setor === "arquibancada")!.aprovados).toBe(2);
-    expect(d.pendencias.facial_pendente).toBe(2);
+    expect(d.pendencias.a_enviar).toBe(2); // aprovado = pronto para envio
+    expect(d.pendencias.facial_pendente).toBe(0);
     expect(d.pendencias.areas_sem_pedido).toContain("Luggo");
     expect(d.pendencias.areas_sem_pedido).not.toContain("DH");
   });

@@ -4,7 +4,7 @@ import { falha, type Resultado } from "@/lib/erros";
 import { exigirStaff } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
 import type { Setor } from "@/lib/tipos";
-import { avisarAprovados, avisarEnviados, resumoEnvio } from "@/lib/mensagens/envio";
+import { avisarAprovados, avisarEnviados, avisarPendenteFacial, resumoEnvio } from "@/lib/mensagens/envio";
 
 async function lote(evento: string, fn: string, args: Record<string, unknown>, msg: (n: number) => string): Promise<Resultado> {
   await exigirStaff();
@@ -37,7 +37,16 @@ export const orientacaoEnviada = async (evento: string, ids: string[]) =>
   lote(evento, "marcar_orientacao_enviada", { p_ids: ids }, (n) => `${n} marcado(s) como "passo a passo enviado".`);
 
 export const facialOk = async (evento: string, ids: string[]) =>
-  lote(evento, "marcar_facial_ok", { p_ids: ids }, (n) => `${n} com facial confirmada.`);
+  lote(evento, "marcar_facial_ok", { p_ids: ids }, (n) => `${n} liberado(s): pronto para envio.`);
+
+/** No sistema do Atlético a facial não está cadastrada: sinaliza e manda o passo a passo. */
+export async function pendenteFacial(evento: string, ids: string[]): Promise<Resultado> {
+  const r = await lote(evento, "marcar_facial_pendente", { p_ids: ids }, (n) => `${n} marcado(s) como pendente facial.`);
+  if (!r.ok) return r;
+  const s = await exigirStaff();
+  const e = await avisarPendenteFacial(ids, s.userId);
+  return { ok: true, mensagem: `${r.mensagem} ${e.enviados + e.simulados ? `Passo a passo por e-mail: ${resumoEnvio(e)}.` : "Sem e-mail cadastrado: mande o passo a passo pelo WhatsApp."}` };
+}
 
 async function comAvisoDeEnvio(r: Resultado, ids: string[]): Promise<Resultado> {
   if (!r.ok) return r;

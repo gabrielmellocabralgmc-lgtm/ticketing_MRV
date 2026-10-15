@@ -6,6 +6,7 @@ import clsx from "clsx";
 import { Aviso, Entrada, Selecao, Selo, SeloStatus } from "@/components/ui";
 import { formatarCpf, somenteDigitos } from "@/lib/cpf";
 import { celular, dataHora } from "@/lib/formato";
+import { linkWhatsApp, textoGaloId } from "@/lib/mensagens";
 import type { Resultado } from "@/lib/erros";
 import { normalizarTexto } from "@/lib/texto";
 import { ROTULO_SETOR, type Setor, type StatusIngresso } from "@/lib/tipos";
@@ -29,6 +30,9 @@ const ENVIADO: StatusIngresso[] = ["enviado", "confirmado", "presente"];
 type Ordem = "area" | "nome" | "status";
 
 interface Acoes {
+  evento: { titulo: string; inicio: string; abertura_portoes: string | null };
+  pendenteFacial: (ids: string[]) => Promise<Resultado>;
+  facialOk: (ids: string[]) => Promise<Resultado>;
   enviados: (ids: string[]) => Promise<Resultado>;
   enviadosSemFacial: (ids: string[]) => Promise<Resultado>;
   desfazerEnvio: (ids: string[]) => Promise<Resultado>;
@@ -183,8 +187,23 @@ function TabelaSetor({ setor, todas, linhas, ordem, nomesPorId, pendente, acoes,
                   <td className="px-3 py-1.5 text-xs">{l.area_nome}</td>
                   <td className="px-3 py-1.5 text-right whitespace-nowrap">
                     {l.status === "facial_ok" ? (
-                      <button disabled={pendente} onClick={() => rodar(l, acoes.enviados)}
-                        className="rounded-lg bg-mrv-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-mrv-700 disabled:opacity-50">Enviar ingresso</button>
+                      <span className="inline-flex items-center gap-1.5">
+                        <button disabled={pendente} onClick={() => rodar(l, acoes.pendenteFacial, `${l.nome} está sem facial no sistema do Atlético? Vamos marcar como pendente e mandar o passo a passo.`)}
+                          title="A facial não está cadastrada no sistema do Atlético"
+                          className="rounded-lg px-2.5 py-1.5 text-xs font-bold text-red-700 ring-1 ring-red-300 hover:bg-red-50 disabled:opacity-50">Pendente facial</button>
+                        <button disabled={pendente} onClick={() => rodar(l, acoes.enviados)}
+                          className="rounded-lg bg-mrv-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-mrv-700 disabled:opacity-50">Enviar ingresso</button>
+                      </span>
+                    ) : l.status === "facial_pendente" || l.status === "aprovado" ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <Selo tom="vermelho">Pendente facial</Selo>
+                        {l.celular && (
+                          <a href={linkWhatsApp(l.celular, textoGaloId({ nome: l.nome ?? "", evento: acoes.evento, setor: l.setor, token: l.token }))} target="_blank" rel="noopener noreferrer"
+                            className="rounded-md bg-[#25D366]/15 px-2 py-1 text-xs font-semibold text-[#0d7a3a] hover:bg-[#25D366]/25">WhatsApp</a>
+                        )}
+                        <button disabled={pendente} onClick={() => rodar(l, acoes.facialOk, `Confirmar que ${l.nome} já tem a facial cadastrada?`)}
+                          className="rounded-lg px-2.5 py-1.5 text-xs font-bold text-mrv-700 ring-1 ring-mrv-600 hover:bg-mrv-50 disabled:opacity-50">Facial OK</button>
+                      </span>
                     ) : l.status === "enviado" ? (
                       <span className="inline-flex items-center gap-2">
                         <Selo tom="verde">Enviado</Selo>

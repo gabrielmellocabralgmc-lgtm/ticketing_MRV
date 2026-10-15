@@ -50,8 +50,8 @@ describe("camarote: fila por prioridade em jogo concorrido", () => {
     const [{ distribuir_camarote: n }] = await b.como<{ distribuir_camarote: number }>(mkt, `select distribuir_camarote($1)`, [ev]);
     // 6 vagas: Presidência (2) + Diretor (4) = 6; o gestor fica na fila mesmo tendo pedido antes
     expect(n).toBe(6);
-    expect(await status(exec.pedido_id)).toEqual(["aprovado"]);
-    expect(await status(diretor.pedido_id)).toEqual(["aprovado"]);
+    expect(await status(exec.pedido_id)).toEqual(["facial_ok"]);
+    expect(await status(diretor.pedido_id)).toEqual(["facial_ok"]);
     expect(await status(gestor.pedido_id)).toEqual(["lista_espera"]);
 
     // cancelamento não puxa a fila sozinho em jogo concorrido; aprovar o gestor sem vaga falha
@@ -59,7 +59,7 @@ describe("camarote: fila por prioridade em jogo concorrido", () => {
     await b.como(mkt, `select cancelar_ingressos($1, 'desistiu')`, [diretor.ingressos]);
     expect(await status(gestor.pedido_id)).toEqual(["lista_espera"]);
     await b.como(mkt, `select aprovar_pedido_fila($1)`, [gestor.pedido_id]);
-    expect(await status(gestor.pedido_id)).toEqual(["aprovado"]);
+    expect(await status(gestor.pedido_id)).toEqual(["facial_ok"]);
   });
 
   it("catering corporativo exige centro de custo; alterações entram no histórico", async () => {

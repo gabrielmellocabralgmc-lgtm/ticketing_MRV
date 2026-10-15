@@ -53,7 +53,7 @@ export function textoConvite(o: { nome?: string | null; evento: DadosEvento; set
 export function textoGaloId(o: { nome: string; evento: DadosEvento; setor: Setor; token: string }) {
   const camarote = o.setor === "camarote";
   return [
-    `Olá, ${o.nome.split(" ")[0]}! Seu ingresso MRV para ${o.evento.titulo} (${dataLonga(o.evento.inicio)}) foi aprovado. ✅`,
+    `Olá, ${o.nome.split(" ")[0]}! Seu ingresso MRV para ${o.evento.titulo} (${dataLonga(o.evento.inicio)}) está separado, mas não encontramos a sua facial cadastrada no sistema do Galo.`,
     ``,
     `A entrada na Arena MRV é pelo reconhecimento facial. Já tem a facial cadastrada? Confirme aqui: ${linkTorcedor(o.token)}`,
     ``,

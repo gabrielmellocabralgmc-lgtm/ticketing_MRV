@@ -8,8 +8,8 @@ import { TabelaSelecao, type LinhaIngresso } from "../tabela-selecao";
 
 type Grupo = "a_enviar" | "sem_facial" | "enviados";
 const GRUPOS: Record<Grupo, { rotulo: string; status: StatusIngresso[] }> = {
-  a_enviar: { rotulo: "A enviar (facial OK)", status: ["facial_ok"] },
-  sem_facial: { rotulo: "Aprovados sem facial", status: ["aprovado", "facial_pendente"] },
+  a_enviar: { rotulo: "Prontos para envio", status: ["facial_ok"] },
+  sem_facial: { rotulo: "Pendente facial", status: ["aprovado", "facial_pendente"] },
   enviados: { rotulo: "Enviados", status: ["enviado", "confirmado"] },
 };
 
@@ -19,6 +19,8 @@ export function PainelEnvio({ linhas, evento, acoes }: {
   acoes: {
     enviados: (ids: string[]) => Promise<Resultado>;
     enviadosSemFacial: (ids: string[]) => Promise<Resultado>;
+    pendenteFacial: (ids: string[]) => Promise<Resultado>;
+    facialOk: (ids: string[]) => Promise<Resultado>;
     registrarCopia: (tipo: "cpfs" | "nome_cpf", qtd: number) => Promise<void>;
   };
 }) {
@@ -76,9 +78,15 @@ export function PainelEnvio({ linhas, evento, acoes }: {
             }
             acoes={
               grupo === "a_enviar"
-                ? [{ rotulo: "Marcar selecionados como enviados", confirmar: "Marcar {n} ingresso(s) como enviados no sistema do Atlético?", executar: acoes.enviados }]
+                ? [
+                    { rotulo: "Marcar selecionados como enviados", confirmar: "Marcar {n} ingresso(s) como enviados no sistema do Atlético?", executar: acoes.enviados },
+                    { rotulo: "Marcar pendente facial", variante: "perigo", confirmar: "{n} pessoa(s) sem facial no sistema do Atlético? Elas recebem o passo a passo.", executar: acoes.pendenteFacial },
+                  ]
                 : grupo === "sem_facial"
-                  ? [{ rotulo: "Enviar mesmo sem facial", variante: "laranja", confirmar: "Marcar {n} como enviados SEM a facial confirmada? Isso fica registrado.", executar: acoes.enviadosSemFacial }]
+                  ? [
+                      { rotulo: "Facial OK (liberar)", confirmar: "Confirmar que {n} pessoa(s) já têm a facial cadastrada?", executar: acoes.facialOk },
+                      { rotulo: "Enviar mesmo sem facial", variante: "laranja", confirmar: "Marcar {n} como enviados SEM a facial confirmada? Isso fica registrado.", executar: acoes.enviadosSemFacial },
+                    ]
                   : []
             }
           />

@@ -4,7 +4,7 @@ import { Titulo } from "@/components/ui";
 import { exigirAdmin } from "@/lib/sessao";
 import { carregarEvento } from "../dados";
 import { carregarIngressos } from "../ingressos";
-import { enviados, enviadosSemFacial, registrarCopia } from "../marketing-actions";
+import { enviados, enviadosSemFacial, facialOk, pendenteFacial, registrarCopia } from "../marketing-actions";
 import { PainelEnvio } from "./painel-envio";
 
 export const metadata = { title: "A enviar" };
@@ -22,7 +22,10 @@ export default async function Envio({ params }: { params: Promise<{ id: string }
       <PainelEnvio
         linhas={linhas}
         evento={{ titulo: ev.titulo, inicio: ev.inicio, abertura_portoes: ev.abertura_portoes }}
-        acoes={{ enviados: enviados.bind(null, id), enviadosSemFacial: enviadosSemFacial.bind(null, id), registrarCopia: registrarCopia.bind(null, id) }}
+        acoes={{
+          enviados: enviados.bind(null, id), enviadosSemFacial: enviadosSemFacial.bind(null, id), registrarCopia: registrarCopia.bind(null, id),
+          pendenteFacial: pendenteFacial.bind(null, id), facialOk: facialOk.bind(null, id),
+        }}
       />
     </>
   );

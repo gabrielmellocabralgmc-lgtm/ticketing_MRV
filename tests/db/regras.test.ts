@@ -252,30 +252,34 @@ describe("Modo B — convites", () => {
 });
 
 describe("pipeline completo e RLS", () => {
-  it("solicitado → validado → aprovado → facial → enviado → confirmado", async () => {
+  it("preenchido → área valida = pronto para envio → pendente facial (sinalizado) → convidado confirma → enviado → recebido", async () => {
     const ev = await novoEvento();
     const r = await pedir(respDH, ev, dh, [nova(), nova()]);
+    expect(await statusDe(r.ingressos)).toEqual(["solicitado", "solicitado"]); // "Preenchido"
 
-    // Marketing não aprova antes da validação da área
-    const [{ aprovar_ingressos: n0 }] = await b.como<{ aprovar_ingressos: number }>(mkt, `select aprovar_ingressos($1)`, [r.ingressos]);
-    expect(n0).toBe(0);
-    // responsável não aprova
+    // área valida: já fica pronto para envio (sem etapa de aprovação do Marketing)
     await b.como(respDH, `select validar_lista($1, 'arquibancada', $2)`, [ev, dh]);
-    await expect(b.como(respDH, `select aprovar_ingressos($1)`, [r.ingressos])).rejects.toThrow(/SEM_PERMISSAO/);
+    expect(await statusDe(r.ingressos)).toEqual(["facial_ok", "facial_ok"]);
 
-    await b.como(mkt, `select aprovar_ingressos($1)`, [r.ingressos]);
-    await b.como(mkt, `select marcar_orientacao_enviada($1)`, [r.ingressos]);
-    expect(await statusDe(r.ingressos)).toEqual(["facial_pendente", "facial_pendente"]);
+    // no sistema do Atlético a facial do 2º não está cadastrada: a equipe sinaliza
+    await expect(b.como(respDH, `select marcar_facial_pendente($1)`, [[r.ingressos[1]]])).rejects.toThrow(/SEM_PERMISSAO/);
+    await b.como(mkt, `select marcar_facial_pendente($1)`, [[r.ingressos[1]]]);
+    expect(await statusDe(r.ingressos)).toEqual(["facial_ok", "facial_pendente"]);
 
-    // sem facial, "marcar enviados" ignora; com forçar, envia e registra
-    const [tok] = await b.sql<{ token: string }>(`select token from ingressos where id = $1`, [r.ingressos[0]]);
-    await b.como(null, `select acao_torcedor($1, 'facial_ok')`, [tok.token]);
+    // "marcar enviados" só envia quem está pronto
     const [{ marcar_enviados }] = await b.como<{ marcar_enviados: number }>(mkt, `select marcar_enviados($1)`, [r.ingressos]);
     expect(marcar_enviados).toBe(1);
     expect(await statusDe(r.ingressos)).toEqual(["enviado", "facial_pendente"]);
-    await b.como(mkt, `select marcar_enviados($1, true)`, [[r.ingressos[1]]]);
-    const [h] = await b.sql<{ motivo: string }>(`select motivo from status_historico where ingresso_id = $1 order by id desc limit 1`, [r.ingressos[1]]);
-    expect(h.motivo).toBe("enviado sem confirmação da facial");
+
+    // o convidado confirma pelo link ("Já tenho a facial cadastrada") → volta a pronto para envio
+    const [tok2] = await b.sql<{ token: string }>(`select token from ingressos where id = $1`, [r.ingressos[1]]);
+    await b.como(null, `select acao_torcedor($1, 'facial_ok')`, [tok2.token]);
+    expect(await statusDe([r.ingressos[1]])).toEqual(["facial_ok"]);
+    // ...mas não era verdade: a equipe sinaliza de novo, e depois libera manualmente
+    await b.como(mkt, `select marcar_facial_pendente($1)`, [[r.ingressos[1]]]);
+    expect(await statusDe([r.ingressos[1]])).toEqual(["facial_pendente"]);
+    await b.como(mkt, `select marcar_facial_ok($1)`, [[r.ingressos[1]]]);
+    expect(await statusDe([r.ingressos[1]])).toEqual(["facial_ok"]);
 
     // envio marcado por engano pode ser desfeito
     await b.como(mkt, `select desfazer_envio($1)`, [[r.ingressos[0]]]);
@@ -284,11 +288,12 @@ describe("pipeline completo e RLS", () => {
     await expect(b.como(respDH, `select desfazer_envio($1)`, [[r.ingressos[0]]])).rejects.toThrow(/SEM_PERMISSAO/);
     await b.como(mkt, `select marcar_enviados($1)`, [[r.ingressos[0]]]);
 
+    const [tok] = await b.sql<{ token: string }>(`select token from ingressos where id = $1`, [r.ingressos[0]]);
     await b.como(null, `select acao_torcedor($1, 'recebido')`, [tok.token]);
     expect((await statusDe([r.ingressos[0]]))[0]).toBe("confirmado");
 
     const hist = await b.sql<{ para: string }>(`select para from status_historico where ingresso_id = $1 order by id`, [r.ingressos[0]]);
-    expect(hist.map((x) => x.para)).toEqual(["solicitado", "validado_area", "aprovado", "facial_pendente", "facial_ok", "enviado", "facial_ok", "enviado", "confirmado"]);
+    expect(hist.map((x) => x.para)).toEqual(["solicitado", "validado_area", "aprovado", "facial_ok", "enviado", "facial_ok", "enviado", "confirmado"]);
   });
 
   it("responsável só enxerga a própria área; operação não vê dados pessoais", async () => {
@@ -412,7 +417,7 @@ describe("perfis simplificados", () => {
     const [{ registrar_chegada: em }] = await b.como<{ registrar_chegada: string }>(oper, `select registrar_chegada($1, true)`, [alvo]);
     expect(em).toBeTruthy();
     const [st] = await b.sql<{ status: string; chegada_em: string }>(`select status, chegada_em from ingressos where id = $1`, [alvo]);
-    expect(st.status).toBe("aprovado"); // envio/status intactos
+    expect(st.status).toBe("facial_ok"); // envio/status intactos
     // confirmar de novo não muda o horário; desfazer limpa
     const [{ registrar_chegada: em2 }] = await b.como<{ registrar_chegada: string }>(oper, `select registrar_chegada($1, true)`, [alvo]);
     expect(String(em2)).toBe(String(em));
@@ -440,13 +445,13 @@ describe("imagens do layout", () => {
 });
 
 describe("comunicação", () => {
-  it("só o servidor marca o passo a passo como enviado (aprovado → facial pendente)", async () => {
+  it("só o servidor registra o passo a passo enviado; quem já está pronto para envio não muda", async () => {
     const ev = await novoEvento();
     const r = await pedir(mkt, ev, dh, [nova()]);
     await expect(b.como(mkt, `select registrar_orientacao($1)`, [r.ingressos])).rejects.toThrow(/permission denied/);
     const [{ registrar_orientacao: n }] = await b.como<{ registrar_orientacao: number }>(null, `select registrar_orientacao($1)`, [r.ingressos]);
-    expect(n).toBe(1);
-    expect(await statusDe(r.ingressos)).toEqual(["facial_pendente"]);
+    expect(n).toBe(0);
+    expect(await statusDe(r.ingressos)).toEqual(["facial_ok"]);
   });
 
   it("modelos de e-mail: Marketing edita, responsável não vê", async () => {
@@ -465,7 +470,7 @@ describe("Marketing sem aprovação", () => {
     const [{ r }] = await b.como<{ r: { token: string } }>(mkt, `select criar_convite($1, 'arquibancada', $2, 1, 'Convidado do Marketing') as r`, [ev, mk]);
     await b.como(null, `select preencher_convite($1, $2, true)`, [r.token, JSON.stringify([nova("Convidado Mkt")])]);
     const [i] = await b.sql<{ status: string }>(`select i.status from ingressos i join pessoas p on p.id = i.pessoa_id where p.nome = 'Convidado Mkt'`);
-    expect(i.status).toBe("aprovado");
+    expect(i.status).toBe("facial_ok"); // aprovado = pronto para envio
     // convite de responsável de área continua precisando de validação
     const [{ r: r2 }] = await b.como<{ r: { token: string } }>(respDH, `select criar_convite($1, 'arquibancada', $2, 1, 'Convidado DH') as r`, [ev, dh]);
     await b.como(null, `select preencher_convite($1, $2, true)`, [r2.token, JSON.stringify([nova("Convidado da Área")])]);
@@ -475,21 +480,21 @@ describe("Marketing sem aprovação", () => {
 });
 
 describe("facial já conhecida", () => {
-  it("quem já teve ingresso enviado vai direto para pronto para envio ao ser aprovado", async () => {
+  it("validado vai para pronto para envio; o histórico diz se a facial já era conhecida", async () => {
     const p = nova("Já Foi Antes");
     const ev1 = await novoEvento();
     const r1 = await pedir(mkt, ev1, dh, [p]);
-    await b.como(mkt, `select marcar_enviados($1, true)`, [r1.ingressos]); // enviado (sem facial) no jogo 1
+    await b.como(mkt, `select marcar_enviados($1)`, [r1.ingressos]); // enviado no jogo 1
     const ev2 = await novoEvento();
     const r2 = await pedir(respDH, ev2, dh, [p]);
     await b.como(respDH, `select validar_lista($1, 'arquibancada', $2)`, [ev2, dh]);
-    await b.como(mkt, `select aprovar_ingressos($1)`, [r2.ingressos]);
     expect(await statusDe(r2.ingressos)).toEqual(["facial_ok"]);
     const hist = await b.sql<{ para: string; motivo: string | null }>(`select para, motivo from status_historico where ingresso_id = $1 order by id`, [r2.ingressos[0]]);
     expect(hist.map((h) => h.para)).toEqual(["solicitado", "validado_area", "aprovado", "facial_ok"]);
     expect(hist.at(-1)!.motivo).toMatch(/facial já cadastrada/);
-    // quem nunca foi continua precisando confirmar
     const r3 = await pedir(mkt, ev2, dh, [nova("Primeira Vez")]);
-    expect(await statusDe(r3.ingressos)).toEqual(["aprovado"]);
+    expect(await statusDe(r3.ingressos)).toEqual(["facial_ok"]);
+    const [h3] = await b.sql<{ motivo: string }>(`select motivo from status_historico where ingresso_id = $1 order by id desc limit 1`, [r3.ingressos[0]]);
+    expect(h3.motivo).toBe("pronto para envio");
   });
 });

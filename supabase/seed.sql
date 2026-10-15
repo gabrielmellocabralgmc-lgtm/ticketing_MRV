@@ -100,12 +100,10 @@ begin
         '{"origem":"responsavel"}');
     end loop;
   end loop;
-  -- DH e Marketing validaram; parte já aprovada e com o passo a passo do Galo ID enviado
   perform validar_lista(v_ev, 'arquibancada', (select id from areas where slug = 'dh'));
   perform validar_lista(v_ev, 'arquibancada', (select id from areas where slug = 'marketing'));
-  perform aprovar_ingressos(array(select i.id from ingressos i join areas x on x.id = i.area_id where i.evento_id = v_ev and x.slug = 'dh'));
-  perform marcar_orientacao_enviada(array(select i.id from ingressos i join areas x on x.id = i.area_id where i.evento_id = v_ev and x.slug = 'dh'));
-  perform marcar_facial_ok(array(select i.id from ingressos i join areas x on x.id = i.area_id where i.evento_id = v_ev and x.slug = 'dh' and i.convidado_de is null));
+  -- DH e Marketing validaram (= pronto para envio); no sistema do Atlético, os acompanhantes da DH estão sem facial
+  perform marcar_facial_pendente(array(select i.id from ingressos i join areas x on x.id = i.area_id where i.evento_id = v_ev and x.slug = 'dh' and i.convidado_de is not null));
 
   -- Luggo (cota 6) cheia + 1 pedido na lista de espera
   for i in 1..4 loop

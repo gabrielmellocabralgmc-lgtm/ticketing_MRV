@@ -139,7 +139,7 @@ export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo }:
                           <>
                             <BotaoCopiar texto={linkTorcedor(l.token)} rotulo="Link do torcedor" />
                             {["aprovado", "facial_pendente"].includes(l.status) && (
-                              <BotaoWhatsApp rotulo="Galo ID" link={linkWhatsApp(l.celular, textoGaloId({ nome: l.nome!, evento: eventoInfo, setor, token: l.token }))} />
+                              <BotaoWhatsApp rotulo="Passo a passo" link={linkWhatsApp(l.celular, textoGaloId({ nome: l.nome!, evento: eventoInfo, setor, token: l.token }))} />
                             )}
                           </>
                         )}

@@ -273,3 +273,14 @@ export async function avisarAprovadosDoEvento(evento: string, autor?: string | n
     .filter((i) => i.email && !i.chegada_em).map((i) => i.id);
   return avisarAprovados(ids, autor);
 }
+
+/** Sinalizado "Pendente facial": manda o passo a passo para quem tem e-mail. */
+export async function avisarPendenteFacial(ids: string[], autor?: string | null): Promise<ResultadoEnvio> {
+  const { ingressos, eventos } = await carregarContatos(ids);
+  const alvo = ingressos.filter((i) => i.status === "facial_pendente" && i.email);
+  return enviarModelo(alvo.map((i) => ({
+    tipo: "lembrete_facial", para: { nome: i.nome, email: i.email! }, evento_id: i.evento_id, ingresso_id: i.id,
+    vars: { ...varsEvento(eventos.get(i.evento_id)!), nome: primeiroNome(i.nome), setor: ROTULO_SETOR[i.setor], link: linkTorcedor(i.token) },
+    botao: { rotulo: "JÁ TENHO A FACIAL CADASTRADA", url: linkTorcedor(i.token) },
+  })), { autor });
+}

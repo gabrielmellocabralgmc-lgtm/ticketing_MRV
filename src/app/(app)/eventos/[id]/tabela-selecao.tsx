@@ -121,7 +121,7 @@ export function TabelaSelecao({
                 <td>
                   <div className="flex flex-wrap items-center justify-end gap-1.5 text-xs">
                     <span className="text-tinta/60">{celular(l.celular)}</span>
-                    {texto && l.celular && <BotaoWhatsApp link={linkWhatsApp(l.celular, texto)} rotulo={mensagem === "galo_id" ? "Galo ID" : "Avisar"} />}
+                    {texto && l.celular && <BotaoWhatsApp link={linkWhatsApp(l.celular, texto)} rotulo={mensagem === "galo_id" ? "Passo a passo" : "Avisar"} />}
                     <BotaoCopiar texto={linkTorcedor(l.token)} rotulo="Link" />
                     {acaoLinha?.copiarCpf && l.cpf && (
                       <BotaoCopiar texto={l.cpf} rotulo="Copiar CPF" aoCopiar={() => acaoLinha.copiarCpf?.(1)} />

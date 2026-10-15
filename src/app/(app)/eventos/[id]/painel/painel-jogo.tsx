@@ -11,6 +11,7 @@ import { separarLista } from "@/lib/parse-lista";
 import { normalizarTexto } from "@/lib/texto";
 import { ROTULO_SETOR, type Setor, type StatusIngresso } from "@/lib/tipos";
 import { adicionarNomes, type ResultadoLinha } from "./actions";
+import { facialOk, pendenteFacial } from "../marketing-actions";
 import { PainelCamarote, type LinhaCamarote, type Walkin } from "./camarote";
 
 export interface LinhaPainel {
@@ -109,7 +110,7 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
             <div className="w-full sm:w-72"><Entrada value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar nome, CPF ou área…" aria-label="Buscar" /></div>
           </div>
         </div>
-        <TabelaSimples linhas={filtrar(ativos)} vazio="Ninguém neste setor ainda." />
+        <TabelaSimples linhas={filtrar(ativos)} vazio="Ninguém neste setor ainda." evento={evento} />
       </div>
 
       {espera.length > 0 && (
@@ -133,7 +134,11 @@ function Grande({ rotulo, valor, laranja }: { rotulo: string; valor: number | st
   );
 }
 
-function TabelaSimples({ linhas, vazio, posicao }: { linhas: LinhaPainel[]; vazio: string; posicao?: boolean }) {
+function TabelaSimples({ linhas, vazio, posicao, evento }: { linhas: LinhaPainel[]; vazio: string; posicao?: boolean; evento?: string }) {
+  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  const [ocupado, iniciar] = useTransition();
+  const rodar = (f: () => Promise<{ ok: boolean; mensagem?: string; erro?: string }>, confirmar: string) =>
+    confirm(confirmar) && iniciar(async () => { const r = await f(); setMsg({ ok: r.ok, texto: (r.ok ? r.mensagem : r.erro) ?? "" }); });
   if (!linhas.length) return vazio ? <p className="py-6 text-center text-sm text-tinta/50">{vazio}</p> : null;
   return (
     <div className="-mx-4 overflow-x-auto">
@@ -156,15 +161,24 @@ function TabelaSimples({ linhas, vazio, posicao }: { linhas: LinhaPainel[]; vazi
                 </td>
                 <td className="px-4 py-2 font-mono text-xs whitespace-nowrap">{l.cpf ? formatarCpf(l.cpf) : "—"}</td>
                 <td className="px-4 py-2 text-xs">{l.area_nome}</td>
-                <td className="px-4 py-2">
+                <td className="px-4 py-2 whitespace-nowrap">
                   <Selo tom={st.tom}>{st.rotulo}</Selo>
                   {l.enviado_em && <span className="ml-1 text-xs text-tinta/50">{dataHora(l.enviado_em)}</span>}
+                  {evento && l.status === "facial_ok" && (
+                    <button disabled={ocupado} onClick={() => rodar(() => pendenteFacial(evento, [l.id]), `${l.nome} está sem facial no sistema do Atlético?`)}
+                      className="ml-2 rounded-md px-2 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-red-300 hover:bg-red-50">Pendente facial</button>
+                  )}
+                  {evento && (l.status === "facial_pendente" || l.status === "aprovado") && (
+                    <button disabled={ocupado} onClick={() => rodar(() => facialOk(evento, [l.id]), `Confirmar que ${l.nome} já tem a facial cadastrada?`)}
+                      className="ml-2 rounded-md px-2 py-0.5 text-xs font-semibold text-mrv-700 ring-1 ring-mrv-600 hover:bg-mrv-50">Facial OK</button>
+                  )}
                 </td>
               </tr>
             );
           })}
         </tbody>
       </table>
+      {msg && <div className="px-4 pt-3"><Aviso tom={msg.ok ? "ok" : "erro"}>{msg.texto}</Aviso></div>}
     </div>
   );
 }

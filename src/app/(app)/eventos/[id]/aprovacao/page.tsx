@@ -6,7 +6,7 @@ import { exigirAdmin } from "@/lib/sessao";
 import { ROTULO_SETOR } from "@/lib/tipos";
 import { carregarEvento, carregarResumo } from "../dados";
 import { carregarIngressos } from "../ingressos";
-import { aprovar, cancelarMarketing, facialOk, orientacaoEnviada, promover, recusar, validarComoMarketing } from "../marketing-actions";
+import { aprovar, cancelarMarketing, facialOk, promover, recusar, validarComoMarketing } from "../marketing-actions";
 import { TabelaSelecao } from "../tabela-selecao";
 
 export const metadata = { title: "Aprovação" };
@@ -29,7 +29,7 @@ export default async function Aprovacao({ params }: { params: Promise<{ id: stri
     <>
       <AoVivo evento={id} />
       <div className="mb-2 text-sm"><Link href={`/eventos/${id}`} className="text-mrv-700 hover:underline">← {ev.titulo}</Link></div>
-      <Titulo sub="Valide em nome da área se precisar, aprove em lote e envie o passo a passo do Galo ID.">Aprovação · {ev.titulo}</Titulo>
+      <Titulo sub="Valide em nome da área se precisar, acompanhe quem está com a facial pendente e a lista de espera.">Aprovação · {ev.titulo}</Titulo>
 
       {naoValidadas.length > 0 && (
         <Cartao className="mb-6">
@@ -68,9 +68,10 @@ export default async function Aprovacao({ params }: { params: Promise<{ id: stri
       </Cartao>
 
       <Cartao className="mb-6">
-        <h2 className="mb-1 font-bold text-mrv-900">Aprovados · orientar Galo ID ({aprovados.length})</h2>
-        <p className="mb-3 text-sm text-tinta/60">
-          Mande o passo a passo pelo botão “Galo ID” (abre o WhatsApp com a mensagem pronta) e marque como enviado. Quando a pessoa confirmar a facial pelo link, o status muda sozinho.
+        <h2 className="mb-1 font-bold text-mrv-900">Pendente facial ({aprovados.length})</h2>
+        <p className="mb-3 text-sm text-cinza">
+          Sinalizados sem facial no sistema do Atlético. Quem tem e-mail já recebeu o passo a passo; para os demais, use o botão do WhatsApp.
+          Quando a pessoa confirma pelo link, volta sozinha para “Pronto para envio”.
         </p>
         <TabelaSelecao
           linhas={aprovados}
@@ -78,8 +79,7 @@ export default async function Aprovacao({ params }: { params: Promise<{ id: stri
           mensagem="galo_id"
           vazio="Ninguém aprovado aguardando a facial."
           acoes={[
-            { rotulo: "Marcar passo a passo enviado", variante: "primario", executar: orientacaoEnviada.bind(null, id) },
-            { rotulo: "Marcar facial OK", confirmar: "Confirmar que {n} pessoa(s) já fizeram a facial no Galo ID?", executar: facialOk.bind(null, id) },
+            { rotulo: "Facial OK (liberar)", variante: "primario", confirmar: "Confirmar que {n} pessoa(s) já têm a facial cadastrada?", executar: facialOk.bind(null, id) },
             { rotulo: "Cancelar", variante: "perigo", pedirMotivo: "Motivo do cancelamento:", executar: cancelarMarketing.bind(null, id) },
           ]}
         />
