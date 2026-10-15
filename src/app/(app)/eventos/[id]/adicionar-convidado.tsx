@@ -58,7 +58,7 @@ export function AdicionarConvidado({ evento, areas, setores }: { evento: string;
       </div>
       {area ? (
         <FormSolicitacao key={`${setor}-${area}`} evento={evento} setor={setor} area={area} saldo={saldo}
-          padraoConvidados={setor === "camarote" ? 0 : 1}
+          padraoConvidados={0} avulsos
           excedeVaiParaEspera={semSaldo === "espera"}
           enviarCom={(pessoas) => adicionarConvidadoAdmin(evento, setor, area, pessoas, semSaldo, origem)}
           avisoExcede={

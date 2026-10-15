@@ -20,13 +20,15 @@ function problemas(p: PessoaForm) {
   return e;
 }
 
-export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, enviarCom, avisoExcede, excedeVaiParaEspera = true }: {
+export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, enviarCom, avisoExcede, excedeVaiParaEspera = true, avulsos = false }: {
   evento: string; setor: Setor; area: string; saldo: number; padraoConvidados: number;
   /** Ação alternativa (ex.: Admin adicionando convidado pelo painel do jogo). */
   enviarCom?: (pessoas: PessoaForm[], excede: boolean) => Promise<Resultado<unknown>>;
   /** Substitui o aviso de cota excedida. */
   avisoExcede?: ReactNode;
   excedeVaiParaEspera?: boolean;
+  /** Pessoas independentes, sem titular/colaborador (Admin adicionando convidados). */
+  avulsos?: boolean;
 }) {
   const [pessoas, setPessoas] = useState<PessoaForm[]>(() => Array.from({ length: 1 + padraoConvidados }, vazia));
   const [tocado, setTocado] = useState(false);
@@ -70,7 +72,7 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-tinta/70">A 1ª pessoa é o titular (colaborador); as demais ficam como convidadas dele.</p>
+        <p className="text-sm text-tinta/70">{avulsos ? "Cada pessoa é um convidado independente (sem titular)." : "A 1ª pessoa é o titular (colaborador); as demais ficam como convidadas dele."}</p>
         <button type="button" onClick={() => setColar((c) => !c)} className="text-sm font-semibold text-mrv-700 hover:underline">
           {colar ? "Fechar" : "Colar lista (WhatsApp/Excel)"}
         </button>
@@ -85,7 +87,7 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
         const e = tocado && (i === 0 || p.nome || p.cpf || p.celular) ? problemas(p) : {};
         return (
           <fieldset key={i} className="rounded-xl p-3 ring-1 ring-black/10">
-            <legend className="px-1 text-xs font-semibold tracking-wide text-tinta/60 uppercase">{i === 0 ? "Titular" : `Convidado ${i}`}</legend>
+            <legend className="px-1 text-xs font-semibold tracking-wide text-tinta/60 uppercase">{avulsos ? `Convidado ${i + 1}` : i === 0 ? "Titular" : `Convidado ${i}`}</legend>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1.4fr_auto]">
               <Campo rotulo="Nome completo" erro={e.nome}><Entrada value={p.nome} onChange={(ev) => set(i, "nome", ev.target.value)} autoComplete="off" /></Campo>
               <Campo rotulo="CPF" erro={e.cpf}>

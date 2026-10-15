@@ -22,6 +22,7 @@ export async function adicionarConvidadoAdmin(
     p_pessoas: pessoas.map((p) => ({ nome: p.nome, cpf: p.cpf, celular: p.celular, email: p.email || null })),
     p_opcoes: {
       origem: "marketing",
+      avulsos: true,
       lista_espera: semSaldo === "espera",
       ignorar_cota: semSaldo === "acima",
       observacao: origem.trim() || null,

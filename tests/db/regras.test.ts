@@ -531,8 +531,12 @@ describe("Admin adiciona convidado manualmente", () => {
     const antes = await saldo(ev, dh);
     const cpfRepetido = nova("Já Pedido");
     await pedir(respDH, ev, dh, [cpfRepetido]);
-    const r = await pedir(mkt, ev, dh, [nova("Veio Pelo Whatsapp"), nova()], { origem: "marketing", lista_espera: true, motivo: "adicionado manualmente pelo Admin" });
+    const r = await pedir(mkt, ev, dh, [nova("Veio Pelo Whatsapp"), nova()], { origem: "marketing", avulsos: true, lista_espera: true, motivo: "adicionado manualmente pelo Admin" });
     expect(await statusDe(r.ingressos)).toEqual(["facial_ok", "facial_ok"]);
+    // avulsos: ninguém é titular/colaborador nem "convidado de"
+    const vinc = await b.sql<{ convidado_de: string | null; colaborador_mrv: boolean }>(
+      `select i.convidado_de, p.colaborador_mrv from ingressos i join pessoas p on p.id = i.pessoa_id where i.id = any($1)`, [r.ingressos]);
+    expect(vinc.every((v) => v.convidado_de === null && !v.colaborador_mrv)).toBe(true);
     expect((await saldo(ev, dh)).saldo).toBe(antes.saldo - 3);
     await expect(pedir(mkt, ev, dh, [cpfRepetido], { origem: "marketing" })).rejects.toThrow(/CPF/);
   });
