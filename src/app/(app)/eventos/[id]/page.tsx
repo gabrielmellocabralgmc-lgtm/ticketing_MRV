@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BotaoAcao, FormAcao } from "@/components/form-acao";
+import { BotaoAcao } from "@/components/form-acao";
 import { AoVivo } from "@/components/ao-vivo";
-import { BotaoLink, Campo, Cartao, Entrada, Numero, Selecao, Selo, Tabela, Vazio } from "@/components/ui";
+import { BotaoLink, Cartao, Numero, Selo, Tabela, Vazio } from "@/components/ui";
 import { dataHora } from "@/lib/formato";
 import { exigirSessao } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
 import { ROTULO_SETOR, ROTULO_STATUS_EVENTO } from "@/lib/tipos";
 import { CabecalhoJogo } from "@/components/jogo";
 import { CHAVE_ESCUDO_ATLETICO, chaveEscudoAdversario, imagensDisponiveis } from "@/lib/imagens";
-import { ajustarCota, mudarStatusEvento, remanejarCota } from "../actions";
+import { mudarStatusEvento } from "../actions";
+import { EditorCotas } from "./editor-cotas";
 import { encerrarEvento } from "./painel/actions";
 import { Convocacao } from "./convocacao";
 import { areasParaConvocar, envioReal } from "@/lib/mensagens/envio";
@@ -28,6 +29,7 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
   const ev = await carregarEvento(id);
   const { linhas, setores } = await carregarResumo(id);
   const img = await imagensDisponiveis();
+  const { data: areasAtivas } = await (await supabaseServidor()).from("areas").select("id, nome").eq("ativo", true).order("ordem");
   if (s.papel === "responsavel") {
     const minhas = linhas.filter((l) => l.cota !== null);
     // uma área só: vai direto para a lista dela
@@ -103,7 +105,8 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
             <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <Numero rotulo="Ocupados" valor={st.ocupados} de={st.capacidade} />
               <Numero rotulo="Disponíveis" valor={Math.max(0, st.capacidade - st.ocupados)} tom="cinza" />
-              {st.cota_por_area && <Numero rotulo="Pool (não alocado)" valor={pool} tom={pool > 0 ? "laranja" : "cinza"} />}
+              {/* pool só aparece quando sobra ingresso sem área (ex.: devolvido no fim do prazo) */}
+              {st.cota_por_area && pool > 0 && <Numero rotulo="Livre para distribuir" valor={pool} tom="laranja" />}
               <Numero rotulo="Lista de espera" valor={st.em_espera} tom={st.em_espera ? "laranja" : "cinza"} />
             </div>
             {doSetor.length === 0 ? (
@@ -149,6 +152,15 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
                 </tbody>
               </Tabela>
             )}
+            {s.staff && (
+              <div className="mt-4">
+                <EditorCotas evento={id} setor={st.setor} capacidade={st.capacidade} cotaPorArea={st.cota_por_area}
+                  areas={(areasAtivas ?? []).map((a) => {
+                    const l = doSetor.find((x) => x.area_id === a.id);
+                    return { area_id: a.id, area_nome: a.nome, cota: l?.cota ?? 0, usados: l?.ocupados ?? 0 };
+                  })} />
+              </div>
+            )}
           </Cartao>
         );
       })}
@@ -162,29 +174,7 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
       )}
 
       {s.staff && (
-        <div className="grid gap-6 lg:grid-cols-3">
-          <Cartao>
-            <h2 className="mb-3 font-bold text-mrv-900">Ajustar cota</h2>
-            <FormAcao acao={ajustarCota.bind(null, id)} rotulo="Salvar cota">
-              <SeletorSetorArea setores={setores.map((x) => x.setor)} linhas={linhas} incluirCapacidade />
-              <Campo rotulo="Nova quantidade"><Entrada name="quantidade" type="number" min={0} required /></Campo>
-              <Campo rotulo="Motivo"><Entrada name="motivo" required placeholder="ex.: 4 extras liberados pelo Atlético" /></Campo>
-            </FormAcao>
-          </Cartao>
-          <Cartao>
-            <h2 className="mb-3 font-bold text-mrv-900">Remanejar saldo</h2>
-            <FormAcao acao={remanejarCota.bind(null, id)} rotulo="Remanejar">
-              <Campo rotulo="Setor">
-                <Selecao name="setor">{setores.filter((x) => x.cota_por_area).map((x) => <option key={x.setor} value={x.setor}>{ROTULO_SETOR[x.setor]}</option>)}</Selecao>
-              </Campo>
-              <div className="grid grid-cols-2 gap-3">
-                <Campo rotulo="De"><Selecao name="de">{areasUnicas(linhas).map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}</Selecao></Campo>
-                <Campo rotulo="Para"><Selecao name="para">{areasUnicas(linhas).map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}</Selecao></Campo>
-              </div>
-              <Campo rotulo="Quantidade"><Entrada name="quantidade" type="number" min={1} required /></Campo>
-              <Campo rotulo="Motivo"><Entrada name="motivo" required /></Campo>
-            </FormAcao>
-          </Cartao>
+        <div>
           <Cartao>
             <h2 className="mb-3 font-bold text-mrv-900">Histórico de cotas</h2>
             {(historico ?? []).length === 0 ? <Vazio>Sem alterações.</Vazio> : (
@@ -203,31 +193,6 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
           </Cartao>
         </div>
       )}
-    </>
-  );
-}
-
-function areasUnicas(linhas: { area_id: string; area_nome: string }[]) {
-  const m = new Map<string, string>();
-  for (const l of linhas) m.set(l.area_id, l.area_nome);
-  return [...m].map(([id, nome]) => ({ id, nome }));
-}
-
-async function SeletorSetorArea({ setores, linhas, incluirCapacidade }: { setores: string[]; linhas: { area_id: string; area_nome: string }[]; incluirCapacidade?: boolean }) {
-  const supabase = await supabaseServidor();
-  const { data: todas } = await supabase.from("areas").select("id, nome").eq("ativo", true).order("ordem");
-  const areas = todas ?? areasUnicas(linhas);
-  return (
-    <>
-      <Campo rotulo="Setor">
-        <Selecao name="setor">{setores.map((x) => <option key={x} value={x}>{ROTULO_SETOR[x as keyof typeof ROTULO_SETOR]}</option>)}</Selecao>
-      </Campo>
-      <Campo rotulo="Área">
-        <Selecao name="area">
-          {incluirCapacidade && <option value="">— Capacidade total do setor —</option>}
-          {areas.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
-        </Selecao>
-      </Campo>
     </>
   );
 }

@@ -15,7 +15,9 @@ export function BotoesTorcedor({ token, status }: { token: string; status: strin
   return (
     <div className="space-y-3">
       {(status === "aprovado" || status === "facial_pendente") && (
-        <Botao className="w-full" disabled={pendente} onClick={() => rodar("facial_ok")}>Já fiz minha facial no Galo ID</Botao>
+        <Botao className="min-h-14 w-full text-base font-extrabold tracking-wide uppercase" disabled={pendente} onClick={() => rodar("facial_ok")}>
+          ✓ Já tenho a facial cadastrada
+        </Botao>
       )}
       {status === "enviado" && (
         <Botao className="w-full" disabled={pendente} onClick={() => rodar("recebido")}>Recebi meu ingresso</Botao>

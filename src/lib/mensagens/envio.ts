@@ -83,9 +83,23 @@ export interface EventoVars {
   prazo_validacao: string | null;
 }
 
+const TZ = "America/Sao_Paulo";
+const diaSemana = (d: Date) => { const s = new Intl.DateTimeFormat("pt-BR", { weekday: "long", timeZone: TZ }).format(d); return s.charAt(0).toUpperCase() + s.slice(1); };
+const diaMes = (d: Date) => new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", timeZone: TZ }).format(d);
+const horaMin = (d: Date) => new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: TZ }).format(d);
+/** "Domingo, 11/10 | 16:00h" */
+export const quando = (iso: string) => { const d = new Date(iso); return `${diaSemana(d)}, ${diaMes(d)} | ${horaMin(d)}h`; };
+/** "Quarta-feira, 07/10, às 16h" (ou 16h30) */
+export const prazoCurto = (iso: string) => {
+  const d = new Date(iso); const [h, m] = horaMin(d).split(":");
+  return `${diaSemana(d)}, ${diaMes(d)}, às ${Number(h)}h${m === "00" ? "" : m}`;
+};
+
 export function varsEvento(ev: EventoVars): Vars {
   return {
     jogo: ev.titulo,
+    quando: quando(ev.inicio),
+    prazo_curto: ev.prazo_solicitacao ? prazoCurto(ev.prazo_solicitacao) : null,
     data: dataLonga(ev.inicio),
     portoes: ev.abertura_portoes ? dataHora(ev.abertura_portoes).split(" ")[1] : null,
     prazo: ev.prazo_solicitacao ? dataLonga(ev.prazo_solicitacao) : null,
@@ -119,8 +133,9 @@ async function carregarContatos(ids: string[]) {
 }
 
 /**
- * Aprovados com e-mail recebem o passo a passo do Galo ID e passam para "facial pendente".
- * Quem não tem e-mail continua no fluxo do WhatsApp (botão "Galo ID").
+ * Aprovados com e-mail recebem o passo a passo da facial e passam para "pendente facial".
+ * Quem já tem a facial conhecida nem chega aqui (vai direto para pronto para envio).
+ * Quem não tem e-mail continua no fluxo do WhatsApp.
  */
 export async function avisarAprovados(ids: string[], autor?: string | null): Promise<ResultadoEnvio> {
   const { ingressos, eventos } = await carregarContatos(ids);
@@ -128,7 +143,7 @@ export async function avisarAprovados(ids: string[], autor?: string | null): Pro
   const r = await enviarModelo(alvo.map((i) => ({
     tipo: "galo_id", para: { nome: i.nome, email: i.email! }, evento_id: i.evento_id, ingresso_id: i.id,
     vars: { ...varsEvento(eventos.get(i.evento_id)!), nome: primeiroNome(i.nome), setor: ROTULO_SETOR[i.setor], link: linkTorcedor(i.token) },
-    botao: { rotulo: "Já fiz minha facial", url: linkTorcedor(i.token) },
+    botao: { rotulo: "JÁ TENHO A FACIAL CADASTRADA", url: linkTorcedor(i.token) },
   })), { autor });
   if (alvo.length) await (await supabaseServico()).rpc("registrar_orientacao", { p_ids: alvo.map((i) => i.id) });
   return r;
@@ -243,7 +258,7 @@ export async function executarLembretes(): Promise<{ areas: ResultadoEnvio; faci
       itensFacial.push({
         tipo: "lembrete_facial", para: { nome: i.nome, email: i.email! }, evento_id: i.evento_id, ingresso_id: i.id,
         vars: { ...varsEvento(ev), nome: primeiroNome(i.nome), setor: ROTULO_SETOR[i.setor], link: linkTorcedor(i.token) },
-        botao: { rotulo: "Já fiz minha facial", url: linkTorcedor(i.token) },
+        botao: { rotulo: "JÁ TENHO A FACIAL CADASTRADA", url: linkTorcedor(i.token) },
       });
     }
   }

@@ -33,12 +33,12 @@ export interface SetorPainel {
 }
 
 // Status em linguagem simples para quem só acompanha
-const STATUS_SIMPLES: Partial<Record<StatusIngresso, { rotulo: string; tom: "cinza" | "azul" | "amarelo" | "verde" | "laranja" }>> = {
-  solicitado: { rotulo: "Aguardando a área validar", tom: "cinza" },
+const STATUS_SIMPLES: Partial<Record<StatusIngresso, { rotulo: string; tom: "cinza" | "azul" | "amarelo" | "verde" | "laranja" | "vermelho" }>> = {
+  solicitado: { rotulo: "Preenchido", tom: "cinza" },
   validado_area: { rotulo: "Aguardando aprovação", tom: "azul" },
-  aprovado: { rotulo: "Aprovado · falta a facial", tom: "laranja" },
-  facial_pendente: { rotulo: "Aprovado · falta a facial", tom: "laranja" },
-  facial_ok: { rotulo: "Pronto para enviar", tom: "azul" },
+  aprovado: { rotulo: "Pendente facial", tom: "vermelho" },
+  facial_pendente: { rotulo: "Pendente facial", tom: "vermelho" },
+  facial_ok: { rotulo: "Pronto para envio", tom: "verde" },
   enviado: { rotulo: "Enviado", tom: "verde" },
   confirmado: { rotulo: "Recebido", tom: "verde" },
   presente: { rotulo: "Presente", tom: "verde" },

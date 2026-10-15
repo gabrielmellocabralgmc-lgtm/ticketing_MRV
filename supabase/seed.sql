@@ -75,7 +75,7 @@ begin
           then jsonb_build_array(jsonb_build_object('nome', nomes[1 + n % 20] || ' Ex', 'cpf', pg_temp.cpf_fake(n), 'status', 'enviado'))
           else jsonb_build_array(
             jsonb_build_object('nome', nomes[1 + n % 20] || ' Ex', 'cpf', pg_temp.cpf_fake(n), 'status', 'enviado'),
-            jsonb_build_object('nome', 'Convidado de ' || nomes[1 + n % 20], 'cpf', pg_temp.cpf_fake(n + 500), 'status', case when i = 2 then 'no_show' else 'enviado' end))
+            jsonb_build_object('nome', nomes[1 + (n + 3) % 20] || ' Pereira', 'cpf', pg_temp.cpf_fake(n + 500), 'status', case when i = 2 then 'no_show' else 'enviado' end))
         end,
         '{"origem":"importacao","ignorar_cota":true}');
     end loop;
@@ -96,7 +96,7 @@ begin
       n := n + 1;
       perform criar_pedido(v_ev, 'arquibancada', ar.id, jsonb_build_array(
         jsonb_build_object('nome', nomes[1 + n % 20], 'cpf', pg_temp.cpf_fake(n), 'celular', '319' || lpad((90000000 + n)::text, 8, '0'), 'email', 'colab' || n || '@exemplo.com'),
-        jsonb_build_object('nome', 'Acompanhante ' || nomes[1 + (n + 7) % 20], 'cpf', pg_temp.cpf_fake(n + 900), 'celular', '319' || lpad((80000000 + n)::text, 8, '0'))),
+        jsonb_build_object('nome', nomes[1 + (n + 7) % 20] || ' Souza', 'cpf', pg_temp.cpf_fake(n + 900), 'celular', '319' || lpad((80000000 + n)::text, 8, '0'))),
         '{"origem":"responsavel"}');
     end loop;
   end loop;
@@ -112,7 +112,7 @@ begin
     n := n + 1;
     perform criar_pedido(v_ev, 'arquibancada', (select id from areas where slug = 'luggo'), jsonb_build_array(
       jsonb_build_object('nome', nomes[1 + n % 20] || ' Luggo', 'cpf', pg_temp.cpf_fake(n), 'celular', '3198' || lpad(n::text, 7, '0')),
-      jsonb_build_object('nome', 'Convidado Luggo ' || i, 'cpf', pg_temp.cpf_fake(n + 900), 'celular', '3197' || lpad(n::text, 7, '0'))),
+      jsonb_build_object('nome', nomes[1 + (n + 11) % 20] || ' Lima', 'cpf', pg_temp.cpf_fake(n + 900), 'celular', '3197' || lpad(n::text, 7, '0'))),
       '{"origem":"responsavel"}');
   end loop;
 

@@ -73,7 +73,7 @@ async function CabecalhoEvento({ evento, setor, area }: { evento: EventoPublico;
 const ETAPAS: { rotulo: string; feitos: StatusIngresso[] }[] = [
   { rotulo: "Pedido registrado", feitos: ["solicitado", "validado_area", "aprovado", "facial_pendente", "facial_ok", "enviado", "confirmado", "presente"] },
   { rotulo: "Aprovado pela MRV", feitos: ["aprovado", "facial_pendente", "facial_ok", "enviado", "confirmado", "presente"] },
-  { rotulo: "Facial no Galo ID", feitos: ["facial_ok", "enviado", "confirmado", "presente"] },
+  { rotulo: "Facial confirmada", feitos: ["facial_ok", "enviado", "confirmado", "presente"] },
   { rotulo: "Ingresso enviado", feitos: ["enviado", "confirmado", "presente"] },
   { rotulo: "Ingresso recebido", feitos: ["confirmado", "presente"] },
 ];
@@ -107,7 +107,7 @@ async function PaginaIngresso({ token, info, acompanhantes }: { token: string; i
           </ol>
         )}
         {(info.status === "solicitado" || info.status === "validado_area") && (
-          <div className="mt-4"><Aviso tom="info">Recebemos seus dados. O pedido ainda vai ser aprovado pela MRV; avisaremos pelo WhatsApp. Enquanto isso, já pode fazer o cadastro no Galo ID (abaixo).</Aviso></div>
+          <div className="mt-4"><Aviso tom="info">Recebemos seus dados. O pedido ainda vai ser aprovado pela MRV; avisaremos pelo WhatsApp. Enquanto isso, confira o cadastro facial (abaixo).</Aviso></div>
         )}
         {info.status === "lista_espera" && <div className="mt-4"><Aviso tom="alerta">Você está na lista de espera. Se abrir vaga, avisamos.</Aviso></div>}
         {info.status === "cancelado" && <div className="mt-4"><Aviso tom="info">Este ingresso foi cancelado.</Aviso></div>}
@@ -117,12 +117,14 @@ async function PaginaIngresso({ token, info, acompanhantes }: { token: string; i
       {!encerrado && info.status !== "presente" && (
         <Cartao>
           <h2 className="mb-3 font-bold text-mrv-900">Passo a passo</h2>
-          <ol className="list-decimal space-y-3 pl-5 text-sm">
-            <li><b>Crie sua conta no Galo ID</b> com o seu CPF em <a className="font-semibold text-mrv-700 underline" href="https://galoid.com.br/" target="_blank" rel="noopener noreferrer">galoid.com.br</a>.</li>
-            <li><b>Cadastre a biometria facial.</b> A entrada na Arena MRV é feita pelo reconhecimento facial.</li>
-            <li><b>Volte aqui e toque em “Já fiz minha facial”.</b> Só enviamos o ingresso depois disso.</li>
-            <li><b>Aceite o ingresso</b> quando ele chegar pelo sistema do Atlético e toque em “Recebi meu ingresso”.</li>
-            <li><b>No dia:</b> chegue com antecedência{info.evento.abertura_portoes ? ` (portões às ${dataHora(info.evento.abertura_portoes).split(" ")[1]})` : ""}, leve um documento com foto e vá ao setor {ROTULO_SETOR[info.setor]}.</li>
+          <p className="mb-3 text-sm">A entrada na Arena MRV é pelo <b>reconhecimento facial</b>. Se você já tem a facial cadastrada, é só confirmar no botão abaixo.</p>
+          <p className="mb-2 text-sm font-semibold">Ainda não tem?</p>
+          <ol className="list-decimal space-y-2 pl-5 text-sm">
+            <li>Tenha <b>cadastro ativo no Super App do Galo</b>.</li>
+            <li>Faça o <b>cadastro facial</b> em <a className="font-semibold text-mrv-700 underline" href="https://ingressos.galonaveia.com.br/" target="_blank" rel="noopener noreferrer">ingressos.galonaveia.com.br</a>.</li>
+            <li>Volte aqui e confirme. Só enviamos o ingresso depois disso.</li>
+            <li>O ingresso chega no <b>Super App do Galo</b>, até 4h antes do jogo. Toque em “Recebi meu ingresso”.</li>
+            <li><b>No dia:</b> chegue com antecedência{info.evento.abertura_portoes ? ` (portões às ${dataHora(info.evento.abertura_portoes).split(" ")[1]})` : ""} e vá ao setor {ROTULO_SETOR[info.setor]}. 1 CPF = 1 ingresso, pessoal e intransferível.</li>
           </ol>
           {camarote && (
             <div className="mt-4"><Aviso tom="alerta">O camarote MRV é corporativo: quem convidou você precisa estar presente durante o evento. O ingresso não pode ser repassado.</Aviso></div>

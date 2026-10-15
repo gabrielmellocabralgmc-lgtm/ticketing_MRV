@@ -473,3 +473,23 @@ describe("Marketing sem aprovação", () => {
     expect(i2.status).toBe("solicitado");
   });
 });
+
+describe("facial já conhecida", () => {
+  it("quem já teve ingresso enviado vai direto para pronto para envio ao ser aprovado", async () => {
+    const p = nova("Já Foi Antes");
+    const ev1 = await novoEvento();
+    const r1 = await pedir(mkt, ev1, dh, [p]);
+    await b.como(mkt, `select marcar_enviados($1, true)`, [r1.ingressos]); // enviado (sem facial) no jogo 1
+    const ev2 = await novoEvento();
+    const r2 = await pedir(respDH, ev2, dh, [p]);
+    await b.como(respDH, `select validar_lista($1, 'arquibancada', $2)`, [ev2, dh]);
+    await b.como(mkt, `select aprovar_ingressos($1)`, [r2.ingressos]);
+    expect(await statusDe(r2.ingressos)).toEqual(["facial_ok"]);
+    const hist = await b.sql<{ para: string; motivo: string | null }>(`select para, motivo from status_historico where ingresso_id = $1 order by id`, [r2.ingressos[0]]);
+    expect(hist.map((h) => h.para)).toEqual(["solicitado", "validado_area", "aprovado", "facial_ok"]);
+    expect(hist.at(-1)!.motivo).toMatch(/facial já cadastrada/);
+    // quem nunca foi continua precisando confirmar
+    const r3 = await pedir(mkt, ev2, dh, [nova("Primeira Vez")]);
+    expect(await statusDe(r3.ingressos)).toEqual(["aprovado"]);
+  });
+});

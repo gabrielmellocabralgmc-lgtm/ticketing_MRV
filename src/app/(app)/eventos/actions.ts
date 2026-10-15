@@ -79,34 +79,37 @@ export async function mudarStatusEvento(id: string, status: string): Promise<Res
   return { ok: true };
 }
 
-export async function ajustarCota(evento: string, _: unknown, form: FormData): Promise<Resultado> {
+/**
+ * Salva de uma vez as cotas de um setor (e a capacidade). Remanejar é só tirar de uma área e pôr
+ * em outra na mesma edição. Reduções vão primeiro, para o saldo nunca passar da capacidade no meio.
+ */
+export async function salvarCotas(
+  evento: string, setor: string, capacidade: number, cotas: Record<string, number>, motivo: string,
+): Promise<Resultado> {
   await exigirStaff();
+  if (!motivo.trim()) return { ok: false, erro: "Informe o motivo da alteração (fica no histórico)." };
   const supabase = await supabaseServidor();
-  const area = String(form.get("area") ?? "") || null;
-  const { error } = await supabase.rpc("ajustar_cota", {
-    p_evento: evento,
-    p_setor: String(form.get("setor")),
-    p_area: area,
-    p_quantidade: Number(form.get("quantidade")),
-    p_motivo: String(form.get("motivo") ?? ""),
-  });
-  if (error) return falha(error);
+  const [{ data: atuais }, { data: set }] = await Promise.all([
+    supabase.from("cotas").select("area_id, quantidade").eq("evento_id", evento).eq("setor", setor),
+    supabase.from("evento_setores").select("capacidade, cota_por_area").eq("evento_id", evento).eq("setor", setor).single(),
+  ]);
+  const antes = new Map((atuais ?? []).map((c) => [c.area_id as string, c.quantidade as number]));
+  const soma = Object.values(cotas).reduce((n, v) => n + v, 0);
+  if (set?.cota_por_area && soma > capacidade) return { ok: false, erro: `A soma das áreas (${soma}) passa da capacidade (${capacidade}).` };
+  const mudancas = Object.entries(cotas).filter(([a, v]) => v !== (antes.get(a) ?? 0)).sort((x, y) => (x[1] - (antes.get(x[0]) ?? 0)) - (y[1] - (antes.get(y[0]) ?? 0)));
+  const passos: { area: string | null; qtd: number }[] = [];
+  // capacidade: se diminui, depois das reduções; se aumenta, antes dos aumentos
+  const capMuda = set && capacidade !== set.capacidade;
+  for (const [a, v] of mudancas.filter(([a, v]) => v < (antes.get(a) ?? 0))) passos.push({ area: a, qtd: v });
+  if (capMuda) passos.push({ area: null, qtd: capacidade });
+  for (const [a, v] of mudancas.filter(([a, v]) => v > (antes.get(a) ?? 0))) passos.push({ area: a, qtd: v });
+  for (const p of passos) {
+    const { error } = await supabase.rpc("ajustar_cota", { p_evento: evento, p_setor: setor, p_area: p.area, p_quantidade: p.qtd, p_motivo: motivo });
+    if (error) {
+      revalidatePath(`/eventos/${evento}`, "layout");
+      return falha(error);
+    }
+  }
   revalidatePath(`/eventos/${evento}`, "layout");
-  return { ok: true, mensagem: "Cota atualizada." };
-}
-
-export async function remanejarCota(evento: string, _: unknown, form: FormData): Promise<Resultado> {
-  await exigirStaff();
-  const supabase = await supabaseServidor();
-  const { error } = await supabase.rpc("remanejar_cota", {
-    p_evento: evento,
-    p_setor: String(form.get("setor")),
-    p_de: String(form.get("de")),
-    p_para: String(form.get("para")),
-    p_qtd: Number(form.get("quantidade")),
-    p_motivo: String(form.get("motivo") ?? ""),
-  });
-  if (error) return falha(error);
-  revalidatePath(`/eventos/${evento}`, "layout");
-  return { ok: true, mensagem: "Saldo remanejado." };
+  return { ok: true, mensagem: passos.length ? `${passos.length} alteração(ões) salva(s).` : "Nada mudou." };
 }

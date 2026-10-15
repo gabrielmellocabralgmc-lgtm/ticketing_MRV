@@ -173,7 +173,7 @@ function Numero({ rotulo, valor, laranja }: { rotulo: string; valor: number | st
 }
 
 const ROTULO_STATUS: Partial<Record<StatusIngresso, string>> = {
-  lista_espera: "Na fila", aprovado: "Aprovado", facial_pendente: "Falta a facial", facial_ok: "Pronto para enviar",
+  lista_espera: "Na fila", aprovado: "Pendente facial", facial_pendente: "Pendente facial", facial_ok: "Pronto para envio",
   enviado: "Enviado", confirmado: "Recebido", presente: "Presente",
 };
 

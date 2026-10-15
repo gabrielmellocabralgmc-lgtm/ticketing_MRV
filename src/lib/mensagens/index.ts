@@ -55,10 +55,12 @@ export function textoGaloId(o: { nome: string; evento: DadosEvento; setor: Setor
   return [
     `Olá, ${o.nome.split(" ")[0]}! Seu ingresso MRV para ${o.evento.titulo} (${dataLonga(o.evento.inicio)}) foi aprovado. ✅`,
     ``,
-    `Antes de enviarmos o ingresso, faça o cadastro no Galo ID com biometria facial (a entrada na Arena MRV é pela face):`,
-    `1. Acesse https://galoid.com.br/ e crie sua conta com o seu CPF`,
-    `2. Cadastre a biometria facial`,
-    `3. Confirme aqui que já fez: ${linkTorcedor(o.token)}`,
+    `A entrada na Arena MRV é pelo reconhecimento facial. Já tem a facial cadastrada? Confirme aqui: ${linkTorcedor(o.token)}`,
+    ``,
+    `Ainda não tem?`,
+    `1. Tenha cadastro ativo no Super App do Galo`,
+    `2. Faça o cadastro facial em https://ingressos.galonaveia.com.br/`,
+    `3. Confirme no mesmo link acima`,
     ``,
     camarote
       ? `Lembrete: o camarote MRV é corporativo. Quem convidou precisa estar presente durante o evento.`
@@ -70,7 +72,7 @@ export function textoIngressoEnviado(o: { nome: string; evento: DadosEvento; set
   return [
     `${o.nome.split(" ")[0]}, seu ingresso para ${o.evento.titulo} foi enviado pelo sistema do Atlético. 🎟️`,
     ``,
-    `Aceite o ingresso no app/site do Galo e confirme aqui: ${linkTorcedor(o.token)}`,
+    `Ele está no Super App do Galo. Confirme aqui que recebeu: ${linkTorcedor(o.token)}`,
     o.evento.abertura_portoes ? `Portões abrem ${dataLonga(o.evento.abertura_portoes)}.` : ``,
     `Setor: ${ROTULO_SETOR[o.setor]}. Leve um documento com foto.`,
     `Se não puder ir, cancele pelo link para o ingresso ir para outra pessoa.`,
