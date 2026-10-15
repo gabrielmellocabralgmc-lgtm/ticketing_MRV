@@ -241,20 +241,28 @@ export async function avisarValidacaoPendente(evento?: string, area?: string): P
     const { data: ings } = await qi;
     const porArea = new Map<string, { setor: Setor; nome: string | null }[]>();
     for (const i of (ings ?? []) as { area_id: string; setor: Setor; nome: string | null; preenchido_por: string | null }[]) {
-      if (i.setor === "camarote" || i.preenchido_por !== "convidado") continue;
+      if (i.preenchido_por !== "convidado") continue;
       porArea.set(i.area_id, [...(porArea.get(i.area_id) ?? []), i]);
     }
     if (!porArea.size) continue;
     const { data: recentes } = await sb.from("envios").select("area_id").eq("evento_id", ev.id).eq("tipo", "validacao_pendente")
       .gt("criado_em", new Date(agora - INTERVALO_VALIDACAO_H * 3600e3).toISOString()).in("area_id", [...porArea.keys()]);
     const jaAvisadas = new Set(((recentes ?? []) as { area_id: string }[]).map((r) => r.area_id));
-    for (const a of await areasParaConvocar(ev.id)) {
-      const pend = porArea.get(a.area_id);
-      if (!pend || jaAvisadas.has(a.area_id)) continue;
-      const link = `${siteUrl()}/eventos/${ev.id}/areas/${a.area_id}?setor=${pend[0].setor}`;
+    // responsáveis de cada área (também as que só têm convidados no camarote)
+    const { data: resp } = await sb.from("area_responsaveis").select("area_id, areas(nome), perfis(nome, email, ativo)").in("area_id", [...porArea.keys()]);
+    const areasResp = new Map<string, { area_nome: string; responsaveis: { nome: string; email: string }[] }>();
+    for (const r of (resp ?? []) as unknown as { area_id: string; areas: { nome: string } | null; perfis: { nome: string; email: string; ativo: boolean } | null }[]) {
+      const x = areasResp.get(r.area_id) ?? { area_nome: r.areas?.nome ?? "", responsaveis: [] };
+      if (r.perfis?.ativo) x.responsaveis.push({ nome: r.perfis.nome, email: r.perfis.email });
+      areasResp.set(r.area_id, x);
+    }
+    for (const [areaId, a] of areasResp) {
+      const pend = porArea.get(areaId);
+      if (!pend || jaAvisadas.has(areaId)) continue;
+      const link = `${siteUrl()}/eventos/${ev.id}/areas/${areaId}?setor=${pend[0].setor}`;
       for (const r of a.responsaveis) {
         itens.push({
-          tipo: "validacao_pendente", para: r, evento_id: ev.id, area_id: a.area_id,
+          tipo: "validacao_pendente", para: r, evento_id: ev.id, area_id: areaId,
           vars: {
             ...varsEvento(ev), area: a.area_nome, responsavel: primeiroNome(r.nome), pendentes: pend.length,
             lista: pend.map((p) => `• ${p.nome ?? "—"}`).join("\n"), setor: ROTULO_SETOR[pend[0].setor], link,

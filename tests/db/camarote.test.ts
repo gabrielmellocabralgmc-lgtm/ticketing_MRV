@@ -64,11 +64,14 @@ describe("camarote: gestão manual (sem fila de prioridade)", () => {
 });
 
 describe("camarote: convites do anfitrião", () => {
-  it("link gerado pelo anfitrião: convidados entram aprovados e vinculados a ele", async () => {
+  it("link gerado para o anfitrião: convidados vinculados a ele, validados pelo gestor da área", async () => {
     const ev = await evento(false);
-    const r = await pedidoCamarote(ev, presid, 1, "exec_presidencia");
+    const r = await pedidoCamarote(ev, dh, 1, "exec_presidencia");
     const [{ c }] = await b.como<{ c: { token: string } }>(mkt, `select criar_convite_anfitriao($1, 2) as c`, [r.ingressos[0]]);
     await b.como(null, `select preencher_convite($1, $2, true)`, [c.token, JSON.stringify([nova("Investidor"), nova("Parceira")])]);
+    // antes da validação não aparecem na lista da operação
+    expect(await b.como(oper, `select nome from lista_camarote($1)`, [ev])).toHaveLength(1);
+    await b.como(respDH, `select validar_lista($1, 'camarote', $2)`, [ev, dh]);
     const lista = await b.como<{ nome: string; anfitriao: string; titular: boolean }>(oper, `select nome, anfitriao, titular from lista_camarote($1)`, [ev]);
     expect(lista.map((l) => [l.nome, l.anfitriao, l.titular])).toEqual([
       ["Anfitrião exec_presidencia", "Anfitrião exec_presidencia", true],

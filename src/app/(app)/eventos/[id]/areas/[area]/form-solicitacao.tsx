@@ -21,7 +21,7 @@ function problemas(p: PessoaForm, avulsos = false) {
   return e;
 }
 
-export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, enviarCom, avisoExcede, excedeVaiParaEspera = true, avulsos = false, colarInicial = false }: {
+export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, enviarCom, avisoExcede, excedeVaiParaEspera = true, avulsos = false, colarInicial = false, simples = false }: {
   evento: string; setor: Setor; area: string; saldo: number; padraoConvidados: number;
   /** Ação alternativa (ex.: Admin adicionando convidado pelo painel do jogo). */
   enviarCom?: (pessoas: PessoaForm[], excede: boolean) => Promise<Resultado<unknown>>;
@@ -32,6 +32,8 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
   avulsos?: boolean;
   /** Abre já com a caixa "colar lista" (adicionar em massa). */
   colarInicial?: boolean;
+  /** Só nome e CPF (Marketing adicionando convidados). */
+  simples?: boolean;
 }) {
   const [pessoas, setPessoas] = useState<PessoaForm[]>(() => Array.from({ length: 1 + padraoConvidados }, vazia));
   const [tocado, setTocado] = useState(false);
@@ -75,7 +77,7 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-tinta/70">{avulsos ? "Cada pessoa é um convidado independente (sem titular). Chegou só o CPF? Pode adicionar e informar o nome depois, na própria lista do jogo (botão “Informar nome”) — mesmo após o envio." : "A 1ª pessoa é o titular (colaborador); as demais ficam como convidadas dele."}</p>
+        <p className="text-sm text-tinta/70">{simples ? "Uma pessoa por linha. Chegou só o CPF? Pode deixar o nome em branco e informar depois na lista." : avulsos ? "Cada pessoa é um convidado independente (sem titular). Chegou só o CPF? Pode adicionar e informar o nome depois, na própria lista do jogo (botão “Informar nome”) — mesmo após o envio." : "A 1ª pessoa é o titular (colaborador); as demais ficam como convidadas dele."}</p>
         <button type="button" onClick={() => setColar((c) => !c)} className="text-sm font-semibold text-mrv-700 hover:underline">
           {colar ? "Fechar" : "Colar lista (WhatsApp/Excel)"}
         </button>
@@ -91,14 +93,16 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
         return (
           <fieldset key={i} className="rounded-xl p-3 ring-1 ring-black/10">
             <legend className="px-1 text-xs font-semibold tracking-wide text-tinta/60 uppercase">{avulsos ? `Convidado ${i + 1}` : i === 0 ? "Titular" : `Convidado ${i}`}</legend>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1.4fr_auto]">
-              <Campo rotulo={avulsos ? "Nome (pode informar depois)" : "Nome completo"} erro={e.nome}><Entrada value={p.nome} onChange={(ev) => set(i, "nome", ev.target.value)} autoComplete="off" /></Campo>
+            <div className={simples ? "grid gap-3 sm:grid-cols-[2fr_1fr_auto]" : "grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1.4fr_auto]"}>
+              <Campo rotulo={simples ? "Nome" : avulsos ? "Nome (pode informar depois)" : "Nome completo"} erro={e.nome}><Entrada value={p.nome} onChange={(ev) => set(i, "nome", ev.target.value)} autoComplete="off" /></Campo>
               <Campo rotulo="CPF" erro={e.cpf}>
                 <Entrada value={p.cpf} inputMode="numeric" onChange={(ev) => set(i, "cpf", ev.target.value)}
                   onBlur={(ev) => somenteDigitos(ev.target.value).length >= 9 && set(i, "cpf", formatarCpf(ev.target.value))} />
               </Campo>
+              {!simples && <>
               <Campo rotulo={avulsos ? "Celular (opcional)" : "Celular (WhatsApp)"} erro={e.celular}><Entrada value={p.celular} inputMode="tel" onChange={(ev) => set(i, "celular", ev.target.value)} placeholder="(31) 9…" /></Campo>
               <Campo rotulo="E-mail (opcional)" erro={e.email}><Entrada value={p.email} type="email" onChange={(ev) => set(i, "email", ev.target.value)} /></Campo>
+              </>}
               {i > 0 && (
                 <button type="button" aria-label="Remover" onClick={() => setPessoas((ps) => ps.filter((_, j) => j !== i))} className="self-end pb-2 text-sm text-tinta/50 hover:text-red-700">
                   Remover
@@ -129,7 +133,7 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
           : enviarCom ? `Adicionar ${preenchidas.length} convidado(s)` : `Solicitar ${preenchidas.length} ingresso(s)`}
       </Botao>
       <p className="text-xs text-tinta/60">
-        Ao enviar, você confirma que as pessoas foram informadas de que a MRV usará nome, CPF e celular só para emitir o ingresso e orientar o cadastro no Galo ID.
+        Ao enviar, você confirma que as pessoas foram informadas de que a MRV usará {simples ? "nome e CPF" : "nome, CPF e celular"} só para emitir o ingresso e orientar o cadastro no Galo ID.
       </p>
     </div>
   );

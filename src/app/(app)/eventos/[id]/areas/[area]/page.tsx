@@ -30,8 +30,10 @@ export default async function PainelArea({ params, searchParams }: { params: Pro
     supabase.from("evento_setores").select("setor").eq("evento_id", id),
   ]);
   if (!areaRow) notFound();
-  // Camarote: pedidos passam pelo Marketing (o responsável não lança direto)
-  const setores = (setoresRows ?? []).map((r) => r.setor as Setor).filter((x) => s.staff || x !== "camarote");
+  // Camarote: pedidos passam pelo Marketing (o responsável não lança direto), mas ele vê a aba
+  // quando há convidados da área no camarote (ex.: preencheram pelo link e aguardam a validação dele)
+  const { data: noCamarote } = s.staff ? { data: null } : await supabase.from("ingressos").select("id").eq("evento_id", id).eq("area_id", area).eq("setor", "camarote").limit(1);
+  const setores = (setoresRows ?? []).map((r) => r.setor as Setor).filter((x) => s.staff || x !== "camarote" || !!noCamarote?.length);
   if (!setores.length) notFound();
   const setor = (setorParam && setores.includes(setorParam as Setor) ? setorParam : setores.find((x) => x !== "camarote") ?? setores[0]) as Setor;
 

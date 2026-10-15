@@ -13,5 +13,5 @@ describe("seed de desenvolvimento", () => {
     expect(m).toMatchObject({ convite_enviado: 3, solicitado: 18, facial_ok: 23, facial_pendente: 3, lista_espera: 2 });
     const [ev] = await b.sql<{ inicio: string }>(`select to_char(inicio at time zone 'America/Sao_Paulo', 'HH24:MI') inicio from eventos where titulo = 'Galo × Cruzeiro'`);
     expect(ev.inicio).toBe("16:00");
-  });
+  }, 120_000); // aplica todas as migrações + seed: demora mais quando roda junto com os outros testes
 });

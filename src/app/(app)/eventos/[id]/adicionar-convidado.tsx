@@ -19,6 +19,8 @@ export interface PessoaDaLista { id: string; nome: string; setor: Setor }
 interface Comum {
   evento: string; areas: { id: string; nome: string }[]; setores: OpcaoSetor[]; anfitrioes: PessoaDaLista[];
   setorInicial?: Setor; areaInicial?: string; eventoInfo: { titulo: string; inicio: string; abertura_portoes: string | null };
+  /** Marketing: formulário enxuto — só nome, CPF e área (setor = aba aberta). */
+  simples?: boolean;
 }
 
 export function AcoesConvidados(p: Comum) {
@@ -70,7 +72,15 @@ function useSetorArea(p: Comum) {
       </Campo>
     </>
   );
-  return { setor, area, op, saldo, saldoArea, campos };
+  const campoArea = (
+    <Campo rotulo="Área (abate da cota dela)" dica={area ? (saldoArea === null ? `${op?.disponiveis ?? 0} vaga(s) livre(s) no ${ROTULO_SETOR[setor].split(" ")[0].toLowerCase()}` : `Saldo da área: ${saldoArea}`) : undefined}>
+      <Selecao value={area} onChange={(e) => setArea(e.target.value)}>
+        <option value="">Escolha a área…</option>
+        {p.areas.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
+      </Selecao>
+    </Campo>
+  );
+  return { setor, area, op, saldo, saldoArea, campos, campoArea };
 }
 
 /** Vincular a alguém: ninguém, alguém já na lista do jogo ou alguém de fora (não ocupa lugar). */
@@ -107,7 +117,7 @@ function EscolhaAnfitriao({ anfitrioes, valor, onChange }: { anfitrioes: PessoaD
 const anfitriaoIncompleto = (a: Anfitriao) => (a.ingresso !== undefined && !a.ingresso) || (a.externo !== undefined && !a.externo.trim());
 
 function AdicionarConvidado(p: Comum & { massa: boolean }) {
-  const { setor, area, op, saldo, saldoArea, campos } = useSetorArea(p);
+  const { setor, area, op, saldo, saldoArea, campos, campoArea } = useSetorArea(p);
   const [semSaldo, setSemSaldo] = useState<"espera" | "abater">("espera");
   // "" = nenhuma escolhida; "livre" = saldo livre do setor; senão, id da área que cede a cota
   const [doador, setDoador] = useState("");
@@ -116,21 +126,30 @@ function AdicionarConvidado(p: Comum & { massa: boolean }) {
 
   return (
     <div>
-      <h2 className="text-lg font-bold text-mrv-900">{p.massa ? "Adicionar convidados em massa" : "Adicionar convidado"}</h2>
-      <p className="mb-3 text-sm text-tinta/60">
+      <h2 className="text-lg font-bold text-mrv-900">
+        {p.massa ? "Adicionar convidados em massa" : "Adicionar convidado"}
+        {p.simples && <span className="ml-2 text-sm font-normal text-cinza">· {ROTULO_SETOR[setor]}</span>}
+      </h2>
+      {p.simples ? (
+        <p className="mb-3 text-sm text-tinta/60">Entra direto como <b>Pronto para envio</b>, abatendo da cota da área.</p>
+      ) : <p className="mb-3 text-sm text-tinta/60">
         {p.massa ? "Cole a lista (uma pessoa por linha, com nome e CPF) e, se for o caso, diga de quem são os convidados. " : "Para pedidos que chegaram por WhatsApp, e-mail etc. "}
         Vale a regra (CPF válido, sem duplicidade no evento, cota da área), mas <b>sem validação</b>: entra direto como <b>Pronto para envio</b>.
-      </p>
-      <div className="mb-4 grid gap-3 sm:grid-cols-3">
-        {campos}
-        <Campo rotulo="Origem do pedido (opcional)" dica="Fica registrado no histórico">
-          <Entrada value={origem} onChange={(e) => setOrigem(e.target.value)} placeholder="Ex.: WhatsApp do diretor X" />
-        </Campo>
-      </div>
+      </p>}
+      {p.simples ? (
+        <div className="mb-4 max-w-sm">{campoArea}</div>
+      ) : (
+        <div className="mb-4 grid gap-3 sm:grid-cols-3">
+          {campos}
+          <Campo rotulo="Origem do pedido (opcional)" dica="Fica registrado no histórico">
+            <Entrada value={origem} onChange={(e) => setOrigem(e.target.value)} placeholder="Ex.: WhatsApp do diretor X" />
+          </Campo>
+        </div>
+      )}
       {p.massa && <div className="mb-4"><EscolhaAnfitriao anfitrioes={p.anfitrioes} valor={anfitriao} onChange={setAnfitriao} /></div>}
       {area ? (
         <FormSolicitacao key={`${setor}-${area}`} evento={p.evento} setor={setor} area={area} saldo={saldo}
-          padraoConvidados={0} avulsos colarInicial={p.massa}
+          padraoConvidados={0} avulsos colarInicial={p.massa} simples={p.simples}
           excedeVaiParaEspera={semSaldo === "espera"}
           enviarCom={async (pessoas) => {
             if (p.massa && anfitriaoIncompleto(anfitriao)) return { ok: false, erro: "Escolha ou digite de quem são os convidados (ou marque “Sem vínculo”)." };
@@ -188,7 +207,7 @@ function GerarLink(p: Comum) {
     const msg = textoConvite({ nome: gerado.para || null, evento: p.eventoInfo, setor: gerado.setor, area: gerado.area, token: gerado.token, qtd: gerado.qtd });
     return (
       <div className="space-y-3">
-        <Aviso tom="ok">Link gerado: {gerado.qtd} lugar(es) reservado(s). Quem preencher entra aprovado.</Aviso>
+        <Aviso tom="ok">Link gerado: {gerado.qtd} lugar(es) reservado(s). Quem preencher fica como “Preenchido” até o gestor da área validar.</Aviso>
         <div className="break-all rounded-lg bg-fundo p-3 font-mono text-sm">{linkTorcedor(gerado.token)}</div>
         <div className="flex flex-wrap gap-2">
           <BotaoCopiar texto={linkTorcedor(gerado.token)} rotulo="Copiar link" />
@@ -202,7 +221,7 @@ function GerarLink(p: Comum) {
   return (
     <div>
       <h2 className="text-lg font-bold text-mrv-900">Link para convidados</h2>
-      <p className="mb-3 text-sm text-tinta/60">Reserva os lugares e gera um link: o próprio convidado preenche nome, CPF e celular e entra aprovado. A vaga conta na cota desde já.</p>
+      <p className="mb-3 text-sm text-tinta/60">Reserva os lugares e gera um link: o próprio convidado preenche nome, CPF e celular e fica como “Preenchido” até o <b>gestor da área validar</b> (ele recebe um e-mail com a lista). A vaga conta na cota desde já.</p>
       <div className="mb-3"><EscolhaAnfitriao anfitrioes={p.anfitrioes} valor={anfitriao} onChange={setAnfitriao} /></div>
       <div className="grid gap-3 sm:grid-cols-3">
         {daLista ? <p className="self-center text-xs text-cinza sm:col-span-2">Setor e área seguem os do anfitrião escolhido.</p> : campos}

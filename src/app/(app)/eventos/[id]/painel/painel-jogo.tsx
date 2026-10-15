@@ -61,11 +61,13 @@ export interface ConvitePendente {
   id: string; token: string; nome_previsto: string | null; qtd_lugares: number; expira_em: string; setor: Setor; area_id: string; area_nome: string; contato: string | null;
 }
 
-export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins, opcoes, anfitrioes, eventoInfo, convites }: {
+export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins, opcoes, anfitrioes, eventoInfo, convites, simples }: {
   evento: string; linhas: LinhaPainel[]; setores: SetorPainel[];
   areas: { id: string; nome: string }[]; areaPadrao: string; walkins: Walkin[];
   opcoes: OpcaoSetor[]; anfitrioes: PessoaDaLista[]; convites: ConvitePendente[];
   eventoInfo: { titulo: string; inicio: string; abertura_portoes: string | null };
+  /** Marketing: adicionar convidado só com nome, CPF e área. */
+  simples?: boolean;
 }) {
   const [setor, setSetor] = useState<Setor>(setores.find((s) => s.setor === "arquibancada")?.setor ?? setores[0]?.setor ?? "arquibancada");
   const [busca, setBusca] = useState("");
@@ -97,7 +99,7 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
 
       {/* as mesmas ações do Admin: abatem da cota e entram aprovadas */}
       <AcoesConvidados key={setor} evento={evento} areas={areas} setores={opcoes} setorInicial={setor} areaInicial={areaPadrao}
-        anfitrioes={anfitrioes} eventoInfo={eventoInfo} />
+        anfitrioes={anfitrioes} eventoInfo={eventoInfo} simples={simples} />
 
       {setor === "camarote" && <PortaCamarote evento={evento} walkins={walkins} />}
 
