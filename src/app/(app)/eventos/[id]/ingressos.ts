@@ -8,7 +8,7 @@ export async function carregarIngressos(evento: string, status: StatusIngresso[]
   const supabase = await supabaseServidor();
   const { data, error } = await supabase
     .from("v_ingressos")
-    .select("id, setor, area_id, area_nome, area_ordem, status, nome, cpf, celular, email, token, convidado_de, convidado_de_nome, indicacao_de, preenchido_por, enviado_em, facial_em, criado_em, pedido_id, lista_espera_desde, prioridade, catering, centro_custo, pedido_observacao, chegada_em, convite_id")
+    .select("id, setor, area_id, area_nome, area_ordem, status, nome, cpf, celular, email, token, convidado_de, convidado_de_nome, indicacao_de, preenchido_por, enviado_em, facial_em, criado_em, pedido_id, lista_espera_desde, prioridade, catering, centro_custo, pedido_observacao, chegada_em, convite_id, manual_admin")
     .eq("evento_id", evento)
     .in("status", status)
     .order("setor").order("area_ordem").order("pedido_id").order("criado_em");

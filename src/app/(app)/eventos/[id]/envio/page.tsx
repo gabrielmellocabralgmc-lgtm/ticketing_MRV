@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { AoVivo } from "@/components/ao-vivo";
 import { Titulo } from "@/components/ui";
 import { exigirAdmin } from "@/lib/sessao";
@@ -17,7 +16,6 @@ export default async function Envio({ params }: { params: Promise<{ id: string }
   return (
     <>
       <AoVivo evento={id} />
-      <div className="mb-2 text-sm"><Link href={`/eventos/${id}`} className="text-mrv-700 hover:underline">← {ev.titulo}</Link></div>
       <Titulo voltar={{ href: `/eventos/${id}`, rotulo: "Painel do jogo" }} sub="Envio manual, um por vez: copie o CPF, envie no sistema do Atlético e marque “Enviado” aqui.">A enviar · {ev.titulo}</Titulo>
       <PainelEnvio
         linhas={linhas}

@@ -41,3 +41,15 @@ export async function adicionarConvidadoAdmin(
       : `${n === 1 ? "Convidado adicionado" : `${n} convidados adicionados`} direto na lista final (pronto para envio)${semSaldo === "espera" ? "" : ", com a cota remanejada"}.`,
   };
 }
+
+/** Nome (e contato) de quem o Admin adicionou só com o CPF: pode ser informado mesmo depois do envio. */
+export async function atualizarDadosAdmin(evento: string, ingresso: string, p: { nome: string; celular: string; email: string }): Promise<Resultado> {
+  await exigirAdmin();
+  const supabase = await supabaseServidor();
+  const { error } = await supabase.rpc("atualizar_dados_admin", {
+    p_ingresso: ingresso, p_nome: p.nome, p_celular: p.celular || null, p_email: p.email || null,
+  });
+  if (error) return falha(error);
+  revalidatePath(`/eventos/${evento}/lista`);
+  return { ok: true, mensagem: "Dados atualizados." };
+}

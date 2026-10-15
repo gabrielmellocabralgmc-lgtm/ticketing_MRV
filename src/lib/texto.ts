@@ -11,3 +11,6 @@ export function normalizarTexto(v: unknown): string {
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase();
 }
+
+/** Marcador do banco para pessoa sem nome (Admin adicionou só com o CPF). */
+export const SEM_NOME = "(sem nome)";

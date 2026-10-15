@@ -26,6 +26,8 @@ export interface LinhaIngresso {
   preenchido_por: string | null;
   enviado_em: string | null;
   facial_em: string | null;
+  /** Adicionado pelo Admin (WhatsApp, e-mail…): nome e contato podem ser atualizados depois. */
+  manual_admin?: boolean;
 }
 
 export interface AcaoLote {

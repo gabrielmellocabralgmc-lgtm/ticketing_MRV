@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { BancoTeste, pessoa } from "./helpers";
 
 let b: BancoTeste;
-let mkt: string, respDH: string, respLuggo: string, oper: string;
+let adm: string, mkt: string, respDH: string, respLuggo: string, oper: string;
 let dh: string, luggo: string, presid: string;
 let seq = 0;
 const nova = (nome?: string) => pessoa(++seq, nome);
@@ -30,7 +30,7 @@ const statusDe = async (ids: string[]) =>
 
 beforeAll(async () => {
   b = await BancoTeste.criar();
-  await b.criarUsuario("Admin", "admin");
+  adm = await b.criarUsuario("Admin", "admin");
   mkt = await b.criarUsuario("Gestora Marketing", "marketing");
   respDH = await b.criarUsuario("Resp DH", "responsavel", ["dh"]);
   respLuggo = await b.criarUsuario("Resp Luggo", "responsavel", ["luggo"]);
@@ -531,7 +531,7 @@ describe("Admin adiciona convidado manualmente", () => {
     const antes = await saldo(ev, dh);
     const cpfRepetido = nova("Já Pedido");
     await pedir(respDH, ev, dh, [cpfRepetido]);
-    const r = await pedir(mkt, ev, dh, [nova("Veio Pelo Whatsapp"), nova()], { origem: "marketing", avulsos: true, lista_espera: true, motivo: "adicionado manualmente pelo Admin" });
+    const r = await pedir(adm, ev, dh, [nova("Veio Pelo Whatsapp"), nova()], { origem: "marketing", avulsos: true, lista_espera: true, motivo: "adicionado manualmente pelo Admin" });
     expect(await statusDe(r.ingressos)).toEqual(["facial_ok", "facial_ok"]);
     // avulsos: ninguém é titular/colaborador nem "convidado de"
     const vinc = await b.sql<{ convidado_de: string | null; colaborador_mrv: boolean }>(
@@ -563,5 +563,28 @@ describe("Admin adiciona convidado manualmente", () => {
     // doador sem saldo suficiente
     await expect(b.como(mkt, `select adicionar_abatendo($1, 'arquibancada', $2, $3, $4, '{"origem":"marketing"}')`,
       [ev, luggo, dh, JSON.stringify(Array.from({ length: 30 }, () => nova()).slice(0, 20))])).rejects.toThrow(/COTA_EXCEDIDA/);
+  });
+});
+
+describe("Admin adiciona só com CPF e informa o nome depois", () => {
+  it("aceita sem nome; atualiza o nome mesmo depois de enviado, só nos adicionados pelo Admin", async () => {
+    const ev = await novoEvento();
+    const soCpf = { cpf: nova().cpf };
+    const r = await pedir(adm, ev, dh, [soCpf], { origem: "marketing", avulsos: true });
+    const [p0] = await b.sql<{ nome: string; manual_admin: boolean }>(`select nome, manual_admin from v_ingressos where id = $1`, [r.ingressos[0]]);
+    expect(p0).toMatchObject({ nome: "(sem nome)", manual_admin: true });
+    // sem avulsos (ou feito pelo Marketing) o nome continua obrigatório
+    await expect(pedir(mkt, ev, dh, [{ cpf: nova().cpf }], { origem: "marketing", avulsos: true })).rejects.toThrow(/DADOS_INCOMPLETOS/);
+
+    await b.como(adm, `select marcar_enviados($1, true)`, [r.ingressos]);
+    await b.como(adm, `select atualizar_dados_admin($1, 'Nome Chegou Depois', '31999998888')`, [r.ingressos[0]]);
+    const [p1] = await b.sql<{ nome: string; status: string; celular: string }>(`select nome, status, celular from v_ingressos where id = $1`, [r.ingressos[0]]);
+    expect(p1).toMatchObject({ nome: "Nome Chegou Depois", status: "enviado", celular: "31999998888" });
+
+    // pedido normal da área: não pode
+    const normal = await pedir(respDH, ev, dh, [nova()]);
+    await expect(b.como(adm, `select atualizar_dados_admin($1, 'Outro Nome')`, [normal.ingressos[0]])).rejects.toThrow(/SEM_PERMISSAO/);
+    // e só o Admin
+    await expect(b.como(mkt, `select atualizar_dados_admin($1, 'Outro Nome')`, [r.ingressos[0]])).rejects.toThrow();
   });
 });

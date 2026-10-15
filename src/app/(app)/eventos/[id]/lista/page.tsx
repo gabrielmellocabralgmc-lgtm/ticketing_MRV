@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { AoVivo } from "@/components/ao-vivo";
 import { Titulo } from "@/components/ui";
 import { exigirAdmin } from "@/lib/sessao";
@@ -6,6 +5,7 @@ import { carregarEvento } from "../dados";
 import { carregarIngressos } from "../ingressos";
 import { desfazerEnvio, enviados, enviadosSemFacial, facialOk, pendenteFacial, registrarCopia } from "../marketing-actions";
 import { ListaGeral, type LinhaGeral } from "./lista-geral";
+import { atualizarDadosAdmin } from "../adicionar-actions";
 
 export const metadata = { title: "Lista geral" };
 
@@ -20,7 +20,6 @@ export default async function PaginaLista({ params }: { params: Promise<{ id: st
   return (
     <>
       <AoVivo evento={id} />
-      <div className="mb-2 text-sm"><Link href={`/eventos/${id}`} className="text-mrv-700 hover:underline">← {ev.titulo}</Link></div>
       <Titulo voltar={{ href: `/eventos/${id}`, rotulo: "Painel do jogo" }}
         sub="Todos os ingressos do evento numa tabela, como na planilha. Clique no CPF para copiar e marque “Enviado” na própria linha."
         acoes={<a href={`/eventos/${id}/exportar`} className="inline-flex items-center rounded-lg px-3.5 py-2 text-sm font-semibold text-mrv-700 ring-1 ring-mrv-700/30 hover:bg-mrv-50">Exportar XLSX</a>}
@@ -37,6 +36,7 @@ export default async function PaginaLista({ params }: { params: Promise<{ id: st
           enviadosSemFacial: enviadosSemFacial.bind(null, id),
           desfazerEnvio: desfazerEnvio.bind(null, id),
           registrarCopia: registrarCopia.bind(null, id),
+          atualizarDados: atualizarDadosAdmin.bind(null, id),
         }}
       />
     </>
