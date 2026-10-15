@@ -2,6 +2,7 @@
 import clsx from "clsx";
 import type { ReactNode } from "react";
 import { dataLonga } from "@/lib/formato";
+import { Voltar, type Destino } from "./ui";
 
 const TAMANHOS = { p: "h-[50px] w-11", m: "h-[72px] w-16", g: "h-[108px] w-24" };
 
@@ -41,8 +42,9 @@ export interface DadosJogo {
 
 /** Faixa preta com os escudos, o nome da partida e a data. */
 export function CabecalhoJogo({
-  ev, escudoAtletico, escudoAdversario, tamanho = "g", rotulo, direita, children,
+  ev, escudoAtletico, escudoAdversario, tamanho = "g", rotulo, direita, children, voltar,
 }: {
+  voltar?: Destino;
   ev: DadosJogo;
   escudoAtletico?: string;
   escudoAdversario?: string;
@@ -58,6 +60,7 @@ export function CabecalhoJogo({
       <div className={clsx("mx-auto flex max-w-7xl items-center px-4", grande ? "gap-4 py-6 sm:gap-6 sm:py-8" : "gap-3 py-5 sm:gap-4")}>
         <Escudo url={escudoAtletico} nome="do Atlético" tamanho={grande ? "g" : "m"} />
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          {voltar && <div className="mb-1"><Voltar {...voltar} escuro /></div>}
           <div className="font-display text-[13px] font-bold tracking-[0.1em] text-amarelo-500 uppercase">
             {rotulo ?? [ev.competicao, "Arena MRV"].filter(Boolean).join(" · ")}
           </div>

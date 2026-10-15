@@ -11,6 +11,7 @@ import { CabecalhoJogo } from "@/components/jogo";
 import { CHAVE_ESCUDO_ATLETICO, chaveEscudoAdversario, imagensDisponiveis } from "@/lib/imagens";
 import { mudarStatusEvento } from "../actions";
 import { EditorCotas } from "./editor-cotas";
+import { AdicionarConvidado } from "./adicionar-convidado";
 import { encerrarEvento } from "./painel/actions";
 import { Convocacao } from "./convocacao";
 import { areasParaConvocar, envioReal } from "@/lib/mensagens/envio";
@@ -36,7 +37,8 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
     if (minhas.length === 1) redirect(`/eventos/${id}/areas/${minhas[0].area_id}?setor=${minhas[0].setor}`);
     return (
       <>
-        <CabecalhoJogo ev={ev} tamanho="m" escudoAtletico={img[CHAVE_ESCUDO_ATLETICO]} escudoAdversario={img[chaveEscudoAdversario(id)]} />
+        <CabecalhoJogo ev={ev} tamanho="m" escudoAtletico={img[CHAVE_ESCUDO_ATLETICO]} escudoAdversario={img[chaveEscudoAdversario(id)]}
+          voltar={{ href: "/eventos", rotulo: "Eventos" }} />
         <VisaoResponsavel id={id} linhas={minhas} />
       </>
     );
@@ -53,7 +55,8 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
   return (
     <>
       <AoVivo evento={id} />
-      <CabecalhoJogo ev={ev} tamanho="m" escudoAtletico={img[CHAVE_ESCUDO_ATLETICO]} escudoAdversario={img[chaveEscudoAdversario(id)]}>
+      <CabecalhoJogo ev={ev} tamanho="m" escudoAtletico={img[CHAVE_ESCUDO_ATLETICO]} escudoAdversario={img[chaveEscudoAdversario(id)]}
+        voltar={{ href: "/eventos", rotulo: "Eventos" }}>
         <div className="mt-1 flex flex-wrap gap-1.5">
           <Selo tom={ev.status === "aberto" ? "verde" : ev.status === "rascunho" ? "amarelo" : "cinza"}>{ROTULO_STATUS_EVENTO[ev.status]}</Selo>
           {ev.concorrido && <Selo tom="laranja">Concorrido</Selo>}
@@ -69,6 +72,17 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
           <a href={`/eventos/${id}/exportar`} className="inline-flex min-h-10 items-center rounded-lg px-4 py-2 text-sm font-bold text-mrv-700 ring-1 ring-mrv-600 hover:bg-mrv-50">Exportar XLSX</a>
           <BotaoLink href={`/eventos/${id}/relatorio`} variante="fantasma">Relatório</BotaoLink>
           <BotaoLink href={`/eventos/${id}/editar`} variante="fantasma">Editar</BotaoLink>
+          {s.papel === "admin" && (
+            <AdicionarConvidado evento={id} areas={areasAtivas ?? []}
+              setores={setores.map((st) => ({
+                setor: st.setor,
+                disponiveis: Math.max(0, st.capacidade - st.ocupados),
+                saldos: Object.fromEntries((areasAtivas ?? []).map((a) => {
+                  const l = linhas.find((x) => x.setor === st.setor && x.area_id === a.id);
+                  return [a.id, st.cota_por_area ? Math.max(0, (l?.cota ?? 0) - (l?.ocupados ?? 0)) : null];
+                })),
+              }))} />
+          )}
         </div>
       )}
 

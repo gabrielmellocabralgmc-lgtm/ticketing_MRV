@@ -15,7 +15,7 @@ export default async function Auditoria() {
   const nome = new Map((perfis ?? []).map((p) => [p.user_id, p.nome]));
   return (
     <>
-      <Titulo sub="Quem viu, copiou, exportou ou alterou dados pessoais (últimos 300 registros).">Auditoria</Titulo>
+      <Titulo voltar={{ href: "/admin", rotulo: "Configurações" }} sub="Quem viu, copiou, exportou ou alterou dados pessoais (últimos 300 registros).">Auditoria</Titulo>
       <Cartao>
         {!logs?.length ? <Vazio>Sem registros.</Vazio> : (
           <Tabela>

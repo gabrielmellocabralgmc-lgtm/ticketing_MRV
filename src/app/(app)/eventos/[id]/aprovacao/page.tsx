@@ -29,7 +29,7 @@ export default async function Aprovacao({ params }: { params: Promise<{ id: stri
     <>
       <AoVivo evento={id} />
       <div className="mb-2 text-sm"><Link href={`/eventos/${id}`} className="text-mrv-700 hover:underline">← {ev.titulo}</Link></div>
-      <Titulo sub="Valide em nome da área se precisar, acompanhe quem está com a facial pendente e a lista de espera.">Aprovação · {ev.titulo}</Titulo>
+      <Titulo voltar={{ href: `/eventos/${id}`, rotulo: "Painel do jogo" }} sub="Valide em nome da área se precisar, acompanhe quem está com a facial pendente e a lista de espera.">Aprovação · {ev.titulo}</Titulo>
 
       {naoValidadas.length > 0 && (
         <Cartao className="mb-6">

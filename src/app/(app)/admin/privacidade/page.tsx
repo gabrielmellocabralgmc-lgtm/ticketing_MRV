@@ -12,7 +12,7 @@ export default async function Privacidade() {
   const r = ((data ?? []) as { retencao_meses: number; pessoas_total: number; pessoas_anonimizadas: number; a_anonimizar: number }[])[0];
   return (
     <>
-      <Titulo sub="Retenção dos dados pessoais (nome, CPF, celular, e-mail) e pedidos dos titulares. Métricas e históricos agregados continuam.">Privacidade (LGPD)</Titulo>
+      <Titulo voltar={{ href: "/admin", rotulo: "Configurações" }} sub="Retenção dos dados pessoais (nome, CPF, celular, e-mail) e pedidos dos titulares. Métricas e históricos agregados continuam.">Privacidade (LGPD)</Titulo>
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Numero rotulo="Retenção" valor={`${r?.retencao_meses ?? 12} meses`} />
         <Numero rotulo="Pessoas cadastradas" valor={r?.pessoas_total ?? 0} tom="cinza" />

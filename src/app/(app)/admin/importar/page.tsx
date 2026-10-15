@@ -14,7 +14,7 @@ export default async function Importar() {
   ]);
   return (
     <>
-      <Titulo sub="Os dados passam pelas mesmas regras da tela (CPF válido, sem duplicidade no evento). A planilha não fica guardada no servidor.">Importar</Titulo>
+      <Titulo voltar={{ href: "/admin", rotulo: "Configurações" }} sub="Os dados passam pelas mesmas regras da tela (CPF válido, sem duplicidade no evento). A planilha não fica guardada no servidor.">Importar</Titulo>
       <div className="grid gap-6 xl:grid-cols-2">
         <Cartao>
           <h2 className="mb-1 font-bold text-mrv-900">Planilha de controle (histórico)</h2>

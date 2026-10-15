@@ -1,9 +1,10 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { AreaTexto, Aviso, Botao, Campo, Entrada } from "@/components/ui";
 import { cpfValido, formatarCpf, somenteDigitos } from "@/lib/cpf";
 import { separarLista } from "@/lib/parse-lista";
 import type { Setor } from "@/lib/tipos";
+import type { Resultado } from "@/lib/erros";
 import { solicitar, type PessoaForm } from "./actions";
 
 const vazia = (): PessoaForm => ({ nome: "", cpf: "", celular: "", email: "" });
@@ -19,7 +20,14 @@ function problemas(p: PessoaForm) {
   return e;
 }
 
-export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados }: { evento: string; setor: Setor; area: string; saldo: number; padraoConvidados: number }) {
+export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, enviarCom, avisoExcede, excedeVaiParaEspera = true }: {
+  evento: string; setor: Setor; area: string; saldo: number; padraoConvidados: number;
+  /** Ação alternativa (ex.: Admin adicionando convidado pelo painel do jogo). */
+  enviarCom?: (pessoas: PessoaForm[], excede: boolean) => Promise<Resultado<unknown>>;
+  /** Substitui o aviso de cota excedida. */
+  avisoExcede?: ReactNode;
+  excedeVaiParaEspera?: boolean;
+}) {
   const [pessoas, setPessoas] = useState<PessoaForm[]>(() => Array.from({ length: 1 + padraoConvidados }, vazia));
   const [tocado, setTocado] = useState(false);
   const [colar, setColar] = useState(false);
@@ -41,7 +49,7 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados }
     setTocado(true);
     if (!valido || repetido) return;
     iniciar(async () => {
-      const r = await solicitar(evento, setor, area, preenchidas, excede);
+      const r = enviarCom ? await enviarCom(preenchidas, excede) : await solicitar(evento, setor, area, preenchidas, excede);
       if (r.ok) {
         setRetorno({ ok: true, msg: r.mensagem ?? "Pronto." });
         setPessoas(Array.from({ length: 1 + padraoConvidados }, vazia));
@@ -98,7 +106,8 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados }
       <div className="flex flex-wrap items-center gap-4">
         <Botao type="button" variante="fantasma" onClick={() => setPessoas((ps) => [...ps, vazia()])} disabled={pessoas.length >= 20}>+ Convidado</Botao>
       </div>
-      {excede && (
+      {excede && avisoExcede}
+      {excede && !avisoExcede && (
         <Aviso tom="alerta">
           <p className="font-semibold">{saldo === 0 ? "A cota da sua área acabou." : `Sua área tem só ${saldo} ingresso(s) de saldo e este pedido tem ${preenchidas.length}.`}</p>
           <p className="mt-1">
@@ -111,7 +120,8 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados }
       {tocado && repetido && <Aviso tom="erro">O mesmo CPF aparece duas vezes neste pedido.</Aviso>}
       {retorno && <Aviso tom={retorno.ok ? "ok" : "erro"}>{retorno.msg}</Aviso>}
       <Botao type="button" variante={excede ? "laranja" : "primario"} onClick={enviar} disabled={pendente}>
-        {pendente ? "Enviando…" : excede ? `Adicionar ${preenchidas.length} à lista de espera` : `Solicitar ${preenchidas.length} ingresso(s)`}
+        {pendente ? "Enviando…" : excede && excedeVaiParaEspera ? `Adicionar ${preenchidas.length} à lista de espera`
+          : enviarCom ? `Adicionar ${preenchidas.length} convidado(s)` : `Solicitar ${preenchidas.length} ingresso(s)`}
       </Botao>
       <p className="text-xs text-tinta/60">
         Ao enviar, você confirma que as pessoas foram informadas de que a MRV usará nome, CPF e celular só para emitir o ingresso e orientar o cadastro no Galo ID.

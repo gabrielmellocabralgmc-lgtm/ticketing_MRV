@@ -32,7 +32,7 @@ export default async function Areas() {
 
   return (
     <>
-      <Titulo sub="Cada área pode ter mais de um responsável, e uma pessoa pode responder por várias áreas. Responsáveis recebem acesso por magic link e veem só as listas das suas áreas.">
+      <Titulo voltar={{ href: "/admin", rotulo: "Configurações" }} sub="Cada área pode ter mais de um responsável, e uma pessoa pode responder por várias áreas. Responsáveis recebem acesso por magic link e veem só as listas das suas áreas.">
         Áreas e responsáveis
       </Titulo>
 

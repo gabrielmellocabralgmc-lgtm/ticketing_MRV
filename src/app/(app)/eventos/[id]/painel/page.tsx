@@ -27,7 +27,7 @@ export default async function Painel({ params }: { params: Promise<{ id: string 
   return (
     <>
       <AoVivo evento={id} />
-      <CabecalhoJogo ev={ev} escudoAtletico={img[CHAVE_ESCUDO_ATLETICO]} escudoAdversario={img[chaveEscudoAdversario(id)]}>
+      <CabecalhoJogo ev={ev} voltar={s.papel === "admin" ? { href: `/eventos/${id}`, rotulo: "Gestão do evento" } : { href: "/eventos", rotulo: "Eventos" }} escudoAtletico={img[CHAVE_ESCUDO_ATLETICO]} escudoAdversario={img[chaveEscudoAdversario(id)]}>
         {s.papel === "admin" && <Link href={`/eventos/${id}`} className="mt-1 text-sm font-semibold text-white/80 underline hover:text-white">Gestão completa do evento</Link>}
       </CabecalhoJogo>
       <PainelJogo

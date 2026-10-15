@@ -10,7 +10,7 @@ export default async function Aparencia() {
   const img = await imagensDisponiveis();
   return (
     <>
-      <Titulo sub="Imagens que aparecem para todos. O escudo do adversário se envia na edição de cada jogo.">Aparência</Titulo>
+      <Titulo voltar={{ href: "/admin", rotulo: "Configurações" }} sub="Imagens que aparecem para todos. O escudo do adversário se envia na edição de cada jogo.">Aparência</Titulo>
       <Cartao className="mb-6">
         <h2 className="mb-1 font-bold">Logo da MRV</h2>
         <p className="mb-4 text-sm text-cinza">Aparece no topo do sistema, no login, na página do convidado e no ícone da aba do navegador. Use o arquivo oficial (PNG transparente ou SVG).</p>

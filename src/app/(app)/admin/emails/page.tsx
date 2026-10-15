@@ -19,7 +19,7 @@ export default async function Emails() {
   const lista = ((modelos ?? []) as Modelo[]).sort((a, b) => ordem.indexOf(a.chave) - ordem.indexOf(b.chave));
   return (
     <>
-      <Titulo sub="Textos que o sistema manda às áreas e aos convidados. Remetente: naoresponda@ingressos.weareact3.com.">E-mails</Titulo>
+      <Titulo voltar={{ href: "/admin", rotulo: "Configurações" }} sub="Textos que o sistema manda às áreas e aos convidados. Remetente: naoresponda@ingressos.weareact3.com.">E-mails</Titulo>
       <EditorEmails modelos={lista} envios={(envios ?? []) as Envio[]} logoUrl={img[CHAVE_LOGO]} envioReal={envioReal()} />
     </>
   );

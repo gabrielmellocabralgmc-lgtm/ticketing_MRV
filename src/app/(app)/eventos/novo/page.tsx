@@ -13,7 +13,7 @@ export default async function NovoEvento() {
   const { data } = await supabase.from("eventos").select("id, titulo, inicio").order("inicio", { ascending: false }).limit(20);
   return (
     <>
-      <Titulo sub="As cotas padrão seguem o regulamento: camarote 44 · arquibancada 100 (jogos) · pista 50 (shows). Dá para ajustar depois.">Novo evento</Titulo>
+      <Titulo voltar={{ href: "/eventos", rotulo: "Eventos" }} sub="As cotas padrão seguem o regulamento: camarote 44 · arquibancada 100 (jogos) · pista 50 (shows). Dá para ajustar depois.">Novo evento</Titulo>
       <Cartao className="max-w-3xl">
         <FormEvento acao={criarEvento} anteriores={data ?? []} />
       </Cartao>

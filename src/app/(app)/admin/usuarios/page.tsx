@@ -19,7 +19,7 @@ export default async function Usuarios() {
 
   return (
     <>
-      <Titulo sub="Quem acessa o sistema. Responsáveis veem só as listas das próprias áreas.">Usuários</Titulo>
+      <Titulo voltar={{ href: "/admin", rotulo: "Configurações" }} sub="Quem acessa o sistema. Responsáveis veem só as listas das próprias áreas.">Usuários</Titulo>
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <Cartao>
           <Tabela>

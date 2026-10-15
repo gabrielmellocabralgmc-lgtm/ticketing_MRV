@@ -524,3 +524,26 @@ describe("lista da área: modo gestor × modo convidado", () => {
     expect(e.prazo_validacao).toEqual(e.prazo_solicitacao); // prazo único
   });
 });
+
+describe("Admin adiciona convidado manualmente", () => {
+  it("abate da cota da área, entra pronto para envio e respeita CPF duplicado", async () => {
+    const ev = await novoEvento();
+    const antes = await saldo(ev, dh);
+    const cpfRepetido = nova("Já Pedido");
+    await pedir(respDH, ev, dh, [cpfRepetido]);
+    const r = await pedir(mkt, ev, dh, [nova("Veio Pelo Whatsapp"), nova()], { origem: "marketing", lista_espera: true, motivo: "adicionado manualmente pelo Admin" });
+    expect(await statusDe(r.ingressos)).toEqual(["facial_ok", "facial_ok"]);
+    expect((await saldo(ev, dh)).saldo).toBe(antes.saldo - 3);
+    await expect(pedir(mkt, ev, dh, [cpfRepetido], { origem: "marketing" })).rejects.toThrow(/CPF/);
+  });
+
+  it("sem saldo: vai para a lista de espera, ou acima da cota se o Admin escolher", async () => {
+    const ev = await novoEvento();
+    const livre = (await saldo(ev, luggo)).saldo;
+    await pedir(mkt, ev, luggo, Array.from({ length: livre }, () => nova()), { origem: "marketing" });
+    const espera = await pedir(mkt, ev, luggo, [nova()], { origem: "marketing", lista_espera: true });
+    expect(espera.status).toBe("lista_espera");
+    const acima = await pedir(mkt, ev, luggo, [nova()], { origem: "marketing", ignorar_cota: true });
+    expect(await statusDe(acima.ingressos)).toEqual(["facial_ok"]);
+  });
+});

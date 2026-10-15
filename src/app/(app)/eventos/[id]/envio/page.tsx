@@ -18,7 +18,7 @@ export default async function Envio({ params }: { params: Promise<{ id: string }
     <>
       <AoVivo evento={id} />
       <div className="mb-2 text-sm"><Link href={`/eventos/${id}`} className="text-mrv-700 hover:underline">← {ev.titulo}</Link></div>
-      <Titulo sub="Envio manual, um por vez: copie o CPF, envie no sistema do Atlético e marque “Enviado” aqui.">A enviar · {ev.titulo}</Titulo>
+      <Titulo voltar={{ href: `/eventos/${id}`, rotulo: "Painel do jogo" }} sub="Envio manual, um por vez: copie o CPF, envie no sistema do Atlético e marque “Enviado” aqui.">A enviar · {ev.titulo}</Titulo>
       <PainelEnvio
         linhas={linhas}
         evento={{ titulo: ev.titulo, inicio: ev.inicio, abertura_portoes: ev.abertura_portoes }}

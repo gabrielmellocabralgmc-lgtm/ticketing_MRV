@@ -27,10 +27,24 @@ export function Cartao({ className, ...p }: ComponentProps<"section">) {
   return <section className={clsx("rounded-2xl border border-borda bg-white p-5", className)} {...p} />;
 }
 
-export function Titulo({ children, sub, acoes }: { children: ReactNode; sub?: ReactNode; acoes?: ReactNode }) {
+export interface Destino { href: string; rotulo: string }
+
+/** Seta para voltar à página anterior na hierarquia (ex.: lista da área → painel do jogo). */
+export function Voltar({ href, rotulo, escuro = false }: Destino & { escuro?: boolean }) {
+  return (
+    <Link href={href} className={clsx("group inline-flex items-center gap-1.5 text-sm font-semibold",
+      escuro ? "text-white/75 hover:text-white" : "text-mrv-700 hover:text-mrv-900")}>
+      <span aria-hidden className="text-base leading-none transition group-hover:-translate-x-0.5">←</span>
+      {rotulo}
+    </Link>
+  );
+}
+
+export function Titulo({ children, sub, acoes, voltar }: { children: ReactNode; sub?: ReactNode; acoes?: ReactNode; voltar?: Destino }) {
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
+        {voltar && <div className="mb-2"><Voltar {...voltar} /></div>}
         <h1 className="text-[28px] leading-tight font-bold text-tinta">{children}</h1>
         {sub && <p className="mt-1 text-[15px] text-cinza">{sub}</p>}
       </div>

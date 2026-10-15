@@ -1,3 +1,4 @@
+import { Voltar } from "@/components/ui";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BotaoImprimir } from "@/components/botao-imprimir";
@@ -38,6 +39,7 @@ export default async function Relatorio({ params }: { params: Promise<{ id: stri
     <main className="mx-auto max-w-5xl bg-white p-8 text-tinta print:p-0">
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
+          <div className="mb-3 print:hidden"><Voltar href={`/eventos/${id}`} rotulo="Painel do jogo" /></div>
           <div className="font-display text-xs font-bold tracking-[0.1em] text-mrv-600">RELATÓRIO PÓS-EVENTO · INGRESSOS MRV</div>
           <h1 className="font-display text-3xl font-extrabold uppercase">{ev?.titulo}</h1>
           <p className="text-sm text-cinza first-letter:uppercase">{dataLonga(ev?.inicio)}{ev?.competicao && ` · ${ev.competicao}`} · gerado em {dataHora(new Date().toISOString())}</p>
