@@ -598,8 +598,8 @@ describe("Admin/Marketing adicionando no camarote de jogo concorrido", () => {
       const r = await pedir(quem, ev, presid, [nova(), nova()], { origem: "marketing", avulsos: true }, "camarote");
       expect(await statusDe(r.ingressos)).toEqual(["facial_ok", "facial_ok"]);
     }
-    // pedido registrado na central do camarote continua indo para a fila
-    const fila = await pedir(mkt, ev, presid, [nova()], { origem: "marketing", prioridade: "diretor" }, "camarote");
-    expect(fila.status).toBe("lista_espera");
+    // sem fila de prioridade: qualquer pedido do Marketing também entra aprovado se houver lugar
+    const outro = await pedir(mkt, ev, presid, [nova()], { origem: "marketing", prioridade: "diretor" }, "camarote");
+    expect(outro.status).toBe("aprovado");
   });
 });

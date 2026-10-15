@@ -94,7 +94,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                   <Link href={`/eventos/${e.id}`} className="font-display text-xl font-extrabold uppercase hover:underline">{e.titulo}</Link>
                   <div className="text-sm text-white/75 first-letter:uppercase">{dataLonga(e.inicio)}{e.prazo_solicitacao && ` · solicitações até ${dataHora(e.prazo_solicitacao)}`}</div>
                 </div>
-                {e.concorrido && <Selo tom="laranja">Concorrido</Selo>}
+                
                 <Escudo url={img[chaveEscudoAdversario(e.id)]} nome={e.adversario ? `do ${e.adversario}` : "do adversário"} tamanho="p" />
               </div>
               <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
@@ -217,7 +217,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                   </div>
                   <div className="mt-1 flex items-center gap-2"><div className="flex-1"><Barra valor={j.usados} max={j.capacidade} rotulo="Ocupação" /></div><span className="tabular w-24 text-right text-xs">{j.usados}/{j.capacidade} ({pct(j.usados, j.capacidade) ?? 0}%)</span></div>
                   <div className="mt-1 flex flex-wrap gap-1.5 text-xs">
-                    {j.concorrido && <Selo tom="laranja">Concorrido</Selo>}
+                    
                     {j.espera_nao_atendida > 0 && <Selo tom="amarelo">{j.espera_nao_atendida} ficaram na espera</Selo>}
                     {j.ultima_hora > 0 && <Selo>{j.ultima_hora} de última hora</Selo>}
                     {j.no_show > 0 && <Selo tom="vermelho">{j.no_show} no-show</Selo>}

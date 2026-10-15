@@ -57,7 +57,7 @@ export default async function Eventos() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-sm text-cinza first-letter:uppercase">{dataLonga(e.inicio)}{e.competicao && ` · ${e.competicao}`}</span>
                 <span className="flex gap-1.5">
-                  {e.concorrido && <Selo tom="laranja">Concorrido</Selo>}
+                  
                   <Selo tom={statusTom(e)}>{ROTULO_STATUS_EVENTO[e.status]}</Selo>
                 </span>
               </div>

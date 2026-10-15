@@ -33,33 +33,21 @@ beforeAll(async () => {
   comercial = await b.areaId("comercial-corporativo");
 });
 
-describe("camarote: fila por prioridade em jogo concorrido", () => {
+describe("camarote: gestão manual (sem fila de prioridade)", () => {
   it("jogo tranquilo: pedido do Marketing entra aprovado", async () => {
     const ev = await evento(false);
     const r = await pedidoCamarote(ev, dh, 2, "gestor");
     expect(r.status).toBe("aprovado");
   });
 
-  it("jogo concorrido: tudo entra na fila; distribuir respeita prioridade, depois a hora, e pula quem não cabe", async () => {
-    const ev = await evento(true, 6);
-    const gestor = await pedidoCamarote(ev, dh, 3, "gestor");        // chegou primeiro
-    const diretor = await pedidoCamarote(ev, comercial, 4, "diretor");
-    const exec = await pedidoCamarote(ev, presid, 2, "exec_presidencia");
-    expect([gestor, diretor, exec].map((x) => x.status)).toEqual(["lista_espera", "lista_espera", "lista_espera"]);
-
-    const [{ distribuir_camarote: n }] = await b.como<{ distribuir_camarote: number }>(mkt, `select distribuir_camarote($1)`, [ev]);
-    // 6 vagas: Presidência (2) + Diretor (4) = 6; o gestor fica na fila mesmo tendo pedido antes
-    expect(n).toBe(6);
-    expect(await status(exec.pedido_id)).toEqual(["facial_ok"]);
-    expect(await status(diretor.pedido_id)).toEqual(["facial_ok"]);
-    expect(await status(gestor.pedido_id)).toEqual(["lista_espera"]);
-
-    // cancelamento não puxa a fila sozinho em jogo concorrido; aprovar o gestor sem vaga falha
-    await expect(b.como(mkt, `select aprovar_pedido_fila($1)`, [gestor.pedido_id])).rejects.toThrow(/COTA_EXCEDIDA/);
-    await b.como(mkt, `select cancelar_ingressos($1, 'desistiu')`, [diretor.ingressos]);
-    expect(await status(gestor.pedido_id)).toEqual(["lista_espera"]);
-    await b.como(mkt, `select aprovar_pedido_fila($1)`, [gestor.pedido_id]);
-    expect(await status(gestor.pedido_id)).toEqual(["facial_ok"]);
+  it("sem fila de prioridade: mesmo marcado como concorrido, o pedido entra aprovado se houver lugar", async () => {
+    const ev = await evento(true, 3);
+    const [{ concorrido }] = await b.sql<{ concorrido: boolean }>(`select concorrido from eventos where id = $1`, [ev]);
+    expect(concorrido).toBe(false);
+    const a = await pedidoCamarote(ev, dh, 2, "gestor");
+    expect(a.status).toBe("aprovado");
+    const semLugar = await pedidoCamarote(ev, comercial, 2, "diretor"); // só 1 vaga: lista de espera (pedido inteiro)
+    expect(semLugar.status).toBe("lista_espera");
   });
 
   it("catering corporativo exige centro de custo; alterações entram no histórico", async () => {
@@ -89,10 +77,20 @@ describe("camarote: convites do anfitrião", () => {
     ]);
   });
 
-  it("não gera link para anfitrião ainda na fila", async () => {
-    const ev = await evento(true);
-    const r = await pedidoCamarote(ev, dh, 1, "gestor");
-    await expect(b.como(mkt, `select criar_convite_anfitriao($1, 2)`, [r.ingressos[0]])).rejects.toThrow(/aprove o pedido/);
+  it("em massa: convidados vinculados a alguém da lista ou a um anfitrião de fora (credenciado)", async () => {
+    const ev = await evento(false);
+    const diretor = await pedidoCamarote(ev, presid, 1, "diretor");
+    const [{ r }] = await b.como<{ r: { ingressos: string[]; anfitriao: string } }>(mkt,
+      `select adicionar_em_massa($1, 'camarote', $2, $3, $4) as r`, [ev, presid, JSON.stringify([nova("Conv A"), nova("Conv B")]), diretor.ingressos[0]]);
+    expect(r.anfitriao).toBe("Anfitrião diretor");
+    const vinc = await b.sql<{ convidado_de_nome: string; status: string }>(`select convidado_de_nome, status from v_ingressos where id = any($1)`, [r.ingressos]);
+    expect(vinc.every((v) => v.convidado_de_nome === "Anfitrião diretor" && v.status === "facial_ok")).toBe(true);
+
+    const [{ r: r2 }] = await b.como<{ r: { ingressos: string[] } }>(mkt,
+      `select adicionar_em_massa($1, 'camarote', $2, $3, null, 'Diretor Credenciado') as r`, [ev, dh, JSON.stringify([nova("Conv C")])]);
+    const [x] = await b.sql<{ convidado_de_nome: string; convidado_de: string | null }>(`select convidado_de_nome, convidado_de from v_ingressos where id = $1`, [r2.ingressos[0]]);
+    expect(x).toMatchObject({ convidado_de_nome: "Diretor Credenciado", convidado_de: null }); // anfitrião de fora não ocupa lugar
+    await expect(b.como(respDH, `select adicionar_em_massa($1, 'camarote', $2, $3)`, [ev, dh, JSON.stringify([nova()])])).rejects.toThrow();
   });
 });
 

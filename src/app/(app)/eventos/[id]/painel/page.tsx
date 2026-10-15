@@ -7,8 +7,8 @@ import { supabaseServidor } from "@/lib/supabase/server";
 import { carregarEvento, carregarResumo } from "../dados";
 import { carregarIngressos } from "../ingressos";
 import { type Walkin } from "./camarote";
-import { PainelJogo, type LinhaPainel } from "./painel-jogo";
-import { opcoesAdicionar } from "../adicionar-opcoes";
+import { PainelJogo, type ConvitePendente, type LinhaPainel } from "./painel-jogo";
+import { carregarAnfitrioes, opcoesAdicionar } from "../adicionar-opcoes";
 
 export const metadata = { title: "Painel do jogo" };
 
@@ -22,7 +22,11 @@ export default async function Painel({ params }: { params: Promise<{ id: string 
     carregarIngressos(id, ["convite_enviado", "aguardando_preenchimento", "solicitado", "validado_area", "aprovado", "facial_pendente", "facial_ok", "enviado", "confirmado", "presente", "lista_espera"], "painel"),
     supabase.from("areas").select("id, nome, slug").eq("ativo", true).order("ordem"),
   ]);
-  const [img, { data: walkins }] = await Promise.all([imagensDisponiveis(), supabase.rpc("lista_walkins", { p_evento: id })]);
+  const [img, { data: walkins }, anfitrioes, { data: convites }] = await Promise.all([
+    imagensDisponiveis(), supabase.rpc("lista_walkins", { p_evento: id }), carregarAnfitrioes(id),
+    supabase.from("convites").select("id, token, nome_previsto, qtd_lugares, expira_em, setor, area_id, contato").eq("evento_id", id).eq("status", "aguardando").order("criado_em"),
+  ]);
+  const nomeArea = new Map((areas ?? []).map((a) => [a.id, a.nome]));
   const areaPadrao = (areas ?? []).find((a) => a.slug === "marketing")?.id ?? areas?.[0]?.id ?? "";
 
   return (
@@ -38,8 +42,10 @@ export default async function Painel({ params }: { params: Promise<{ id: string 
         areas={(areas ?? []).map(({ id, nome }) => ({ id, nome }))}
         areaPadrao={areaPadrao}
         walkins={(walkins ?? []) as Walkin[]}
-        concorrido={ev.concorrido}
         opcoes={opcoesAdicionar(setores, resumo, areas ?? [])}
+        anfitrioes={anfitrioes}
+        eventoInfo={{ titulo: ev.titulo, inicio: ev.inicio, abertura_portoes: ev.abertura_portoes }}
+        convites={((convites ?? []) as Omit<ConvitePendente, "area_nome">[]).map((c) => ({ ...c, area_nome: nomeArea.get(c.area_id) ?? "" }))}
       />
     </>
   );

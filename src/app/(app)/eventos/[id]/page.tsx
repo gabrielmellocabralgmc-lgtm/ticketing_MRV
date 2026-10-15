@@ -11,8 +11,8 @@ import { CabecalhoJogo } from "@/components/jogo";
 import { CHAVE_ESCUDO_ATLETICO, chaveEscudoAdversario, imagensDisponiveis } from "@/lib/imagens";
 import { mudarStatusEvento } from "../actions";
 import { EditorCotas } from "./editor-cotas";
-import { AdicionarConvidado } from "./adicionar-convidado";
-import { opcoesAdicionar } from "./adicionar-opcoes";
+import { AcoesConvidados } from "./adicionar-convidado";
+import { carregarAnfitrioes, opcoesAdicionar } from "./adicionar-opcoes";
 import { encerrarEvento } from "./painel/actions";
 import { Convocacao } from "./convocacao";
 import { areasParaConvocar, envioReal } from "@/lib/mensagens/envio";
@@ -60,7 +60,6 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
         voltar={{ href: "/eventos", rotulo: "Eventos" }}>
         <div className="mt-1 flex flex-wrap gap-1.5">
           <Selo tom={ev.status === "aberto" ? "verde" : ev.status === "rascunho" ? "amarelo" : "cinza"}>{ROTULO_STATUS_EVENTO[ev.status]}</Selo>
-          {ev.concorrido && <Selo tom="laranja">Concorrido</Selo>}
           {!img[chaveEscudoAdversario(id)] && <Link href={`/eventos/${id}/editar#escudos`} className="text-xs font-semibold text-white/80 underline hover:text-white">enviar escudo do adversário</Link>}
         </div>
       </CabecalhoJogo>
@@ -73,9 +72,12 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
           <a href={`/eventos/${id}/exportar`} className="inline-flex min-h-10 items-center rounded-lg px-4 py-2 text-sm font-bold text-mrv-700 ring-1 ring-mrv-600 hover:bg-mrv-50">Exportar XLSX</a>
           <BotaoLink href={`/eventos/${id}/relatorio`} variante="fantasma">Relatório</BotaoLink>
           <BotaoLink href={`/eventos/${id}/editar`} variante="fantasma">Editar</BotaoLink>
-          {s.staff && (
-            <AdicionarConvidado evento={id} areas={areasAtivas ?? []} setores={opcoesAdicionar(setores, linhas, areasAtivas ?? [])} />
-          )}
+        </div>
+      )}
+      {s.staff && (
+        <div className="mb-6">
+          <AcoesConvidados evento={id} areas={areasAtivas ?? []} setores={opcoesAdicionar(setores, linhas, areasAtivas ?? [])}
+            anfitrioes={await carregarAnfitrioes(id)} eventoInfo={{ titulo: ev.titulo, inicio: ev.inicio, abertura_portoes: ev.abertura_portoes }} />
         </div>
       )}
 
@@ -107,7 +109,7 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
           <Cartao key={st.setor} className="mb-6">
             <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
               <h2 className="text-lg font-bold text-mrv-900">{ROTULO_SETOR[st.setor]}</h2>
-              {!st.cota_por_area && <span className="text-xs text-tinta/60">Sem cota por área — controle pelas {st.capacidade} vagas{ev.concorrido ? " e fila por prioridade" : ""}</span>}
+              {!st.cota_por_area && <span className="text-xs text-tinta/60">Sem cota por área — controle pelas {st.capacidade} vagas</span>}
             </div>
             <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <Numero rotulo="Ocupados" valor={st.ocupados} de={st.capacidade} />

@@ -63,10 +63,6 @@ export function FormEvento({ acao, evento, anteriores }: { acao: Acao; evento?: 
         </Campo>
       </div>
       <div className="flex flex-wrap gap-6 text-sm">
-        <label className="flex items-center gap-2">
-          <input type="checkbox" name="concorrido" defaultChecked={evento?.concorrido} className="size-4 accent-mrv-700" />
-          {tipo === "jogo" ? "Jogo concorrido" : "Show concorrido"} <span className="text-tinta/60">(camarote por fila de prioridade)</span>
-        </label>
         {tipo === "show" && (
           <label className="flex items-center gap-2">
             <input type="checkbox" name="show_proprio" defaultChecked={evento?.show_proprio ?? true} className="size-4 accent-mrv-700" />

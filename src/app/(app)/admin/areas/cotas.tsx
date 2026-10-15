@@ -48,7 +48,7 @@ export function CotasPadrao({ padrao, areas }: { padrao: Padrao; areas: { slug: 
                 <td className="px-5 py-1.5"><div className="ml-auto w-24"><Entrada name="cap-show-pista" type="number" min={0} defaultValue={padrao.show.pista.capacidade} className="text-right" aria-label="Capacidade da pista" /></div></td>
               </tr>
               <tr className="border-t border-[#edeeed]">
-                <td className="px-5 py-1.5">Camarote <span className="text-xs text-cinza">(sem cota por área; fila por prioridade)</span></td>
+                <td className="px-5 py-1.5">Camarote <span className="text-xs text-cinza">(sem cota por área; gestão manual pelo Marketing)</span></td>
                 <td className="px-3 py-1.5"><div className="ml-auto w-24"><Entrada name="cap-jogo-camarote" type="number" min={0} defaultValue={padrao.jogo.camarote.capacidade} className="text-right" aria-label="Capacidade do camarote em jogos" /></div></td>
                 <td className="px-5 py-1.5"><div className="ml-auto w-24"><Entrada name="cap-show-camarote" type="number" min={0} defaultValue={padrao.show.camarote.capacidade} className="text-right" aria-label="Capacidade do camarote em shows" /></div></td>
               </tr>

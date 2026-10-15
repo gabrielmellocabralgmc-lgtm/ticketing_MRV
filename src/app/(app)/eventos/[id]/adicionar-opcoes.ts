@@ -25,3 +25,12 @@ export function opcoesAdicionar(
     })),
   }));
 }
+
+/** Quem já está ativo na lista do jogo (para vincular convidados a um anfitrião). */
+export async function carregarAnfitrioes(evento: string) {
+  const { supabaseServidor } = await import("@/lib/supabase/server");
+  const { data } = await (await supabaseServidor()).from("v_ingressos").select("id, nome, setor")
+    .eq("evento_id", evento).in("status", ["aprovado", "facial_pendente", "facial_ok", "enviado", "confirmado", "presente"]);
+  return ((data ?? []) as { id: string; nome: string | null; setor: Setor }[])
+    .filter((x): x is { id: string; nome: string; setor: Setor } => !!x.nome && x.nome !== "(sem nome)");
+}

@@ -10,8 +10,11 @@ import { dataHora } from "@/lib/formato";
 import { normalizarTexto } from "@/lib/texto";
 import { ROTULO_SETOR, type Setor, type StatusIngresso } from "@/lib/tipos";
 import { facialOk, pendenteFacial } from "../marketing-actions";
-import { PainelCamarote, type LinhaCamarote, type Walkin } from "./camarote";
-import { AdicionarConvidado } from "../adicionar-convidado";
+import { PortaCamarote, type Walkin } from "./camarote";
+import { AcoesConvidados, type PessoaDaLista } from "../adicionar-convidado";
+import { cancelarConvite } from "../areas/[area]/actions";
+import { BotaoWhatsApp } from "@/components/copiar";
+import { linkTorcedor, linkWhatsApp, textoConvite } from "@/lib/mensagens";
 import { atualizarDadosAdmin } from "../adicionar-actions";
 import type { OpcaoSetor } from "../adicionar-opcoes";
 import { NomeEditavel } from "../nome-editavel";
@@ -26,6 +29,8 @@ export interface LinhaPainel {
   celular: string | null;
   email: string | null;
   manual_admin?: boolean;
+  anfitriao_externo?: string | null;
+  chegada_em?: string | null;
   convidado_de: string | null;
   convidado_de_nome: string | null;
   enviado_em: string | null;
@@ -52,10 +57,15 @@ const STATUS_SIMPLES: Partial<Record<StatusIngresso, { rotulo: string; tom: "cin
 };
 const ENVIADOS: StatusIngresso[] = ["enviado", "confirmado", "presente"];
 
-export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins, concorrido, opcoes }: {
+export interface ConvitePendente {
+  id: string; token: string; nome_previsto: string | null; qtd_lugares: number; expira_em: string; setor: Setor; area_id: string; area_nome: string; contato: string | null;
+}
+
+export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins, opcoes, anfitrioes, eventoInfo, convites }: {
   evento: string; linhas: LinhaPainel[]; setores: SetorPainel[];
-  areas: { id: string; nome: string }[]; areaPadrao: string; walkins: Walkin[]; concorrido: boolean;
-  opcoes: OpcaoSetor[];
+  areas: { id: string; nome: string }[]; areaPadrao: string; walkins: Walkin[];
+  opcoes: OpcaoSetor[]; anfitrioes: PessoaDaLista[]; convites: ConvitePendente[];
+  eventoInfo: { titulo: string; inicio: string; abertura_portoes: string | null };
 }) {
   const [setor, setSetor] = useState<Setor>(setores.find((s) => s.setor === "arquibancada")?.setor ?? setores[0]?.setor ?? "arquibancada");
   const [busca, setBusca] = useState("");
@@ -85,15 +95,11 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
         ))}
       </div>
 
-      {/* mesmo "+ Adicionar convidado" do Admin: abate da cota e entra aprovado (camarote concorrido inclusive) */}
-      <div className="flex justify-end">
-        <AdicionarConvidado key={setor} evento={evento} areas={areas} setores={opcoes} setorInicial={setor} areaInicial={areaPadrao} />
-      </div>
+      {/* as mesmas ações do Admin: abatem da cota e entram aprovadas */}
+      <AcoesConvidados key={setor} evento={evento} areas={areas} setores={opcoes} setorInicial={setor} areaInicial={areaPadrao}
+        anfitrioes={anfitrioes} eventoInfo={eventoInfo} />
 
-      {setor === "camarote" ? (
-        <PainelCamarote evento={evento} linhas={linhas.filter((l) => l.setor === "camarote") as unknown as LinhaCamarote[]} walkins={walkins}
-          capacidade={info?.capacidade ?? 44} concorrido={concorrido} areas={areas} />
-      ) : (<>
+      {setor === "camarote" && <PortaCamarote evento={evento} walkins={walkins} />}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Grande rotulo="Ocupados" valor={`${info?.ocupados ?? 0} / ${info?.capacidade ?? 0}`} />
@@ -106,12 +112,18 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-xl font-bold">Lista · {ROTULO_SETOR[setor]}</h2>
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+            {setor === "camarote" && (
+              <a href={`/eventos/${evento}/camarote/imprimir`} target="_blank" rel="noopener"
+                className="rounded-lg px-3 py-2 text-sm font-semibold text-mrv-700 ring-1 ring-mrv-600/40 hover:bg-mrv-50">Imprimir lista</a>
+            )}
             <BotaoCopiar texto={filtrar(ativos).filter((l) => l.cpf).map((l) => `${l.nome}\t${formatarCpf(l.cpf)}`).join("\n")} rotulo="Copiar nomes e CPFs" />
             <div className="w-full sm:w-72"><Entrada value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar nome, CPF ou área…" aria-label="Buscar" /></div>
           </div>
         </div>
         <TabelaSimples linhas={filtrar(ativos)} vazio="Ninguém neste setor ainda." evento={evento} />
       </div>
+
+      <LinksPendentes evento={evento} convites={convites.filter((c) => c.setor === setor)} eventoInfo={eventoInfo} />
 
       {espera.length > 0 && (
         <div className="rounded-2xl border border-[#ffd9b3] bg-white p-5">
@@ -120,7 +132,40 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
           <TabelaSimples linhas={filtrar(espera)} posicao vazio="" />
         </div>
       )}
-      </>)}
+    </div>
+  );
+}
+
+/** Links gerados que ainda não foram preenchidos (os lugares já estão reservados). */
+function LinksPendentes({ evento, convites, eventoInfo }: { evento: string; convites: ConvitePendente[]; eventoInfo: { titulo: string; inicio: string; abertura_portoes: string | null } }) {
+  const [pendente, iniciar] = useTransition();
+  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  if (!convites.length) return null;
+  return (
+    <div className="rounded-2xl border border-borda bg-white p-5">
+      <h2 className="mb-1 font-bold">Links aguardando preenchimento</h2>
+      <p className="mb-3 text-sm text-cinza">Os lugares já contam na cota. Se não preencherem até a validade, voltam para o saldo.</p>
+      <ul className="divide-y divide-[#edeeed] text-sm">
+        {convites.map((c) => {
+          const texto = textoConvite({ nome: c.nome_previsto, evento: eventoInfo, setor: c.setor, area: c.area_nome, token: c.token, qtd: c.qtd_lugares });
+          return (
+            <li key={c.id} className="flex flex-wrap items-center gap-2 py-2">
+              <div className="min-w-0 flex-1">
+                <b>{c.nome_previsto ?? "Sem referência"}</b> <span className="text-cinza">· {c.qtd_lugares} lugar(es) · {c.area_nome} · válido até {dataHora(c.expira_em)}</span>
+              </div>
+              <BotaoCopiar texto={linkTorcedor(c.token)} rotulo="Link" />
+              <BotaoCopiar texto={texto} rotulo="Mensagem" />
+              <BotaoWhatsApp link={linkWhatsApp(c.contato, texto)} />
+              <button disabled={pendente} className="rounded-md px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50"
+                onClick={() => confirm("Cancelar este link? Os lugares voltam para o saldo.") && iniciar(async () => {
+                  const r = await cancelarConvite(evento, c.area_id, c.id);
+                  setMsg(r.ok ? { ok: true, texto: r.mensagem ?? "Cancelado." } : { ok: false, texto: r.erro });
+                })}>Cancelar</button>
+            </li>
+          );
+        })}
+      </ul>
+      {msg && <div className="mt-2"><Aviso tom={msg.ok ? "ok" : "erro"}>{msg.texto}</Aviso></div>}
     </div>
   );
 }
@@ -161,12 +206,14 @@ function TabelaSimples({ linhas, vazio, posicao, evento }: { linhas: LinhaPainel
                       <span>{l.convidado_de && <span className="text-tinta/40">↳ </span>}{l.nome}</span>
                     </NomeEditavel>
                   ) : <>{l.convidado_de && <span className="text-tinta/40">↳ </span>}{l.nome}</>}
+                  {!l.convidado_de && l.anfitriao_externo && <span className="block text-xs font-normal text-tinta/50">convidado de {l.anfitriao_externo} (fora da lista)</span>}
                   {l.convidado_de && <span className="block text-xs font-normal text-tinta/50">convidado de {l.convidado_de_nome}</span>}
                 </td>
                 <td className="px-4 py-2 font-mono text-xs whitespace-nowrap">{l.cpf ? formatarCpf(l.cpf) : "—"}</td>
                 <td className="px-4 py-2 text-xs">{l.area_nome}</td>
                 <td className="px-4 py-2 whitespace-nowrap">
                   <Selo tom={st.tom}>{st.rotulo}</Selo>
+                  {l.chegada_em && <span className="ml-1"><Selo tom="verde">Chegou {dataHora(l.chegada_em).split(" ")[1]}</Selo></span>}
                   {l.enviado_em && <span className="ml-1 text-xs text-tinta/50">{dataHora(l.enviado_em)}</span>}
                   {evento && l.status === "facial_ok" && (
                     <button disabled={ocupado} onClick={() => rodar(() => pendenteFacial(evento, [l.id]), `${l.nome} está sem facial no sistema do Atlético?`)}

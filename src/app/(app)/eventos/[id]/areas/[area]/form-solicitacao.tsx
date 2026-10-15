@@ -21,7 +21,7 @@ function problemas(p: PessoaForm, avulsos = false) {
   return e;
 }
 
-export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, enviarCom, avisoExcede, excedeVaiParaEspera = true, avulsos = false }: {
+export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, enviarCom, avisoExcede, excedeVaiParaEspera = true, avulsos = false, colarInicial = false }: {
   evento: string; setor: Setor; area: string; saldo: number; padraoConvidados: number;
   /** Ação alternativa (ex.: Admin adicionando convidado pelo painel do jogo). */
   enviarCom?: (pessoas: PessoaForm[], excede: boolean) => Promise<Resultado<unknown>>;
@@ -30,10 +30,12 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
   excedeVaiParaEspera?: boolean;
   /** Pessoas independentes, sem titular/colaborador (Admin adicionando convidados). */
   avulsos?: boolean;
+  /** Abre já com a caixa "colar lista" (adicionar em massa). */
+  colarInicial?: boolean;
 }) {
   const [pessoas, setPessoas] = useState<PessoaForm[]>(() => Array.from({ length: 1 + padraoConvidados }, vazia));
   const [tocado, setTocado] = useState(false);
-  const [colar, setColar] = useState(false);
+  const [colar, setColar] = useState(colarInicial);
   const [texto, setTexto] = useState("");
   const [retorno, setRetorno] = useState<{ ok: boolean; msg: string } | null>(null);
   const [pendente, iniciar] = useTransition();

@@ -86,7 +86,7 @@ export default async function PainelArea({ params, searchParams }: { params: Pro
         <div className="mb-6">
           <Aviso tom="alerta">
             Camarote é corporativo: quem pede precisa estar presente. Coloque o <b>anfitrião (colaborador MRV) como titular</b> e os convidados abaixo dele.
-            Família ou amigos sem o anfitrião? Peça arquibancada. A central completa do camarote (prioridade, catering) entra na fase 2.
+            Família ou amigos sem o anfitrião? Peça arquibancada.
           </Aviso>
         </div>
       )}
