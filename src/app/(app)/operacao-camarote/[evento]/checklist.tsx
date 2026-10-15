@@ -13,9 +13,9 @@ const OPCOES: { id: StatusItem; rotulo: string; cor: string }[] = [
   { id: "na", rotulo: "Não se aplica", cor: "bg-tinta/70 text-white ring-tinta/70" },
 ];
 
-export function Checklist({ evento, momento, itens, respostas, fotos, concluidoEm, avisoBebidas }: {
+export function Checklist({ evento, momento, itens, respostas, fotos, concluidoEm, avisoBebidas, relatorioEnviado }: {
   evento: string; momento: Momento; itens: ItemChecklist[]; respostas: Resposta[]; fotos: Foto[];
-  concluidoEm: string | null; avisoBebidas?: string | null;
+  concluidoEm: string | null; avisoBebidas?: string | null; relatorioEnviado: boolean;
 }) {
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   const [pendente, iniciar] = useTransition();
@@ -40,7 +40,7 @@ export function Checklist({ evento, momento, itens, respostas, fotos, concluidoE
         {travado ? (
           <div className="flex items-center gap-2 text-sm">
             <span className="font-semibold text-mrv-700">✓ Concluído {dataHora(concluidoEm)}</span>
-            <Botao variante="fantasma" disabled={pendente} onClick={() => confirm("Reabrir o check-list para alterar?") && rodar(() => reabrir(evento, momento))}>Reabrir</Botao>
+            {!relatorioEnviado && <Botao variante="fantasma" disabled={pendente} onClick={() => confirm("Reabrir o check-list para alterar?") && rodar(() => reabrir(evento, momento))}>Reabrir</Botao>}
           </div>
         ) : (
           <Botao disabled={pendente || feitos < itens.length} onClick={() => rodar(() => concluir(evento, momento))}>Concluir check-list</Botao>

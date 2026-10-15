@@ -85,3 +85,34 @@ export async function salvarCotasPadrao(_: unknown, form: FormData): Promise<Res
   revalidatePath("/admin/areas");
   return { ok: true, mensagem: "Cotas padrão salvas. Valem para os próximos eventos criados." };
 }
+
+// ---------------------------------------------------------------- camarote: quem recebe os e-mails (não mexe em cota)
+export async function adicionarContatoCamarote(grupo: "vp" | "diretoria" | "gestor", _: unknown, form: FormData): Promise<Resultado> {
+  await exigirStaff();
+  const { error } = await (await supabaseServidor()).rpc("salvar_contato_camarote", {
+    p_id: null, p_grupo: grupo, p_nome: String(form.get("nome") ?? ""), p_email: String(form.get("email") ?? ""),
+    p_cargo: String(form.get("cargo") ?? ""), p_ativo: true,
+  });
+  if (error) return falha(error);
+  revalidatePath("/admin/areas");
+  return { ok: true, mensagem: "Contato adicionado." };
+}
+
+export async function removerContatoCamarote(id: string): Promise<Resultado> {
+  await exigirStaff();
+  const { error } = await (await supabaseServidor()).rpc("remover_contato_camarote", { p_id: id });
+  if (error) return falha(error);
+  revalidatePath("/admin/areas");
+  return { ok: true, mensagem: "Contato removido." };
+}
+
+export async function salvarContatoPedidosCamarote(_: unknown, form: FormData): Promise<Resultado> {
+  await exigirStaff();
+  const email = String(form.get("email") ?? "").trim().toLowerCase();
+  const whatsapp = String(form.get("whatsapp") ?? "").replace(/\D/g, "");
+  if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { ok: false, erro: "E-mail inválido." };
+  const { error } = await (await supabaseServidor()).from("config").upsert({ chave: "contato_camarote", valor: { email, whatsapp } });
+  if (error) return falha(error);
+  revalidatePath("/admin/areas");
+  return { ok: true, mensagem: "Contato para pedidos salvo." };
+}

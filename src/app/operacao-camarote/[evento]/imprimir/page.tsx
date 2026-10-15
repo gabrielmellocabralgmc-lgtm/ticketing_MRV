@@ -96,10 +96,14 @@ export default async function ImprimirOperacao({ params }: { params: Promise<{ e
             ))}
           </tbody>
         </table>
+        <div className="mt-2 grid gap-4 sm:grid-cols-2">
+          <div><div className="text-xs font-semibold text-cinza uppercase">Fotos antes do jogo</div><Fotos fotos={op.fotos.filter((f) => f.momento === "bebidas_antes")} /></div>
+          <div><div className="text-xs font-semibold text-cinza uppercase">Fotos depois do jogo</div><Fotos fotos={op.fotos.filter((f) => f.momento === "bebidas_depois")} /></div>
+        </div>
       </section>
 
       <section className="mb-6">
-        <h2 className="mb-2 text-lg font-bold">Relatório geral {r?.finalizado_em ? <span className="text-xs font-normal text-cinza">· finalizado em {dataHora(r.finalizado_em)}</span> : <span className="text-xs font-normal text-laranja-700">· rascunho</span>}</h2>
+        <h2 className="mb-2 text-lg font-bold">Relatório geral {r?.finalizado_em ? <span className="text-xs font-normal text-cinza">· enviado em {dataHora(r.finalizado_em)}</span> : <span className="text-xs font-normal text-laranja-700">· ainda não enviado</span>}</h2>
         {([["Resumo do jogo", r?.resumo], ["Ocorrências", r?.ocorrencias], ["Manutenção e pendências", r?.manutencao], ["Feedback de convidados", r?.feedback]] as const).map(([k, v]) => (
           <div key={k} className="mb-3"><div className="text-xs font-semibold text-cinza uppercase">{k}</div><p className="whitespace-pre-wrap">{v || "—"}</p></div>
         ))}

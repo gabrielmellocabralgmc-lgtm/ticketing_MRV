@@ -5,7 +5,10 @@ import { supabaseServidor } from "@/lib/supabase/server";
 import Link from "next/link";
 import clsx from "clsx";
 import { ROTULO_SETOR, type Setor } from "@/lib/tipos";
-import { adicionarResponsavel, removerResponsavel, salvarArea } from "./actions";
+import { GRUPOS_CAMAROTE } from "@/lib/mensagens/envio";
+import {
+  adicionarContatoCamarote, adicionarResponsavel, removerContatoCamarote, removerResponsavel, salvarArea, salvarContatoPedidosCamarote,
+} from "./actions";
 import { CotasPadrao, type Padrao } from "./cotas";
 
 export const metadata = { title: "Áreas e responsáveis" };
@@ -13,12 +16,15 @@ export const metadata = { title: "Áreas e responsáveis" };
 export default async function Areas() {
   await exigirAdmin();
   const supabase = await supabaseServidor();
-  const [{ data: areas }, { data: resp }, { data: cfg }, { data: proximos }] = await Promise.all([
+  const [{ data: areas }, { data: resp }, { data: cfg }, { data: proximos }, { data: contatos }, { data: contatoPedidos }] = await Promise.all([
     supabase.from("areas").select("id, nome, slug, centro_custo, ativo, ordem").order("ativo", { ascending: false }).order("ordem"),
     supabase.rpc("responsaveis_por_area"),
     supabase.from("config").select("valor").eq("chave", "cotas_padrao").single(),
     supabase.from("eventos").select("id, titulo, inicio").in("status", ["rascunho", "aberto", "fechado"]).gt("inicio", new Date().toISOString()).order("inicio").limit(4),
+    supabase.from("camarote_contatos").select("id, grupo, nome, email, cargo").eq("ativo", true).order("nome"),
+    supabase.from("config").select("valor").eq("chave", "contato_camarote").maybeSingle(),
   ]);
+  const pedidosCamarote = (contatoPedidos?.valor ?? {}) as { email?: string; whatsapp?: string };
   // uso das cotas nos próximos jogos, por área
   const usoPorArea = new Map<string, { evento: string; titulo: string; setor: Setor; cota: number; usados: number }[]>();
   for (const ev of proximos ?? []) {
@@ -37,6 +43,44 @@ export default async function Areas() {
       </Titulo>
 
       {cfg && <CotasPadrao padrao={cfg.valor as Padrao} areas={(areas ?? []).filter((a) => a.ativo).map((a) => ({ slug: a.slug, nome: a.nome }))} />}
+
+      <Cartao className="mb-6">
+        <h2 className="font-bold text-mrv-900">Camarote — quem recebe os e-mails</h2>
+        <p className="mb-4 text-sm text-cinza">
+          Só define os destinatários dos e-mails do camarote, em ondas (não mexe em cota). O envio é feito na página de cada jogo, em “E-mails para as áreas e o camarote”.
+        </p>
+        <div className="grid gap-4 lg:grid-cols-3">
+          {GRUPOS_CAMAROTE.map((g, i) => {
+            const doGrupo = (contatos ?? []).filter((c) => c.grupo === g.id);
+            return (
+              <div key={g.id} className="rounded-xl p-3 ring-1 ring-borda">
+                <h3 className="font-semibold">{i + 1}. {g.rotulo} <span className="font-normal text-cinza">({doGrupo.length})</span></h3>
+                <p className="mb-2 text-xs text-cinza">{g.quando}</p>
+                <ul className="mb-2 divide-y divide-black/5 text-sm">
+                  {doGrupo.map((c) => (
+                    <li key={c.id} className="flex items-center justify-between gap-2 py-1.5">
+                      <span className="min-w-0"><span className="font-medium">{c.nome}</span>{c.cargo && <span className="text-cinza"> · {c.cargo}</span>}<span className="block truncate text-xs text-cinza">{c.email}</span></span>
+                      <BotaoAcao acao={removerContatoCamarote.bind(null, c.id)} rotulo="Remover" variante="perigo" confirmar={`Remover ${c.nome}?`} />
+                    </li>
+                  ))}
+                </ul>
+                <FormAcao acao={adicionarContatoCamarote.bind(null, g.id)} rotulo="Adicionar" variante="secundario" className="grid gap-2">
+                  <Entrada name="nome" placeholder="Nome" required aria-label={`Nome (${g.rotulo})`} />
+                  <Entrada name="email" type="email" placeholder="email@mrv.com.br" required aria-label={`E-mail (${g.rotulo})`} />
+                  <Entrada name="cargo" placeholder="Cargo (opcional)" aria-label={`Cargo (${g.rotulo})`} />
+                </FormAcao>
+              </div>
+            );
+          })}
+        </div>
+        <FormAcao acao={salvarContatoPedidosCamarote} rotulo="Salvar contato" variante="secundario" limparAoConcluir={false}
+          className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end sm:space-y-0">
+          <Campo rotulo="Pedidos do camarote vão para (e-mail)" dica="O e-mail do sistema é “não responda”: o botão do e-mail abre uma mensagem para cá.">
+            <Entrada name="email" type="email" defaultValue={pedidosCamarote.email ?? ""} placeholder="marketing@mrv.com.br" />
+          </Campo>
+          <Campo rotulo="ou WhatsApp"><Entrada name="whatsapp" defaultValue={pedidosCamarote.whatsapp ?? ""} placeholder="(31) 9…" inputMode="tel" /></Campo>
+        </FormAcao>
+      </Cartao>
 
       <Cartao className="mb-6">
         <h2 className="mb-3 font-bold text-mrv-900">Nova área</h2>

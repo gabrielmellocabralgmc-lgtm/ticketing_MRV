@@ -15,7 +15,8 @@ import { AcoesConvidados } from "./adicionar-convidado";
 import { carregarAnfitrioes, opcoesAdicionar } from "./adicionar-opcoes";
 import { encerrarEvento } from "./painel/actions";
 import { Convocacao } from "./convocacao";
-import { areasParaConvocar, envioReal } from "@/lib/mensagens/envio";
+import { areasParaConvocar, enviosCamarote, envioReal } from "@/lib/mensagens/envio";
+import { ConvocacaoCamarote } from "./convocacao-camarote";
 import { carregarEvento, carregarResumo, type LinhaResumo } from "./dados";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -49,6 +50,7 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
     ? await supabase.from("cotas_historico").select("id, setor, area_id, de, para, motivo, em, areas(nome)").eq("evento_id", id).order("id", { ascending: false }).limit(15)
     : { data: [] };
 
+  const camarote = s.staff ? await enviosCamarote(id) : null;
   const pendenteValidar = linhas.reduce((n, l) => n + l.solicitados, 0);
   const pendenteAprovar = linhas.reduce((n, l) => n + l.validados, 0);
   const aEnviar = linhas.reduce((n, l) => n + l.facial_ok, 0);
@@ -176,9 +178,15 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
 
       {s.staff && (
         <Cartao className="mb-6">
-          <h2 className="mb-1 text-lg font-bold">E-mails para as áreas</h2>
+          <h2 className="mb-1 text-lg font-bold">E-mails para as áreas e o camarote</h2>
           <p className="mb-4 text-sm text-cinza">Convocação com a cota, os prazos e o link da lista de cada área. O texto se edita em E-mails › Modelos.</p>
           <Convocacao evento={id} areas={await areasParaConvocar(id)} envioReal={envioReal()} />
+          <h3 className="mt-8 mb-1 font-bold">Camarote</h3>
+          <p className="mb-3 text-sm text-cinza">
+            Em ondas, sem mexer em cota: os VPs recebem primeiro; Diretoria e Gestores só quando vocês decidirem abrir.
+            Os contatos de cada grupo ficam em Configurações › Áreas e responsáveis.
+          </p>
+          {camarote && <ConvocacaoCamarote evento={id} grupos={camarote.grupos} operacaoEm={camarote.operacao_em} />}
         </Cartao>
       )}
 

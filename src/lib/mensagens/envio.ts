@@ -269,7 +269,7 @@ export async function avisarValidacaoPendente(evento?: string, area?: string): P
 
 // ---------------------------------------------------------------- lembretes automáticos
 /** Lembrete às áreas perto do prazo (uma vez por área) e da facial no D-2 e D-1. */
-export async function executarLembretes(): Promise<{ areas: ResultadoEnvio; facial: ResultadoEnvio; validacao: ResultadoEnvio }> {
+export async function executarLembretes(): Promise<{ areas: ResultadoEnvio; facial: ResultadoEnvio; validacao: ResultadoEnvio; operacao: ResultadoEnvio }> {
   const sb = await supabaseServico();
   const agora = Date.now();
   const { data: cfg } = await sb.from("config").select("valor").eq("chave", "lembrete_area_horas").maybeSingle();
@@ -308,7 +308,15 @@ export async function executarLembretes(): Promise<{ areas: ResultadoEnvio; faci
       });
     }
   }
-  return { areas: await enviarModelo(itensAreas), facial: await enviarModelo(itensFacial), validacao: await avisarValidacaoPendente() };
+  // operação do camarote: lista dos confirmados, uma vez, depois que as solicitações fecham
+  const operacao: ResultadoEnvio = { enviados: 0, simulados: 0, falhas: 0, erros: [] };
+  for (const ev of eventos.filter((e) => new Date(e.inicio).getTime() > agora && (e.status === "fechado" || (e.prazo_solicitacao && new Date(e.prazo_solicitacao).getTime() < agora)))) {
+    const { data: ja } = await sb.from("envios").select("id").eq("evento_id", ev.id).eq("tipo", "operacao_lista").limit(1);
+    if (ja?.length) continue;
+    const r = await avisarOperacaoLista(ev.id);
+    operacao.enviados += r.enviados; operacao.simulados += r.simulados; operacao.falhas += r.falhas; operacao.erros.push(...r.erros);
+  }
+  return { areas: await enviarModelo(itensAreas), facial: await enviarModelo(itensFacial), validacao: await avisarValidacaoPendente(), operacao };
 }
 
 /** Depois de qualquer aprovação no evento: avisa por e-mail quem foi aprovado e ainda não recebeu o passo a passo. */
@@ -329,4 +337,111 @@ export async function avisarPendenteFacial(ids: string[], autor?: string | null)
     vars: { ...varsEvento(eventos.get(i.evento_id)!), nome: primeiroNome(i.nome), setor: ROTULO_SETOR[i.setor], link: linkTorcedor(i.token) },
     botao: { rotulo: "JÁ TENHO A FACIAL CADASTRADA", url: linkTorcedor(i.token) },
   })), { autor });
+}
+
+// ---------------------------------------------------------------- camarote: e-mails em ondas
+export type GrupoCamarote = "vp" | "diretoria" | "gestor";
+export const GRUPOS_CAMAROTE: { id: GrupoCamarote; rotulo: string; quando: string }[] = [
+  { id: "vp", rotulo: "VPs / Diretoria executiva", quando: "Recebem primeiro (prioridade)." },
+  { id: "diretoria", rotulo: "Diretoria", quando: "Só quando os VPs não tiverem demanda suficiente." },
+  { id: "gestor", rotulo: "Gestores", quando: "Só quando a Diretoria não for usar." },
+];
+
+/** Para onde os pedidos de camarote vão (o remetente do sistema é "não responda"). */
+async function contatoCamarote() {
+  const { data } = await (await supabaseServico()).from("config").select("valor").eq("chave", "contato_camarote").maybeSingle();
+  const c = (data?.valor ?? {}) as { email?: string; whatsapp?: string };
+  const email = c.email?.trim() || null;
+  const whats = (c.whatsapp ?? "").replace(/\D/g, "") || null;
+  return { email, whats, texto: [email, whats && `WhatsApp ${whats.replace(/^(\d{2})(\d{4,5})(\d{4})$/, "($1) $2-$3")}`].filter(Boolean).join(" · ") || "fale com o Marketing MRV" };
+}
+
+export async function itensCamarote(grupo: GrupoCamarote, ev: EventoVars, para?: { nome: string; email: string }[]): Promise<ItemEnvio[]> {
+  const sb = await supabaseServico();
+  const contato = await contatoCamarote();
+  const destinatarios = para ?? ((await sb.from("camarote_contatos").select("nome, email").eq("grupo", grupo).eq("ativo", true).order("nome")).data ?? []) as { nome: string; email: string }[];
+  const assunto = encodeURIComponent(`Camarote MRV · ${ev.titulo}`);
+  const botao = contato.email
+    ? { rotulo: "Pedir lugares no camarote", url: `mailto:${contato.email}?subject=${assunto}` }
+    : contato.whats ? { rotulo: "Pedir lugares no camarote", url: `https://wa.me/55${contato.whats}?text=${assunto}` } : undefined;
+  return destinatarios.map((d) => ({
+    tipo: `camarote_${grupo}`, para: d, evento_id: ev.id,
+    vars: { ...varsEvento(ev), nome: primeiroNome(d.nome), contato: contato.texto },
+    botao,
+  }));
+}
+
+/** Último envio de cada onda do camarote no evento. */
+export async function enviosCamarote(evento: string) {
+  const sb = await supabaseServico();
+  const [{ data: envs }, { data: contatos }] = await Promise.all([
+    sb.from("envios").select("tipo, criado_em").eq("evento_id", evento).in("tipo", ["camarote_vp", "camarote_diretoria", "camarote_gestor", "operacao_lista"]),
+    sb.from("camarote_contatos").select("grupo").eq("ativo", true),
+  ]);
+  const ultimo = (tipo: string) => ((envs ?? []) as { tipo: string; criado_em: string }[]).filter((e) => e.tipo === tipo).map((e) => e.criado_em).sort().at(-1) ?? null;
+  return {
+    grupos: GRUPOS_CAMAROTE.map((g) => ({ ...g, contatos: (contatos ?? []).filter((c) => c.grupo === g.id).length, enviado_em: ultimo(`camarote_${g.id}`) })),
+    operacao_em: ultimo("operacao_lista"),
+  };
+}
+
+// ---------------------------------------------------------------- operação do camarote
+const STATUS_CONFIRMADO = ["aprovado", "facial_pendente", "facial_ok", "enviado", "confirmado", "presente"];
+
+async function perfisPorPapel(papeis: string[]) {
+  const { data } = await (await supabaseServico()).from("perfis").select("nome, email, papel").in("papel", papeis).eq("ativo", true);
+  return (data ?? []) as { nome: string; email: string; papel: string }[];
+}
+
+/** Lista do camarote para a operação (depois do fechamento das solicitações). */
+export async function avisarOperacaoLista(evento: string, autor?: string | null): Promise<ResultadoEnvio> {
+  const sb = await supabaseServico();
+  const { data: ev } = await sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao").eq("id", evento).single();
+  const { data: ings } = await sb.from("v_ingressos").select("nome, convidado_de_nome, area_nome").eq("evento_id", evento).eq("setor", "camarote").in("status", STATUS_CONFIRMADO);
+  const lista = ((ings ?? []) as { nome: string | null; convidado_de_nome: string | null; area_nome: string }[])
+    .map((i) => `• ${i.nome ?? "(sem nome)"}${i.convidado_de_nome ? ` — convidado de ${i.convidado_de_nome}` : ""}`)
+    .sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const link = `${siteUrl()}/operacao?evento=${evento}`;
+  const itens: ItemEnvio[] = (await perfisPorPapel(["operacao"])).map((p) => ({
+    tipo: "operacao_lista", para: { nome: p.nome, email: p.email }, evento_id: evento,
+    vars: { ...varsEvento(ev as EventoVars), nome: primeiroNome(p.nome), total: lista.length, lista: lista.join("\n") || "(ninguém confirmado ainda)" },
+    botao: { rotulo: "Abrir a lista atualizada", url: link },
+  }));
+  return enviarModelo(itens, { autor });
+}
+
+/** Relatório do jogo para a operação e os Admins (quando é finalizado). */
+export async function avisarRelatorioOperacao(evento: string, autor?: string | null): Promise<ResultadoEnvio> {
+  const sb = await supabaseServico();
+  const [{ data: ev }, { data: rel }, { data: resp }, { data: itens }, { data: beb }, { data: presenca }] = await Promise.all([
+    sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao").eq("id", evento).single(),
+    sb.from("op_relatorios").select("*").eq("evento_id", evento).maybeSingle(),
+    sb.from("op_respostas").select("item_id, status, observacao").eq("evento_id", evento).eq("status", "problema"),
+    sb.from("op_itens").select("id, secao, texto"),
+    sb.from("op_bebidas_jogo").select("bebida_id, contagem_inicial, contagem_final").eq("evento_id", evento),
+    sb.from("ingressos").select("chegada_em").eq("evento_id", evento).eq("setor", "camarote").in("status", STATUS_CONFIRMADO),
+  ]);
+  const { data: bebidas } = await sb.from("op_bebidas").select("id, nome, unidade");
+  const nomeItem = new Map(((itens ?? []) as { id: string; secao: string; texto: string }[]).map((i) => [i.id, `${i.secao}: ${i.texto}`]));
+  const nomeBeb = new Map(((bebidas ?? []) as { id: string; nome: string; unidade: string }[]).map((b) => [b.id, b]));
+  const r = (rel ?? {}) as Record<string, string | number | null>;
+  const pres = (presenca ?? []) as { chegada_em: string | null }[];
+  const vars: Vars = {
+    ...varsEvento(ev as EventoVars),
+    presenca: `${pres.filter((p) => p.chegada_em).length} de ${pres.length} convidados chegaram`,
+    horarios: `${String(r.abertura_camarote ?? "—").slice(0, 5)} / ${String(r.encerramento_camarote ?? "—").slice(0, 5)}`,
+    avaliacao: r.avaliacao ? `${r.avaliacao} de 5` : "—",
+    resumo: r.resumo as string, ocorrencias: (r.ocorrencias as string) || "Nenhuma.", manutencao: (r.manutencao as string) || "Nenhuma.",
+    problemas: ((resp ?? []) as { item_id: string; observacao: string | null }[]).map((x) => `• ${nomeItem.get(x.item_id) ?? "Item"} — ${x.observacao ?? ""}`).join("\n") || "Nenhum.",
+    bebidas: ((beb ?? []) as { bebida_id: string; contagem_inicial: number | null; contagem_final: number | null }[])
+      .filter((b) => b.contagem_inicial !== null && b.contagem_final !== null)
+      .map((b) => { const x = nomeBeb.get(b.bebida_id); return `• ${x?.nome ?? "Bebida"}: ${b.contagem_inicial! - b.contagem_final!} ${x?.unidade ?? ""} (sobraram ${b.contagem_final})`; })
+      .join("\n") || "Sem contagem.",
+  };
+  const link = `${siteUrl()}/operacao-camarote/${evento}/imprimir`;
+  const itensEnvio: ItemEnvio[] = (await perfisPorPapel(["operacao", "admin"])).map((p) => ({
+    tipo: "operacao_relatorio", para: { nome: p.nome, email: p.email }, evento_id: evento, vars,
+    botao: { rotulo: "Ver relatório completo (com fotos)", url: link },
+  }));
+  return enviarModelo(itensEnvio, { autor });
 }

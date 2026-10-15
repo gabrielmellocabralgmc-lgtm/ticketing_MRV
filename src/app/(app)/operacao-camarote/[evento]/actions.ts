@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { falha, type Resultado } from "@/lib/erros";
 import { apagarFoto, MAX_FOTO, salvarFoto, TIPOS_FOTO } from "@/lib/fotos";
+import { avisarRelatorioOperacao, resumoEnvio } from "@/lib/mensagens/envio";
 import { supabaseServidor } from "@/lib/supabase/server";
 import { exigirOperacao } from "../acesso";
 
@@ -44,19 +45,14 @@ export async function salvarBebidas(evento: string, linhas: LinhaBebidaForm[]): 
 }
 
 export async function salvarRelatorio(evento: string, dados: Record<string, string>, finalizar: boolean): Promise<Resultado> {
-  await exigirOperacao();
+  const s = await exigirOperacao();
   const { error } = await (await supabaseServidor()).rpc("op_salvar_relatorio", { p_evento: evento, p: dados, p_finalizar: finalizar });
   if (error) return falha(error);
   atualizar(evento);
-  return { ok: true, mensagem: finalizar ? "Relatório finalizado." : "Rascunho salvo." };
-}
-
-export async function reabrirRelatorio(evento: string): Promise<Resultado> {
-  await exigirOperacao();
-  const { error } = await (await supabaseServidor()).rpc("op_reabrir_relatorio", { p_evento: evento });
-  if (error) return falha(error);
-  atualizar(evento);
-  return { ok: true, mensagem: "Relatório reaberto." };
+  if (!finalizar) return { ok: true, mensagem: "Rascunho salvo." };
+  // enviado = definitivo: vai por e-mail para a operação e os Admins
+  const r = await avisarRelatorioOperacao(evento, s.userId);
+  return { ok: true, mensagem: `Relatório enviado. ${resumoEnvio(r)} (operação e Admins).` };
 }
 
 /** Recebe a foto já reduzida pelo navegador, guarda no Storage e registra com o horário de envio. */

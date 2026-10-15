@@ -14,12 +14,22 @@ export const VARIAVEIS: Record<string, string> = {
   cota: "Cota da área (ex.: 10)",
   saldo: "Saldo ainda não usado pela área",
   pendentes: "Convidados aguardando validação",
-  lista: "Lista dos convidados aguardando validação (um por linha)",
+  lista: "Lista de nomes, um por linha (convidados a validar ou confirmados no camarote)",
   setor: "Setor (Arquibancada, Pista, Camarote)",
   nome: "Primeiro nome do convidado",
   lugares: "Quantidade de lugares do convite",
   validade: "Validade do link de convite",
   link: "Link da área ou da página do convidado",
+  contato: "Para onde vão os pedidos do camarote (e-mail/WhatsApp do Marketing)",
+  total: "Quantidade de convidados confirmados no camarote",
+  presenca: "Presença no camarote (chegaram × confirmados)",
+  horarios: "Abertura / encerramento do camarote",
+  avaliacao: "Avaliação geral da operação (1 a 5)",
+  resumo: "Resumo do jogo (relatório da operação)",
+  ocorrencias: "Ocorrências (relatório da operação)",
+  manutencao: "Manutenção e pendências (relatório da operação)",
+  problemas: "Itens com problema nos check-lists",
+  bebidas: "Consumo de bebidas no jogo",
 };
 
 /** Exemplo usado na prévia do editor. */
@@ -27,7 +37,10 @@ export const EXEMPLO: Record<string, string> = {
   jogo: "Galo × Coritiba", quando: "Sábado, 17/10 | 19:00h", prazo_curto: "Sexta-feira, 16/10, às 12h", data: "sábado, 17 de outubro às 19:00", portoes: "16:00",
   prazo: "sexta, 16/10 às 12:00", prazo_validacao: "sexta, 16/10 às 12:00", area: "DH", responsavel: "Ana",
   cota: "10", saldo: "4", pendentes: "2", setor: "Arquibancada (Inter Oeste)", nome: "João", lugares: "2 lugares",
-  validade: "16/10 às 12:00", lista: "• João Silva\n• Maria Souza", link: "https://ingressos.weareact3.com/…",
+  validade: "16/10 às 12:00", lista: "• João Silva\n• Maria Souza",
+  contato: "marketing@mrv.com.br", total: "12", presenca: "10 de 12 convidados chegaram", horarios: "14:00 / 19:30", avaliacao: "5 de 5",
+  resumo: "Operação tranquila.", ocorrencias: "Nenhuma.", manutencao: "Trocar lâmpada do LED testeira.", problemas: "• LEDs: LED testeira — piscando",
+  bebidas: "• Cerveja (lata 350 ml): 36 latas (sobraram 12)", link: "https://ingressos.weareact3.com/…",
 };
 
 export function preencher(texto: string, vars: Record<string, string | number | null | undefined>) {

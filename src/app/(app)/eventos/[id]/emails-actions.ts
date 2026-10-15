@@ -3,7 +3,8 @@ import { revalidatePath } from "next/cache";
 import type { Resultado } from "@/lib/erros";
 import { htmlEmail, preencher } from "@/lib/mensagens/modelos";
 import {
-  areasParaConvocar, enviarModelo, executarLembretes, itensArea, resumoEnvio, type EventoVars,
+  areasParaConvocar, avisarOperacaoLista, enviarModelo, executarLembretes, itensArea, itensCamarote, resumoEnvio,
+  type EventoVars, type GrupoCamarote,
 } from "@/lib/mensagens/envio";
 import { CHAVE_LOGO, imagensDisponiveis } from "@/lib/imagens";
 import { siteUrl } from "@/lib/mensagens";
@@ -55,4 +56,27 @@ export async function rodarLembretes(evento: string): Promise<Resultado> {
   const r = await executarLembretes();
   revalidatePath(`/eventos/${evento}`);
   return { ok: true, mensagem: `Lembretes às áreas: ${resumoEnvio(r.areas)} · Lembretes da facial: ${resumoEnvio(r.facial)}` };
+}
+
+/** Camarote: e-mail para uma onda (VPs, Diretoria ou Gestores). */
+export async function enviarCamarote(evento: string, grupo: GrupoCamarote, soParaMim = false): Promise<Resultado> {
+  const s = await exigirStaff();
+  const ev = await carregar(evento);
+  const itens = await itensCamarote(grupo, ev, soParaMim ? [{ nome: s.nome, email: s.email }] : undefined);
+  if (!itens.length) return { ok: false, erro: "Nenhum contato ativo neste grupo. Cadastre em Configurações › Áreas e responsáveis." };
+  // o teste não conta como envio da onda
+  const r = await enviarModelo(soParaMim ? itens.map((i) => ({ ...i, evento_id: null })) : itens, { autor: s.userId });
+  revalidatePath(`/eventos/${evento}`);
+  if (r.falhas) return { ok: false, erro: `${resumoEnvio(r)}: ${r.erros.join("; ")}` };
+  return { ok: true, mensagem: `${soParaMim ? `Teste para ${s.email}: ` : ""}${resumoEnvio(r)}.` };
+}
+
+/** Operação do camarote: lista dos confirmados (também sai sozinha quando as solicitações fecham). */
+export async function enviarListaOperacao(evento: string): Promise<Resultado> {
+  const s = await exigirStaff();
+  const r = await avisarOperacaoLista(evento, s.userId);
+  revalidatePath(`/eventos/${evento}`);
+  if (!r.enviados && !r.simulados && !r.falhas) return { ok: false, erro: "Nenhum usuário com perfil Operação do camarote ativo." };
+  if (r.falhas) return { ok: false, erro: `${resumoEnvio(r)}: ${r.erros.join("; ")}` };
+  return { ok: true, mensagem: `Lista enviada à operação: ${resumoEnvio(r)}.` };
 }

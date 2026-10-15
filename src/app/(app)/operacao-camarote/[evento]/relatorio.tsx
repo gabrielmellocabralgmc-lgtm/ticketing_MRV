@@ -3,7 +3,7 @@ import { useState, useTransition } from "react";
 import { AreaTexto, Aviso, Botao, Campo, Entrada } from "@/components/ui";
 import { dataHora } from "@/lib/formato";
 import type { Foto, Relatorio } from "./dados";
-import { reabrirRelatorio, salvarRelatorio } from "./actions";
+import { salvarRelatorio } from "./actions";
 import { EnviarFoto, Galeria } from "./fotos";
 
 const CAMPOS: { id: "resumo" | "ocorrencias" | "manutencao" | "feedback"; rotulo: string; dica: string }[] = [
@@ -13,7 +13,7 @@ const CAMPOS: { id: "resumo" | "ocorrencias" | "manutencao" | "feedback"; rotulo
   { id: "feedback", rotulo: "Feedback de convidados", dica: "Elogios e sugestões recebidos." },
 ];
 
-export function RelatorioJogo({ evento, inicial, fotos }: { evento: string; inicial: Relatorio | null; fotos: Foto[] }) {
+export function RelatorioJogo({ evento, inicial, fotos, checklistsConcluidos }: { evento: string; inicial: Relatorio | null; fotos: Foto[]; checklistsConcluidos: boolean }) {
   const [d, setD] = useState({
     abertura_camarote: inicial?.abertura_camarote?.slice(0, 5) ?? "", encerramento_camarote: inicial?.encerramento_camarote?.slice(0, 5) ?? "",
     avaliacao: inicial?.avaliacao?.toString() ?? "", resumo: inicial?.resumo ?? "", ocorrencias: inicial?.ocorrencias ?? "",
@@ -29,8 +29,7 @@ export function RelatorioJogo({ evento, inicial, fotos }: { evento: string; inic
     <div className="space-y-4">
       {finalizado && (
         <Aviso tom="ok">
-          Relatório finalizado em {dataHora(inicial!.finalizado_em)}.{" "}
-          <button className="font-semibold underline" disabled={pendente} onClick={() => confirm("Reabrir o relatório para editar?") && rodar(() => reabrirRelatorio(evento))}>Reabrir</button>
+          Relatório enviado em {dataHora(inicial!.finalizado_em)} para a operação e os Admins. Depois de enviado, nada deste jogo pode ser alterado.
         </Aviso>
       )}
       <div className="grid gap-3 sm:grid-cols-3">
@@ -59,11 +58,15 @@ export function RelatorioJogo({ evento, inicial, fotos }: { evento: string; inic
       </div>
       {msg && <Aviso tom={msg.ok ? "ok" : "erro"}>{msg.texto}</Aviso>}
       {!finalizado && (
-        <div className="flex flex-wrap gap-2">
-          <Botao variante="secundario" disabled={pendente} onClick={() => rodar(() => salvarRelatorio(evento, d, false))}>Salvar rascunho</Botao>
-          <Botao disabled={pendente || !d.resumo.trim()} onClick={() => confirm("Finalizar o relatório? Depois só dá para alterar reabrindo.") && rodar(() => salvarRelatorio(evento, d, true))}>
-            Finalizar relatório
-          </Botao>
+        <div className="space-y-2">
+          {!checklistsConcluidos && <Aviso tom="alerta">Para enviar o relatório, conclua antes os check-lists de antes e depois do jogo.</Aviso>}
+          <div className="flex flex-wrap gap-2">
+            <Botao variante="secundario" disabled={pendente} onClick={() => rodar(() => salvarRelatorio(evento, d, false))}>Salvar rascunho</Botao>
+            <Botao disabled={pendente || !d.resumo.trim() || !checklistsConcluidos}
+              onClick={() => confirm("Enviar o relatório? Ele vai por e-mail para a operação e os Admins e não poderá mais ser alterado nem reenviado.") && rodar(() => salvarRelatorio(evento, d, true))}>
+              Enviar relatório
+            </Botao>
+          </div>
         </div>
       )}
     </div>

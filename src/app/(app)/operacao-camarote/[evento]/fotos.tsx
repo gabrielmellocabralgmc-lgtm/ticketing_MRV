@@ -24,7 +24,7 @@ async function reduzir(arquivo: File): Promise<Blob> {
 
 /** Botão de câmera/galeria. Registra o horário em que a foto chegou ao sistema. */
 export function EnviarFoto({ evento, momento, item, rotulo = "📷 Foto", desabilitado }: {
-  evento: string; momento: "antes" | "depois" | "relatorio"; item?: string; rotulo?: string; desabilitado?: boolean;
+  evento: string; momento: "antes" | "depois" | "relatorio" | "bebidas_antes" | "bebidas_depois"; item?: string; rotulo?: string; desabilitado?: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [erro, setErro] = useState<string | null>(null);

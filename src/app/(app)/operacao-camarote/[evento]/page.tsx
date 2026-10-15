@@ -34,9 +34,16 @@ export default async function OperacaoJogo({ params, searchParams }: { params: P
     antes: op.concluido.antes ? "✓" : `${respondidos("antes").feitos}/${respondidos("antes").total}`,
     bebidas: op.bebidas.some((b) => b.contagem_final !== null) ? "✓" : op.bebidas.some((b) => b.contagem_inicial !== null) ? "½" : "",
     depois: op.concluido.depois ? "✓" : `${respondidos("depois").feitos}/${respondidos("depois").total}`,
-    relatorio: op.relatorio?.finalizado_em ? "✓" : op.relatorio ? "rascunho" : "",
+    relatorio: op.relatorio?.finalizado_em ? "✓ enviado" : op.relatorio ? "rascunho" : "",
   };
-  const faltaContagem = (campo: "contagem_inicial" | "contagem_final") => op.bebidas.filter((b) => b[campo] === null).length;
+  const enviado = !!op.relatorio?.finalizado_em;
+  // o que falta na aba Bebidas para concluir cada check-list
+  const faltaBebidas = (campo: "contagem_inicial" | "contagem_final", foto: string) => {
+    const n = op.bebidas.filter((b) => b[campo] === null).length;
+    const semFoto = !op.fotos.some((f) => f.momento === foto);
+    const partes = [n && `a contagem de ${n} bebida(s)`, semFoto && "a foto das bebidas"].filter(Boolean);
+    return partes.length ? `Falta ${partes.join(" e ")} na aba Bebidas — é preciso para concluir.` : null;
+  };
   const problemas = op.respostas.filter((r) => r.status === "problema").length;
 
   return (
@@ -66,15 +73,16 @@ export default async function OperacaoJogo({ params, searchParams }: { params: P
       {aba === "antes" && (
         <Checklist evento={evento} momento="antes" itens={op.itens.filter((i) => i.momento === "antes")} respostas={op.respostas}
           fotos={op.fotos.filter((f) => f.momento === "antes")} concluidoEm={op.concluido.antes}
-          avisoBebidas={faltaContagem("contagem_inicial") ? `Falta a contagem de ${faltaContagem("contagem_inicial")} bebida(s) na aba Bebidas — é preciso para concluir.` : null} />
+          avisoBebidas={faltaBebidas("contagem_inicial", "bebidas_antes")} relatorioEnviado={enviado} />
       )}
-      {aba === "bebidas" && <Bebidas evento={evento} linhas={op.bebidas} travadoAntes={!!op.concluido.antes} travadoDepois={!!op.concluido.depois} />}
+      {aba === "bebidas" && <Bebidas evento={evento} linhas={op.bebidas} fotos={op.fotos} travadoAntes={!!op.concluido.antes || enviado} travadoDepois={!!op.concluido.depois || enviado} />}
       {aba === "depois" && (
         <Checklist evento={evento} momento="depois" itens={op.itens.filter((i) => i.momento === "depois")} respostas={op.respostas}
           fotos={op.fotos.filter((f) => f.momento === "depois")} concluidoEm={op.concluido.depois}
-          avisoBebidas={faltaContagem("contagem_final") ? `Falta a contagem final de ${faltaContagem("contagem_final")} bebida(s) na aba Bebidas — é preciso para concluir.` : null} />
+          avisoBebidas={faltaBebidas("contagem_final", "bebidas_depois")} relatorioEnviado={enviado} />
       )}
-      {aba === "relatorio" && <RelatorioJogo evento={evento} inicial={op.relatorio} fotos={op.fotos.filter((f) => f.momento === "relatorio")} />}
+      {aba === "relatorio" && <RelatorioJogo evento={evento} inicial={op.relatorio} fotos={op.fotos.filter((f) => f.momento === "relatorio")}
+        checklistsConcluidos={!!op.concluido.antes && !!op.concluido.depois} />}
     </>
   );
 }
