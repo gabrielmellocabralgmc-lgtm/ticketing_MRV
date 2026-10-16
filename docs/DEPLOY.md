@@ -83,7 +83,7 @@ openssl rand -hex 24
 
 ### 4.3 Variáveis
 1. No serviço → aba **Variables** → **Raw Editor**.
-2. Cole o bloco abaixo, **trocando o que está entre `< >`**:
+2. Cole o bloco abaixo, **trocando o que está entre `< >` e o e-mail/nome do Admin** (sem deixar `< >` em nenhum valor):
 
 ```
 DATABASE_URL=<connection string COM -pooler do Neon>
@@ -92,8 +92,8 @@ AUTH_SECRET=<resultado do openssl rand -base64 48>
 CRON_SECRET=<resultado do openssl rand -hex 24>
 RESEND_API_KEY=<chave re_... do Resend>
 EMAIL_REMETENTE=Ingressos MRV <naoresponda@ingressos.weareact3.com>
-ADMIN_EMAIL=<seu e-mail>
-ADMIN_NOME=<seu nome>
+ADMIN_EMAIL=nome@empresa.com
+ADMIN_NOME=Nome Sobrenome
 NEXT_PUBLIC_SITE_URL=https://placeholder.up.railway.app
 ```
 

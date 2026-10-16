@@ -78,26 +78,32 @@ try {
   }
   console.log(n ? `[migrar] ${n} migração(ões) aplicada(s).` : "[migrar] banco em dia.");
 
+  // Admin de acesso: ADMIN_EMAIL vira (ou continua) Admin a cada deploy.
+  // Admins com "e-mail" inválido (ex.: texto de exemplo "<seu e-mail>") são desativados.
   const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
-  const { rows: admins } = await c.query(`select email from perfis where papel = 'admin' and ativo order by email`);
   const mascarar = (e) => e.replace(/^(.{3}).*(@.*)$/, "$1***$2");
+  const emailValido = !!email && /^[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+$/.test(email);
+  if (email && !emailValido) console.error(`[migrar] ADMIN_EMAIL inválido ("${email}"): use só o e-mail, ex.: nome@empresa.com`);
+  const { rowCount: invalidos } = await c.query(
+    `update perfis set ativo = false where papel = 'admin' and ativo and email !~ '^[^@\\s<>]+@[^@\\s<>]+\\.[^@\\s<>]+$'`);
+  if (invalidos) console.log(`[migrar] ${invalidos} Admin(s) com e-mail inválido desativado(s)`);
+  if (emailValido) {
+    const nomeBruto = process.env.ADMIN_NOME?.trim() ?? "";
+    const nome = !nomeBruto || /[<>]/.test(nomeBruto) ? "Admin" : nomeBruto;
+    const { rows: u } = await c.query(
+      `insert into auth.users (email, raw_user_meta_data, email_confirmed_at, created_at, updated_at)
+       values ($1, $2, now(), now(), now()) on conflict (email) do update set updated_at = now() returning id`,
+      [email, JSON.stringify({ nome })]);
+    const { rows: antes } = await c.query(`select papel, ativo from perfis where user_id = $1`, [u[0].id]);
+    await c.query(
+      `insert into perfis (user_id, nome, email, papel, ativo) values ($1, $2, $3, 'admin', true)
+       on conflict (user_id) do update set papel = 'admin', ativo = true`, [u[0].id, nome, email]);
+    if (!antes.length || antes[0].papel !== "admin" || !antes[0].ativo) console.log(`[migrar] Admin garantido: ${mascarar(email)}`);
+  }
+  const { rows: admins } = await c.query(`select email from perfis where papel = 'admin' and ativo order by email`);
   console.log(admins.length
     ? `[migrar] Admins ativos: ${admins.map((a) => mascarar(a.email)).join(", ")}`
-    : `[migrar] nenhum Admin ainda — ${email ? `criando ${mascarar(email)}` : "defina ADMIN_EMAIL nas Variables e faça um novo deploy"}`);
-  if (email) {
-    const { rows } = await c.query(`select 1 from perfis where papel = 'admin' and ativo limit 1`);
-    if (!rows.length) {
-      const nome = process.env.ADMIN_NOME?.trim() || "Admin";
-      const { rows: u } = await c.query(
-        `insert into auth.users (email, raw_user_meta_data, email_confirmed_at, created_at, updated_at)
-         values ($1, $2, now(), now(), now()) on conflict (email) do update set updated_at = now() returning id`,
-        [email, JSON.stringify({ nome })]);
-      await c.query(
-        `insert into perfis (user_id, nome, email, papel, ativo) values ($1, $2, $3, 'admin', true)
-         on conflict (user_id) do update set papel = 'admin', ativo = true`, [u[0].id, nome, email]);
-      console.log(`[migrar] primeiro Admin criado: ${email}`);
-    }
-  }
+    : "[migrar] nenhum Admin ativo — defina ADMIN_EMAIL nas Variables e faça um novo deploy");
 } catch (e) {
   console.error(`[migrar] erro: ${e.message}`);
   process.exitCode = 1;
