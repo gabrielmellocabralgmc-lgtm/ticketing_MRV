@@ -79,6 +79,11 @@ try {
   console.log(n ? `[migrar] ${n} migração(ões) aplicada(s).` : "[migrar] banco em dia.");
 
   const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  const { rows: admins } = await c.query(`select email from perfis where papel = 'admin' and ativo order by email`);
+  const mascarar = (e) => e.replace(/^(.{3}).*(@.*)$/, "$1***$2");
+  console.log(admins.length
+    ? `[migrar] Admins ativos: ${admins.map((a) => mascarar(a.email)).join(", ")}`
+    : `[migrar] nenhum Admin ainda — ${email ? `criando ${mascarar(email)}` : "defina ADMIN_EMAIL nas Variables e faça um novo deploy"}`);
   if (email) {
     const { rows } = await c.query(`select 1 from perfis where papel = 'admin' and ativo limit 1`);
     if (!rows.length) {
