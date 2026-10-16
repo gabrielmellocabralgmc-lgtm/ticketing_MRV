@@ -104,6 +104,29 @@ try {
   console.log(admins.length
     ? `[migrar] Admins ativos: ${admins.map((a) => mascarar(a.email)).join(", ")}`
     : "[migrar] nenhum Admin ativo — defina ADMIN_EMAIL nas Variables e faça um novo deploy");
+
+  // Carga de teste (jogos reais + convidados/usuários fictícios): CARGA_TESTE=1 carrega uma vez;
+  // CARGA_TESTE=remover apaga tudo dela. Sem a variável, nada acontece.
+  const carga = process.env.CARGA_TESTE?.trim().toLowerCase();
+  const jaCarregada = (await c.query(`select 1 from public._migracoes where arquivo = 'carga-teste'`)).rows.length > 0;
+  if (carga === "1" && !jaCarregada) {
+    await c.query("begin");
+    try {
+      await c.query(readFileSync(path.join(raiz, "supabase/dados-teste.sql"), "utf8"));
+      await c.query(`insert into public._migracoes (arquivo) values ('carga-teste')`);
+      await c.query("commit");
+      console.log("[migrar] carga de teste aplicada (jogos reais + dados fictícios)");
+    } catch (e) {
+      await c.query("rollback");
+      console.error(`[migrar] carga de teste falhou (nada foi gravado): ${e.message}`);
+    }
+  } else if (carga === "remover") {
+    await c.query("begin");
+    await c.query(readFileSync(path.join(raiz, "supabase/dados-teste-remover.sql"), "utf8"));
+    await c.query(`delete from public._migracoes where arquivo = 'carga-teste'`);
+    await c.query("commit");
+    console.log("[migrar] carga de teste removida");
+  }
 } catch (e) {
   console.error(`[migrar] erro: ${e.message}`);
   process.exitCode = 1;

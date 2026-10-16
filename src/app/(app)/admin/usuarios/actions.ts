@@ -41,3 +41,23 @@ export async function alternarAtivo(userId: string, ativo: boolean): Promise<Res
   revalidatePath("/admin/usuarios");
   return { ok: true };
 }
+
+/**
+ * Só para testes (variável MODO_TESTE=1 no servidor): o Admin entra como outro usuário para ver o
+ * sistema com o perfil dele. Para voltar: Sair e entrar de novo como Admin. Fica na auditoria.
+ */
+export async function entrarComo(userId: string) {
+  const s = await exigirAdmin();
+  if (process.env.MODO_TESTE !== "1") throw new Error("Entrar como está desligado (MODO_TESTE).");
+  const supabase = await supabaseServidor();
+  const { data: alvo } = await supabase.from("perfis").select("user_id, ativo, papel").eq("user_id", userId).maybeSingle();
+  if (!alvo?.ativo) throw new Error("Usuário inativo ou inexistente.");
+  await supabase.rpc("registrar_auditoria", { p_acao: "entrar_como", p_entidade: "perfil", p_entidade_id: userId, p_detalhes: { admin: s.userId } });
+  const { assinarSessao, COOKIE_SESSAO, DURACAO_SESSAO_S } = await import("@/lib/auth/sessao-cookie");
+  const { cookies } = await import("next/headers");
+  const { redirect } = await import("next/navigation");
+  (await cookies()).set(COOKIE_SESSAO, await assinarSessao(userId), {
+    httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 8 * 3600,
+  });
+  redirect(alvo.papel === "operacao" ? "/operacao" : "/eventos");
+}

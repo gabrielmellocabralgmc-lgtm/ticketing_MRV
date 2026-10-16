@@ -3,12 +3,15 @@ import { Campo, Cartao, Entrada, Selecao, Selo, Tabela, Titulo } from "@/compone
 import { exigirAdmin } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
 import { ROTULO_PAPEL, type Papel } from "@/lib/tipos";
-import { alternarAtivo, salvarUsuario } from "./actions";
+import { alternarAtivo, entrarComo, salvarUsuario } from "./actions";
+import { MODO_DEMO } from "@/lib/demo/constantes";
 
 export const metadata = { title: "Usuários" };
 
 export default async function Usuarios() {
-  await exigirAdmin();
+  const s = await exigirAdmin();
+  // "Entrar como": só em teste no servidor publicado (no modo demo a troca é na tela de login)
+  const podeEntrarComo = process.env.MODO_TESTE === "1" && !MODO_DEMO;
   const supabase = await supabaseServidor();
   const [{ data: perfis }, { data: areas }, { data: resp }] = await Promise.all([
     supabase.from("perfis").select("user_id, nome, email, papel, ativo").order("papel").order("nome"),
@@ -19,7 +22,7 @@ export default async function Usuarios() {
 
   return (
     <>
-      <Titulo voltar={{ href: "/admin", rotulo: "Configurações" }} sub="Quem acessa o sistema. Responsáveis veem só as listas das próprias áreas.">Usuários</Titulo>
+      <Titulo voltar={{ href: "/admin", rotulo: "Configurações" }} sub={<>Quem acessa o sistema. Responsáveis veem só as listas das próprias áreas.{podeEntrarComo && <> <b>Modo de teste:</b> use “Entrar como” para ver o sistema com o perfil de cada um (para voltar, Sair e entrar como Admin).</>}</>}>Usuários</Titulo>
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <Cartao>
           <Tabela>
@@ -31,6 +34,11 @@ export default async function Usuarios() {
                   <td><Selo tom={p.papel === "admin" ? "laranja" : p.papel === "marketing" ? "verde" : "cinza"}>{ROTULO_PAPEL[p.papel as Papel]}</Selo></td>
                   <td className="text-xs">{areasDe(p.user_id).join(", ") || "—"}</td>
                   <td className="text-right">
+                    {podeEntrarComo && p.ativo && p.user_id !== s.userId && (
+                      <form action={entrarComo.bind(null, p.user_id)} className="mb-1 inline-block">
+                        <button className="mr-2 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-mrv-700 ring-1 ring-mrv-600/40 hover:bg-mrv-50">Entrar como</button>
+                      </form>
+                    )}
                     <BotaoAcao acao={alternarAtivo.bind(null, p.user_id, !p.ativo)} rotulo={p.ativo ? "Desativar" : "Reativar"} variante={p.ativo ? "perigo" : "secundario"} />
                   </td>
                 </tr>
