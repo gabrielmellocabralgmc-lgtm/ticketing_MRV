@@ -13,7 +13,10 @@ export async function enviarLink(_: unknown, form: FormData): Promise<Resultado>
   const { criarLinkAcesso } = await import("@/lib/auth/links");
   // só quem o Admin cadastrou recebe o link; a resposta é a mesma nos dois casos (não revela quem tem acesso)
   const link = await criarLinkAcesso(email, next);
-  if (!link) return resposta;
+  if (!link) {
+    console.log(`[login] ${email}: sem perfil ativo (ou muitos pedidos em 15 min) — nenhum e-mail enviado`);
+    return resposta;
+  }
   const url = `${siteUrl()}/auth/callback?token=${link.token}`;
   if (!process.env.RESEND_API_KEY && process.env.NODE_ENV !== "production") {
     console.log(`[login] sem RESEND_API_KEY (ambiente local): link de acesso de ${email} → ${url}`);
@@ -24,7 +27,11 @@ export async function enviarLink(_: unknown, form: FormData): Promise<Resultado>
     para: { nome: link.nome, email }, assunto: "Seu acesso ao Ingressos MRV", texto: `${texto}\n\n${url}`,
     html: htmlEmail(texto, { botao: { rotulo: "Entrar no sistema", url } }),
   });
-  if (!r.ok) return { ok: false, erro: "Não foi possível enviar o link agora. Tente de novo em alguns minutos." };
+  if (!r.ok) {
+    console.error(`[login] ${email}: falha no envio pelo Resend — ${r.erro}`);
+    return { ok: false, erro: "Não foi possível enviar o link agora. Tente de novo em alguns minutos." };
+  }
+  console.log(`[login] ${email}: link enviado pelo Resend`);
   return resposta;
 }
 
