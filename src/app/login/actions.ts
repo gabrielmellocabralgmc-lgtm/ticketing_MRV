@@ -35,6 +35,39 @@ export async function enviarLink(_: unknown, form: FormData): Promise<Resultado>
   return resposta;
 }
 
+/**
+ * Acesso de emergência do Admin geral (enquanto o e-mail não está configurado): e-mail = ADMIN_EMAIL
+ * e senha = ADMIN_SENHA, definidos no servidor. Sem ADMIN_SENHA, essa opção não existe.
+ */
+export async function entrarComSenha(_: unknown, form: FormData): Promise<Resultado> {
+  const senhaServidor = process.env.ADMIN_SENHA ?? "";
+  const emailServidor = (process.env.ADMIN_EMAIL ?? "").trim().toLowerCase();
+  if (senhaServidor.length < 12 || !emailServidor) return { ok: false, erro: "Acesso por senha desativado." };
+  const email = String(form.get("email") ?? "").trim().toLowerCase();
+  const senha = String(form.get("senha") ?? "");
+  const { createHash, timingSafeEqual } = await import("node:crypto");
+  const h = (x: string) => createHash("sha256").update(x).digest();
+  const ok = timingSafeEqual(h(email), h(emailServidor)) && timingSafeEqual(h(senha), h(senhaServidor));
+  if (!ok) {
+    await new Promise((r) => setTimeout(r, 1500)); // atrasa tentativas
+    console.log(`[login] senha: tentativa recusada para ${email || "(vazio)"}`);
+    return { ok: false, erro: "E-mail ou senha incorretos." };
+  }
+  const { pool } = await import("@/lib/db/pg");
+  const { rows } = await pool().query<{ user_id: string }>(
+    `select p.user_id from perfis p where lower(p.email) = $1 and p.papel = 'admin' and p.ativo limit 1`, [emailServidor]);
+  if (!rows[0]) return { ok: false, erro: "Admin não encontrado. Confira o ADMIN_EMAIL e faça um novo deploy." };
+  const { assinarSessao, COOKIE_SESSAO, DURACAO_SESSAO_S } = await import("@/lib/auth/sessao-cookie");
+  const { cookies } = await import("next/headers");
+  const { redirect } = await import("next/navigation");
+  (await cookies()).set(COOKIE_SESSAO, await assinarSessao(rows[0].user_id), {
+    httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: DURACAO_SESSAO_S,
+  });
+  console.log(`[login] senha: Admin entrou`);
+  const next = String(form.get("next") ?? "/eventos");
+  return redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/eventos");
+}
+
 /** Página do link: ao confirmar, "queima" o link e abre a sessão. */
 export async function confirmarLink(token: string) {
   const { usarLinkAcesso } = await import("@/lib/auth/links");

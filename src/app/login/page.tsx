@@ -45,7 +45,8 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
           {MODO_DEMO ? (
             <LoginDemo next={next ?? "/eventos"} />
           ) : (
-            <FormLogin next={next ?? "/eventos"} erroInicial={erro === "link" ? "O link expirou ou já foi usado. Peça um novo." : null} />
+            <FormLogin next={next ?? "/eventos"} erroInicial={erro === "link" ? "O link expirou ou já foi usado. Peça um novo." : null}
+              comSenha={(process.env.ADMIN_SENHA ?? "").length >= 12} />
           )}
           <p className="text-[13px] text-cinza">MRV&amp;CO · Patrocinadora da Arena MRV</p>
         </div>
