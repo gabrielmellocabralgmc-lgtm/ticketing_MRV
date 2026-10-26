@@ -30,7 +30,16 @@ export const whatsappLink: CanalMensagem = {
   },
 };
 
-export const siteUrl = () => (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
+/**
+ * Endereço público do sistema (vai nos links de e-mail e de convite).
+ * No navegador: o próprio endereço aberto. No servidor: SITE_URL (ou o antigo NEXT_PUBLIC_SITE_URL);
+ * na Vercel, sem nenhuma das duas, usa o domínio de produção que ela informa sozinha.
+ */
+export const siteUrl = () => {
+  if (typeof window !== "undefined") return window.location.origin;
+  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : undefined;
+  return (process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || vercel || "http://localhost:3000").replace(/\/$/, "");
+};
 export const linkTorcedor = (token: string) => `${siteUrl()}/i/${token}`;
 
 interface DadosEvento {

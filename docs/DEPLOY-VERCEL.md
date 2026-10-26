@@ -33,13 +33,12 @@ Tempo estimado: 20–30 minutos.
    - Clique no primeiro campo **Key** e cole (**Cmd + V**) tudo o que você copiou do Railway —
      a Vercel separa sozinha cada linha em nome/valor.
    - Confira/ajuste estas duas linhas:
-     - `NEXT_PUBLIC_SITE_URL` = `https://ticketing-mrv.vercel.app`
+     - `NEXT_PUBLIC_SITE_URL` — **apague** (na Vercel o endereço é detectado sozinho; se quiser
+       fixar, crie `SITE_URL` = `https://ticketing-mrv.vercel.app`)
      - `CARGA_TESTE` — pode apagar (a carga de teste já está no banco e não roda de novo).
 6. Clique em **Deploy**. Leva uns 2–3 minutos.
 
-> Se a Vercel der outro endereço (ex.: `ticketing-mrv-abc123.vercel.app`), vá em
-> **Settings → Environment Variables**, corrija `NEXT_PUBLIC_SITE_URL` com o endereço certo e
-> faça **Deployments → ⋯ → Redeploy**.
+> O endereço dos links (e-mails, convites) é o domínio de produção da Vercel, detectado sozinho.
 
 ---
 
