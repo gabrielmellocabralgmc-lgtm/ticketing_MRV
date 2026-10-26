@@ -18,5 +18,13 @@ jobs:
           SITE_URL: ${{ secrets.SITE_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          if [ -z "$SITE_URL" ] || [ -z "$CRON_SECRET" ]; then echo "Faltam os secrets SITE_URL/CRON_SECRET"; exit 1; fi
-          curl -sS --fail-with-body --max-time 90 -H "Authorization: Bearer $CRON_SECRET" "$SITE_URL/api/cron/tudo"
+          if [ -z "$SITE_URL" ] || [ -z "$CRON_SECRET" ]; then echo "::error::Faltam os secrets SITE_URL e/ou CRON_SECRET"; exit 1; fi
+          URL="${SITE_URL%/}/api/cron/tudo"
+          CODIGO=$(curl -sS -o resposta.txt -w '%{http_code}' --max-time 90 -H "Authorization: Bearer $CRON_SECRET" "$URL")
+          echo "HTTP $CODIGO"; head -c 1500 resposta.txt; echo
+          case "$CODIGO" in
+            200) echo "Rotinas executadas." ;;
+            401) echo "::error::401 — o CRON_SECRET do GitHub é diferente do CRON_SECRET da Vercel (ou ele não existe na Vercel)."; exit 1 ;;
+            404) echo "::error::404 — confira o secret SITE_URL (endereço de produção da Vercel)."; exit 1 ;;
+            *) echo "::error::Falha HTTP $CODIGO"; exit 1 ;;
+          esac
