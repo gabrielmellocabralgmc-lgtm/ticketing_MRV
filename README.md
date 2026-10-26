@@ -200,7 +200,13 @@ controle de bebidas (a sobra vem da contagem final do jogo anterior), relatório
 - Relatório completo para imprimir/PDF: `/operacao-camarote/<evento>/imprimir`.
 
 
-## Deploy: Railway (app) + Neon (banco) + Resend (e-mail)
+## Deploy na Vercel (atual) — ver [docs/DEPLOY-VERCEL.md](docs/DEPLOY-VERCEL.md)
+
+App na Vercel (mesma conta do adidas_ingressos), banco no Neon, e-mail no Resend. O build de produção
+roda `scripts/migrar.mjs` (script `vercel-build`); as rotinas frequentes são chamadas pelo GitHub
+Actions (`.github/workflows/rotinas.yml`, a cada 30 min) e há um cron diário da Vercel (`vercel.json`).
+
+## Deploy alternativo: Railway (app) + Neon (banco) + Resend (e-mail)
 
 O sistema roda em qualquer Postgres. Em produção: **Neon** (mesma conta do adidas_ingressos, num
 banco separado) e o app no **Railway** (fora da Vercel). A camada que imitava o Supabase

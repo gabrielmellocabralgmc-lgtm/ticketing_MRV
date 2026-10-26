@@ -7,6 +7,11 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import pg from "pg";
 
+// Na Vercel, só o deploy de produção mexe no banco; as prévias (Preview) só fazem o build
+if (process.env.VERCEL && process.env.VERCEL_ENV !== "production") {
+  console.log(`[migrar] deploy de prévia (${process.env.VERCEL_ENV}): banco não alterado`);
+  process.exit(0);
+}
 const raiz = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 // Confere as variáveis antes de conectar, com mensagens claras (sem mostrar a senha)
 function conferir(nome) {

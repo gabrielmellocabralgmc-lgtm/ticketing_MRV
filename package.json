@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit",
     "demo": "NEXT_PUBLIC_DEMO=1 NEXT_PUBLIC_SITE_URL=http://localhost:3000 next dev -p 3000",
     "demo:zerar": "rm -rf .demo.nosync",
-    "migrar": "node scripts/migrar.mjs"
+    "migrar": "node scripts/migrar.mjs",
+    "vercel-build": "node scripts/migrar.mjs && next build"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.3",

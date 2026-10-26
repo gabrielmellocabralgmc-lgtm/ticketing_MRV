@@ -19,7 +19,9 @@ export function pool(): Pool {
     if (!url) throw new Error("DATABASE_URL não configurada");
     g.__poolPg = new Pool({
       connectionString: url,
-      max: Number(process.env.DB_MAX_CONEXOES ?? 10),
+      // serverless (Vercel): poucas conexões por instância; o pooler do Neon cuida do resto
+      max: Number(process.env.DB_MAX_CONEXOES ?? (process.env.VERCEL ? 3 : 10)),
+      idleTimeoutMillis: process.env.VERCEL ? 10_000 : 30_000,
       ssl: /localhost|127\.0\.0\.1/.test(url) ? undefined : { rejectUnauthorized: false },
     });
   }
