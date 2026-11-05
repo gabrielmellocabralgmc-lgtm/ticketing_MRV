@@ -81,6 +81,8 @@ export interface EventoVars {
   abertura_portoes: string | null;
   prazo_solicitacao: string | null;
   prazo_validacao: string | null;
+  /** Evento exige facial: os e-mails incluem as orientações do Super App do Galo. */
+  exige_facial?: boolean;
 }
 
 const TZ = "America/Sao_Paulo";
@@ -104,6 +106,9 @@ export function varsEvento(ev: EventoVars): Vars {
     portoes: ev.abertura_portoes ? dataHora(ev.abertura_portoes).split(" ")[1] : null,
     prazo: ev.prazo_solicitacao ? dataLonga(ev.prazo_solicitacao) : null,
     prazo_validacao: ev.prazo_validacao ? dataLonga(ev.prazo_validacao) : null,
+    // sem facial no evento, esses trechos somem do e-mail
+    requisitos_facial: ev.exige_facial === false ? "" : "2. Tenham cadastro ativo no Super App do Galo, inclusive os acompanhantes.\n3. Concluam o cadastro facial no site https://ingressos.galonaveia.com.br/",
+    facial_frase: ev.exige_facial === false ? "" : ", com cadastro facial no Super App do Galo",
   };
 }
 
@@ -127,7 +132,7 @@ async function carregarContatos(ids: string[]) {
   const ingressos = (data ?? []) as IngressoContato[];
   const evIds = [...new Set(ingressos.map((i) => i.evento_id))];
   const { data: evs } = evIds.length
-    ? await sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao").in("id", evIds)
+    ? await sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial").in("id", evIds)
     : { data: [] };
   return { ingressos, eventos: new Map(((evs ?? []) as EventoVars[]).map((e) => [e.id, e])) };
 }
@@ -231,7 +236,7 @@ const INTERVALO_VALIDACAO_H = 12;
 export async function avisarValidacaoPendente(evento?: string, area?: string): Promise<ResultadoEnvio> {
   const sb = await supabaseServico();
   const agora = Date.now();
-  let q = sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, status").eq("status", "aberto");
+  let q = sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, status").eq("status", "aberto");
   if (evento) q = q.eq("id", evento);
   const { data: evs } = await q;
   const itens: ItemEnvio[] = [];
@@ -282,7 +287,7 @@ export async function executarLembretes(): Promise<{ areas: ResultadoEnvio; faci
   const agora = Date.now();
   const { data: cfg } = await sb.from("config").select("valor").eq("chave", "lembrete_area_horas").maybeSingle();
   const horas = Number(cfg?.valor ?? 24);
-  const { data: evs } = await sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, status").in("status", ["aberto", "fechado"]);
+  const { data: evs } = await sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, status").in("status", ["aberto", "fechado"]);
   const eventos = (evs ?? []) as (EventoVars & { status: string })[];
 
   const itensAreas: ItemEnvio[] = [];
@@ -298,7 +303,7 @@ export async function executarLembretes(): Promise<{ areas: ResultadoEnvio; faci
   }
 
   const itensFacial: ItemEnvio[] = [];
-  const proximos = eventos.filter((e) => { const d = new Date(e.inicio).getTime() - agora; return d > 0 && d <= 2.5 * 24 * 3600e3; });
+  const proximos = eventos.filter((e) => { const d = new Date(e.inicio).getTime() - agora; return e.exige_facial !== false && d > 0 && d <= 2.5 * 24 * 3600e3; });
   if (proximos.length) {
     const { data: ings } = await sb.from("v_ingressos").select("id, evento_id, setor, status, nome, email, token")
       .in("evento_id", proximos.map((e) => e.id)).in("status", ["aprovado", "facial_pendente"]);
@@ -404,7 +409,9 @@ async function perfisPorPapel(papeis: string[]) {
 /** Lista do camarote para a operação (depois do fechamento das solicitações). */
 export async function avisarOperacaoLista(evento: string, autor?: string | null): Promise<ResultadoEnvio> {
   const sb = await supabaseServico();
-  const { data: ev } = await sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao").eq("id", evento).single();
+  const { data: cam } = await sb.from("evento_setores").select("setor").eq("evento_id", evento).eq("setor", "camarote").maybeSingle();
+  if (!cam) return { enviados: 0, simulados: 0, falhas: 0, erros: [] }; // evento sem camarote
+  const { data: ev } = await sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial").eq("id", evento).single();
   const { data: ings } = await sb.from("v_ingressos").select("nome, convidado_de_nome, area_nome").eq("evento_id", evento).eq("setor", "camarote").in("status", STATUS_CONFIRMADO);
   const lista = ((ings ?? []) as { nome: string | null; convidado_de_nome: string | null; area_nome: string }[])
     .map((i) => `• ${i.nome ?? "(sem nome)"}${i.convidado_de_nome ? ` — convidado de ${i.convidado_de_nome}` : ""}`)
@@ -422,7 +429,7 @@ export async function avisarOperacaoLista(evento: string, autor?: string | null)
 export async function avisarRelatorioOperacao(evento: string, autor?: string | null): Promise<ResultadoEnvio> {
   const sb = await supabaseServico();
   const [{ data: ev }, { data: rel }, { data: resp }, { data: itens }, { data: beb }, { data: presenca }] = await Promise.all([
-    sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao").eq("id", evento).single(),
+    sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial").eq("id", evento).single(),
     sb.from("op_relatorios").select("*").eq("evento_id", evento).maybeSingle(),
     sb.from("op_respostas").select("item_id, status, observacao").eq("evento_id", evento).eq("status", "problema"),
     sb.from("op_itens").select("id, secao, texto"),
@@ -463,7 +470,7 @@ export async function avisarRelatorioOperacao(evento: string, autor?: string | n
 export async function enviarIngressosDigitais(evento: string, autor?: string | null) {
   const sb = await supabaseServico();
   const [{ data: ev }, { data: digs }] = await Promise.all([
-    sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao").eq("id", evento).single(),
+    sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial").eq("id", evento).single(),
     sb.from("ingressos_digitais").select("ingresso_id, enviado_em").eq("evento_id", evento),
   ]);
   const pendentes = ((digs ?? []) as { ingresso_id: string | null; enviado_em: string | null }[])

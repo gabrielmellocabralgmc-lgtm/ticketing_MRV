@@ -17,8 +17,11 @@ export default async function Operacao({ searchParams }: { searchParams: Promise
   // eventos de ontem em diante (o jogo do dia aparece primeiro)
   const desde = Date.now() - 24 * 3600e3;
   const { data: eventos } = await supabase.from("eventos").select("id, titulo, adversario, competicao, inicio, abertura_portoes, status").order("inicio").limit(60);
+  // só eventos com camarote
+  const { data: comCamarote } = await supabase.from("evento_setores").select("evento_id").eq("setor", "camarote");
+  const temCamarote = new Set((comCamarote ?? []).map((c) => c.evento_id as string));
   const proximos = (eventos ?? [])
-    .filter((e) => new Date(e.inicio).getTime() >= desde && !["rascunho", "encerrado"].includes(e.status))
+    .filter((e) => temCamarote.has(e.id) && new Date(e.inicio).getTime() >= desde && !["rascunho", "encerrado"].includes(e.status))
     .slice(0, 5);
   const ev = proximos.find((e) => e.id === escolhido) ?? proximos[0];
 

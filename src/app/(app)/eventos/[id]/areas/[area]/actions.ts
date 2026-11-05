@@ -60,7 +60,7 @@ export async function criarConvite(evento: string, setor: Setor, area: string, _
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { ok: true, dados: { token }, mensagem: "Vaga reservada, mas o e-mail é inválido: mande o link pelo WhatsApp." };
     const s = await exigirSessao();
     const [{ data: ev }, { data: ar }] = await Promise.all([
-      supabase.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao").eq("id", evento).single(),
+      supabase.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial").eq("id", evento).single(),
       supabase.from("areas").select("nome").eq("id", area).single(),
     ]);
     const qtd = Number(form.get("qtd") ?? 1);

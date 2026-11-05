@@ -28,7 +28,7 @@ export default async function Aprovacao({ params }: { params: Promise<{ id: stri
   return (
     <>
       <AoVivo evento={id} />
-      <Titulo voltar={{ href: `/eventos/${id}`, rotulo: "Painel do jogo" }} sub="Valide em nome da área se precisar, acompanhe quem está com a facial pendente e a lista de espera.">Aprovação · {ev.titulo}</Titulo>
+      <Titulo voltar={{ href: `/eventos/${id}`, rotulo: "Painel do jogo" }} sub={ev.exige_facial ? "Valide em nome da área se precisar, acompanhe quem está com a facial pendente e a lista de espera." : "Valide em nome da área se precisar e acompanhe a lista de espera."}>Aprovação · {ev.titulo}</Titulo>
 
       {naoValidadas.length > 0 && (
         <Cartao className="mb-6">
@@ -66,7 +66,7 @@ export default async function Aprovacao({ params }: { params: Promise<{ id: stri
         />
       </Cartao>
 
-      <Cartao className="mb-6">
+      {ev.exige_facial && <Cartao className="mb-6">
         <h2 className="mb-1 font-bold text-mrv-900">Pendente facial ({aprovados.length})</h2>
         <p className="mb-3 text-sm text-cinza">
           Sinalizados sem facial no sistema do Atlético. Quem tem e-mail já recebeu o passo a passo; para os demais, use o botão do WhatsApp.
@@ -82,7 +82,7 @@ export default async function Aprovacao({ params }: { params: Promise<{ id: stri
             { rotulo: "Cancelar", variante: "perigo", pedirMotivo: "Motivo do cancelamento:", executar: cancelarMarketing.bind(null, id) },
           ]}
         />
-      </Cartao>
+      </Cartao>}
 
       <Cartao>
         <h2 className="mb-1 font-bold text-mrv-900">Lista de espera ({espera.length})</h2>

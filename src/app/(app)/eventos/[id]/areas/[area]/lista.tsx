@@ -35,10 +35,12 @@ const POS_APROVACAO: StatusIngresso[] = ["aprovado", "facial_pendente", "facial_
 
 const ALTERAVEIS: StatusIngresso[] = ["solicitado", "validado_area", "aprovado", "facial_ok", "facial_pendente", "lista_espera"];
 
-export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, podeAlterar, prazo }: {
+export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, podeAlterar, prazo, facial = true }: {
   evento: string; setor: Setor; area: string; areaNome: string; linhas: LinhaLista[];
   eventoInfo: { titulo: string; inicio: string; abertura_portoes: string | null };
   podeAlterar: boolean; prazo: string;
+  /** Evento exige facial: mostra o passo a passo do Galo ID. */
+  facial?: boolean;
 }) {
   const [mostrarInativos, setMostrarInativos] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
@@ -152,7 +154,7 @@ export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, p
                         {POS_APROVACAO.includes(l.status) && (
                           <>
                             <BotaoCopiar texto={linkTorcedor(l.token)} rotulo="Link do torcedor" />
-                            {["aprovado", "facial_pendente"].includes(l.status) && (
+                            {facial && ["aprovado", "facial_pendente"].includes(l.status) && (
                               <BotaoWhatsApp rotulo="Passo a passo" link={linkWhatsApp(l.celular, textoGaloId({ nome: l.nome!, evento: eventoInfo, setor, token: l.token }))} />
                             )}
                           </>

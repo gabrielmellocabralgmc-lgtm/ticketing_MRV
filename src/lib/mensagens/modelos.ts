@@ -20,6 +20,8 @@ export const VARIAVEIS: Record<string, string> = {
   lugares: "Quantidade de lugares do convite",
   validade: "Validade do link de convite",
   link: "Link da área ou da página do convidado",
+  requisitos_facial: "Orientações da facial (Super App do Galo) — vazio nos eventos sem facial",
+  facial_frase: "“, com cadastro facial no Super App do Galo” — vazio nos eventos sem facial",
   contato: "Para onde vão os pedidos do camarote (e-mail/WhatsApp do Marketing)",
   total: "Quantidade de convidados confirmados no camarote",
   presenca: "Presença no camarote (chegaram × confirmados)",
@@ -37,7 +39,7 @@ export const EXEMPLO: Record<string, string> = {
   jogo: "Galo × Coritiba", quando: "Sábado, 17/10 | 19:00h", prazo_curto: "Sexta-feira, 16/10, às 12h", data: "sábado, 17 de outubro às 19:00", portoes: "16:00",
   prazo: "sexta, 16/10 às 12:00", prazo_validacao: "sexta, 16/10 às 12:00", area: "DH", responsavel: "Ana",
   cota: "10", saldo: "4", pendentes: "2", setor: "Arquibancada (Inter Oeste)", nome: "João", lugares: "2 lugares",
-  validade: "16/10 às 12:00", lista: "• João Silva\n• Maria Souza",
+  validade: "16/10 às 12:00", requisitos_facial: "2. Tenham cadastro ativo no Super App do Galo, inclusive os acompanhantes.\n3. Concluam o cadastro facial no site https://ingressos.galonaveia.com.br/", facial_frase: ", com cadastro facial no Super App do Galo", lista: "• João Silva\n• Maria Souza",
   contato: "marketing@mrv.com.br", total: "12", presenca: "10 de 12 convidados chegaram", horarios: "14:00 / 19:30", avaliacao: "5 de 5",
   resumo: "Operação tranquila.", ocorrencias: "Nenhuma.", manutencao: "Trocar lâmpada do LED testeira.", problemas: "• LEDs: LED testeira — piscando",
   bebidas: "• Cerveja (lata 350 ml): 36 latas (sobraram 12)", link: "https://ingressos.weareact3.com/…",
@@ -46,7 +48,8 @@ export const EXEMPLO: Record<string, string> = {
 export function preencher(texto: string, vars: Record<string, string | number | null | undefined>) {
   return texto.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k: string) => {
     const v = vars[k];
-    return v === null || v === undefined || v === "" ? "—" : String(v);
+    // dado ausente vira "—"; texto vazio de propósito (ex.: trecho de facial num show) some
+    return v === null || v === undefined ? "—" : String(v);
   });
 }
 

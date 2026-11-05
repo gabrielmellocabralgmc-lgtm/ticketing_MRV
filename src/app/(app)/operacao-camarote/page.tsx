@@ -9,16 +9,18 @@ export const metadata = { title: "Operação camarote" };
 export default async function OperacaoCamarote() {
   await exigirOperacao();
   const sb = await supabaseServidor();
-  const [{ data: eventos }, { data: checklists }, { data: relatorios }] = await Promise.all([
+  const [{ data: eventos }, { data: checklists }, { data: relatorios }, { data: comCamarote }] = await Promise.all([
     sb.from("eventos").select("id, titulo, competicao, inicio, status").neq("status", "rascunho").order("inicio", { ascending: false }).limit(40),
     sb.from("op_checklists").select("evento_id, momento, concluido_em"),
     sb.from("op_relatorios").select("evento_id, finalizado_em"),
+    sb.from("evento_setores").select("evento_id").eq("setor", "camarote"),
   ]);
+  const temCamarote = new Set((comCamarote ?? []).map((c) => c.evento_id as string));
   const feito = (ev: string, m: string) => (checklists ?? []).some((c) => c.evento_id === ev && c.momento === m && c.concluido_em);
   const rel = (ev: string) => (relatorios ?? []).find((r) => r.evento_id === ev);
   const agora = Date.now();
   // próximos (do mais perto para o mais longe) e depois os já realizados
-  const lista = [...(eventos ?? [])].sort((a, b) => {
+  const lista = [...(eventos ?? [])].filter((e) => temCamarote.has(e.id)).sort((a, b) => {
     const fa = new Date(a.inicio).getTime() >= agora - 12 * 3600e3, fb = new Date(b.inicio).getTime() >= agora - 12 * 3600e3;
     if (fa !== fb) return fa ? -1 : 1;
     return fa ? a.inicio.localeCompare(b.inicio) : b.inicio.localeCompare(a.inicio);

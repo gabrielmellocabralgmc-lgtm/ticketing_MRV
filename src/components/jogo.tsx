@@ -38,6 +38,8 @@ export interface DadosJogo {
   competicao: string | null;
   inicio: string;
   abertura_portoes?: string | null;
+  /** Show: sem escudos de futebol no cabeçalho. */
+  tipo?: string;
 }
 
 /** Faixa preta com os escudos, o nome da partida e a data. */
@@ -58,7 +60,7 @@ export function CabecalhoJogo({
     // ocupa a largura toda da tela, mesmo dentro do <main> com largura máxima
     <section className="relative left-1/2 -mt-8 mb-8 w-screen -translate-x-1/2 bg-preto text-white">
       <div className={clsx("mx-auto flex max-w-7xl items-center px-4", grande ? "gap-4 py-6 sm:gap-6 sm:py-8" : "gap-3 py-5 sm:gap-4")}>
-        <Escudo url={escudoAtletico} nome="do Atlético" tamanho={grande ? "g" : "m"} />
+        {ev.tipo !== "show" && <Escudo url={escudoAtletico} nome="do Atlético" tamanho={grande ? "g" : "m"} />}
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           {voltar && <div className="mb-1"><Voltar {...voltar} escuro /></div>}
           <div className="font-display text-[13px] font-bold tracking-[0.1em] text-amarelo-500 uppercase">
@@ -71,7 +73,7 @@ export function CabecalhoJogo({
           {children}
         </div>
         {direita}
-        <Escudo url={escudoAdversario} nome={ev.adversario ? `do ${ev.adversario}` : "do adversário"} tamanho={grande ? "g" : "m"} />
+        {ev.tipo !== "show" && <Escudo url={escudoAdversario} nome={ev.adversario ? `do ${ev.adversario}` : "do adversário"} tamanho={grande ? "g" : "m"} />}
       </div>
       <Listras />
     </section>

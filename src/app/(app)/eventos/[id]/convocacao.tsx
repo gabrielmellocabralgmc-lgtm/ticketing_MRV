@@ -15,7 +15,7 @@ interface Area {
   ultimo_lembrete: string | null;
 }
 
-export function Convocacao({ evento, areas, envioReal }: { evento: string; areas: Area[]; envioReal: boolean }) {
+export function Convocacao({ evento, areas, envioReal, facial = true }: { evento: string; areas: Area[]; envioReal: boolean; facial?: boolean }) {
   const [sel, setSel] = useState<Set<string>>(() => new Set(areas.filter((a) => !a.ultima_convocacao && a.responsaveis.length).map((a) => a.area_id)));
   const [previa, setPrevia] = useState<{ assunto: string; html: string; para: string } | null>(null);
   const [retorno, setRetorno] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -60,7 +60,7 @@ export function Convocacao({ evento, areas, envioReal }: { evento: string; areas
         <Botao variante="fantasma" disabled={pendente} onClick={() => rodar(() => rodarLembretes(evento))}>Rodar lembretes agora</Botao>
       </div>
       <p className="text-xs text-cinza">
-        Lembretes automáticos: às áreas com saldo ou pedidos sem validar, nas últimas 24 h antes do prazo (uma vez), e aos convidados com a facial pendente no D-2 e D-1.
+        Lembretes automáticos: às áreas com saldo ou pedidos sem validar, nas últimas 24 h antes do prazo (uma vez){facial ? ", e aos convidados com a facial pendente no D-2 e D-1" : ""}.
       </p>
       {retorno && <Aviso tom={retorno.ok ? "ok" : "erro"}>{retorno.msg}</Aviso>}
       {previa && (

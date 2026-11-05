@@ -13,7 +13,7 @@ import { supabaseServico } from "@/lib/supabase/server";
 
 async function carregar(evento: string) {
   const { data } = await (await supabaseServico()).from("eventos")
-    .select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao").eq("id", evento).single();
+    .select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial").eq("id", evento).single();
   return data as EventoVars;
 }
 

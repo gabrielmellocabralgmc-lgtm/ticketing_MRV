@@ -51,6 +51,13 @@ export default async function Painel({ params }: { params: Promise<{ id: string 
         anfitrioes={anfitrioes}
         simples={s.papel === "marketing"}
         digital={ev.ingressos_digitais}
+        cotas={Object.fromEntries(setores.map((st) => [st.setor, {
+          capacidade: st.capacidade, cotaPorArea: st.cota_por_area,
+          areas: (areas ?? []).map((a) => {
+            const l = resumo.find((x) => x.setor === st.setor && x.area_id === a.id);
+            return { area_id: a.id, area_nome: a.nome, cota: l?.cota ?? 0, usados: l?.ocupados ?? 0 };
+          }),
+        }]))}
         digitais={digitais}
         facial={ev.exige_facial}
         eventoInfo={{ titulo: ev.titulo, inicio: ev.inicio, abertura_portoes: ev.abertura_portoes }}

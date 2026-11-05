@@ -38,18 +38,22 @@ function dadosEvento(form: FormData) {
     observacoes: String(form.get("observacoes") ?? "").trim() || null,
     ingressos_digitais: form.get("ingressos_digitais") === "on",
     exige_facial: form.get("exige_facial") === "on",
+    tem_camarote: form.get("tem_camarote") === "on",
   };
 }
 
 export async function criarEvento(_: unknown, form: FormData): Promise<Resultado> {
   await exigirStaff();
-  const p = { ...dadosEvento(form), status: String(form.get("status") ?? "rascunho"), duplicar_de: String(form.get("duplicar_de") ?? "") || null };
+  let cotas: unknown = undefined;
+  const cotasTexto = String(form.get("cotas") ?? "");
+  if (cotasTexto) {
+    try { cotas = JSON.parse(cotasTexto); } catch { return { ok: false, erro: "Cotas personalizadas inválidas." }; }
+  }
+  const p = { ...dadosEvento(form), status: String(form.get("status") ?? "rascunho"), duplicar_de: String(form.get("duplicar_de") ?? "") || null, ...(cotas ? { cotas } : {}) };
   if (!p.titulo || !p.inicio) return { ok: false, erro: "Informe o adversário (ou o nome do show) e a data." };
   const supabase = await supabaseServidor();
   const { data, error } = await supabase.rpc("criar_evento", { p });
   if (error) return falha(error);
-  // opções que o criar_evento não recebe: grava logo em seguida
-  await supabase.from("eventos").update({ ingressos_digitais: p.ingressos_digitais, exige_facial: p.exige_facial }).eq("id", data as string);
   redirect(`/eventos/${data}`);
 }
 
@@ -59,10 +63,16 @@ export async function atualizarEvento(id: string, _: unknown, form: FormData): P
   if (!p.titulo || !p.inicio) return { ok: false, erro: "Informe o adversário (ou o nome do show) e a data." };
   const campos: Partial<typeof p> = { ...p };
   delete campos.tipo; // o tipo não muda depois de criado
+  delete campos.tem_camarote; // não é coluna: liga/desliga o setor camarote (abaixo)
   const supabase = await supabaseServidor();
   const { error } = await supabase.from("eventos").update(campos).eq("id", id);
   if (error) return falha(error);
-  revalidatePath(`/eventos/${id}`);
+  const { data: cam } = await supabase.from("evento_setores").select("setor").eq("evento_id", id).eq("setor", "camarote").maybeSingle();
+  if (!!cam !== p.tem_camarote) {
+    const { error: e2 } = await supabase.rpc("definir_camarote", { p_evento: id, p_ativo: p.tem_camarote });
+    if (e2) return falha(e2);
+  }
+  revalidatePath(`/eventos/${id}`, "layout");
   return { ok: true, mensagem: "Evento atualizado." };
 }
 

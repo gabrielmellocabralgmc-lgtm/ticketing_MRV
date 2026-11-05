@@ -13,8 +13,10 @@ const GRUPOS: Record<Grupo, { rotulo: string; status: StatusIngresso[] }> = {
   enviados: { rotulo: "Enviados", status: ["enviado", "confirmado"] },
 };
 
-export function PainelEnvio({ linhas, evento, acoes }: {
+export function PainelEnvio({ linhas, evento, acoes, facial = true }: {
   linhas: LinhaIngresso[];
+  /** Evento exige facial: mostra o grupo "Pendente facial" e as ações de facial. */
+  facial?: boolean;
   evento: { titulo: string; inicio: string; abertura_portoes: string | null };
   acoes: {
     enviados: (ids: string[]) => Promise<Resultado>;
@@ -41,7 +43,7 @@ export function PainelEnvio({ linhas, evento, acoes }: {
       <Cartao>
         <div className="flex flex-wrap items-end gap-4">
           <div className="flex flex-wrap gap-2">
-            {(Object.keys(GRUPOS) as Grupo[]).map((g) => (
+            {(Object.keys(GRUPOS) as Grupo[]).filter((g) => facial || g !== "sem_facial").map((g) => (
               <button key={g} onClick={() => setGrupo(g)}
                 className={`rounded-full px-3 py-1.5 text-sm font-medium ${g === grupo ? "bg-mrv-700 text-white" : "bg-white text-mrv-700 ring-1 ring-mrv-700/20"}`}>
                 {GRUPOS[g].rotulo} ({contagem(g)})
@@ -70,7 +72,7 @@ export function PainelEnvio({ linhas, evento, acoes }: {
             linhas={filtradas}
             evento={evento}
             mensagem={grupo === "enviados" ? "enviado" : grupo === "sem_facial" ? "galo_id" : undefined}
-            vazio={grupo === "a_enviar" ? "Ninguém com facial confirmada esperando envio." : "Nada neste filtro."}
+            vazio={grupo === "a_enviar" ? (facial ? "Ninguém com facial confirmada esperando envio." : "Ninguém pronto esperando envio.") : "Nada neste filtro."}
             acaoLinha={
               grupo === "a_enviar" ? { rotulo: "Enviado ✓", copiarCpf: (n) => acoes.registrarCopia("cpfs", n), executar: acoes.enviados }
                 : grupo === "sem_facial" ? { rotulo: "Enviado sem facial", confirmar: "{nome} ainda não confirmou a facial. Marcar como enviado mesmo assim? Fica registrado.", copiarCpf: (n) => acoes.registrarCopia("cpfs", n), executar: acoes.enviadosSemFacial }
@@ -80,7 +82,7 @@ export function PainelEnvio({ linhas, evento, acoes }: {
               grupo === "a_enviar"
                 ? [
                     { rotulo: "Marcar selecionados como enviados", confirmar: "Marcar {n} ingresso(s) como enviados no sistema do Atlético?", executar: acoes.enviados },
-                    { rotulo: "Marcar pendente facial", variante: "perigo", confirmar: "{n} pessoa(s) sem facial no sistema do Atlético? Elas recebem o passo a passo.", executar: acoes.pendenteFacial },
+                    ...(facial ? [{ rotulo: "Marcar pendente facial", variante: "perigo" as const, confirmar: "{n} pessoa(s) sem facial no sistema do Atlético? Elas recebem o passo a passo.", executar: acoes.pendenteFacial }] : []),
                   ]
                 : grupo === "sem_facial"
                   ? [

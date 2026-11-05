@@ -31,10 +31,11 @@
   "include": [
     "**/*.ts",
     "**/*.tsx",
+    ".next-dig.nosync/types/**/*.ts",
     ".next.nosync/types/**/*.ts",
     ".next/types/**/*.ts",
     "next-env.d.ts",
-    ".next-dig.nosync/types/**/*.ts"
+    ".next-cotas.nosync/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

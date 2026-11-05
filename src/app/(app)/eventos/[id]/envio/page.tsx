@@ -20,6 +20,7 @@ export default async function Envio({ params }: { params: Promise<{ id: string }
       <PainelEnvio
         linhas={linhas}
         evento={{ titulo: ev.titulo, inicio: ev.inicio, abertura_portoes: ev.abertura_portoes }}
+        facial={ev.exige_facial}
         acoes={{
           enviados: enviados.bind(null, id), enviadosSemFacial: enviadosSemFacial.bind(null, id), registrarCopia: registrarCopia.bind(null, id),
           pendenteFacial: pendenteFacial.bind(null, id), facialOk: facialOk.bind(null, id),

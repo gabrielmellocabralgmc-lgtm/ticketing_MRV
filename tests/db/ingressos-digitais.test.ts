@@ -91,3 +91,28 @@ describe("ingressos digitais (shows)", () => {
     await expect(b.como(adm, `select dig_remover($1)`, [dig])).rejects.toThrow(/JA_ENVIADO/);
   });
 });
+
+describe("criação do evento: camarote opcional e cotas personalizadas", () => {
+  const setoresDe = async (ev: string) =>
+    (await b.sql<{ setor: string; capacidade: number }>(`select setor, capacidade from evento_setores where evento_id = $1 order by setor`, [ev]));
+  it("sem camarote: o setor nem existe; cotas personalizadas substituem o padrão", async () => {
+    const [{ id }] = await b.como<{ id: string }>(adm, `select criar_evento($1) as id`, [JSON.stringify({
+      tipo: "show", titulo: "Show Sem Camarote", atracao: "Show Sem Camarote", inicio: "2099-12-05T21:00:00-03:00",
+      tem_camarote: false, cotas: { pista: { capacidade: 30, cota_por_area: true, areas: { dh: 12, luggo: 0 } } },
+    })]);
+    expect(await setoresDe(id)).toEqual([{ setor: "pista", capacidade: 30 }]);
+    const cotas = await b.sql<{ slug: string; quantidade: number }>(`select a.slug, c.quantidade from cotas c join areas a on a.id = c.area_id where c.evento_id = $1 order by a.slug`, [id]);
+    expect(cotas).toEqual([{ slug: "dh", quantidade: 12 }, { slug: "luggo", quantidade: 0 }]);
+  });
+
+  it("liga e desliga o camarote depois; não desliga com convidado no camarote", async () => {
+    const [{ id }] = await b.como<{ id: string }>(adm, `select criar_evento($1) as id`, [JSON.stringify({
+      tipo: "jogo", titulo: "Galo × Liga", adversario: "Liga", inicio: "2099-12-06T16:00:00-03:00", tem_camarote: false })]);
+    expect((await setoresDe(id)).map((x) => x.setor)).toEqual(["arquibancada"]);
+    await b.como(adm, `select definir_camarote($1, true)`, [id]);
+    expect(await setoresDe(id)).toContainEqual({ setor: "camarote", capacidade: 44 });
+    await b.como(adm, `select criar_pedido($1, 'camarote', $2, $3, '{"origem":"marketing","avulsos":true}')`, [id, dh, JSON.stringify([nova()])]);
+    await expect(b.como(adm, `select definir_camarote($1, false)`, [id])).rejects.toThrow(/CAMAROTE_EM_USO/);
+    await expect(b.como(respDH, `select definir_camarote($1, true)`, [id])).rejects.toThrow();
+  });
+});

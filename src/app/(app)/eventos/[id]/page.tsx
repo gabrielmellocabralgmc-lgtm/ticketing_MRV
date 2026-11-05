@@ -50,7 +50,8 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
     ? await supabase.from("cotas_historico").select("id, setor, area_id, de, para, motivo, em, areas(nome)").eq("evento_id", id).order("id", { ascending: false }).limit(15)
     : { data: [] };
 
-  const camarote = s.staff ? await enviosCamarote(id) : null;
+  const temCamarote = setores.some((x) => x.setor === "camarote");
+  const camarote = s.staff && temCamarote ? await enviosCamarote(id) : null;
   const pendenteValidar = linhas.reduce((n, l) => n + l.solicitados, 0);
   const pendenteAprovar = linhas.reduce((n, l) => n + l.validados, 0);
   const aEnviar = linhas.reduce((n, l) => n + l.facial_ok, 0);
@@ -62,7 +63,7 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
         voltar={{ href: "/eventos", rotulo: "Eventos" }}>
         <div className="mt-1 flex flex-wrap gap-1.5">
           <Selo tom={ev.status === "aberto" ? "verde" : ev.status === "rascunho" ? "amarelo" : "cinza"}>{ROTULO_STATUS_EVENTO[ev.status]}</Selo>
-          {!img[chaveEscudoAdversario(id)] && <Link href={`/eventos/${id}/editar#escudos`} className="text-xs font-semibold text-white/80 underline hover:text-white">enviar escudo do adversário</Link>}
+          {ev.tipo === "jogo" && !img[chaveEscudoAdversario(id)] && <Link href={`/eventos/${id}/editar#escudos`} className="text-xs font-semibold text-white/80 underline hover:text-white">enviar escudo do adversário</Link>}
         </div>
       </CabecalhoJogo>
       {s.staff && (
@@ -70,7 +71,7 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
           <BotaoLink href={`/eventos/${id}/painel`} variante="primario">Painel do jogo</BotaoLink>
           <BotaoLink href={`/eventos/${id}/lista`}>Lista geral</BotaoLink>
           <BotaoLink href={`/eventos/${id}/aprovacao`}>Aprovação{pendenteAprovar > 0 && ` (${pendenteAprovar})`}</BotaoLink>
-          <BotaoLink href={`/eventos/${id}/envio`}>A enviar{aEnviar > 0 && ` (${aEnviar})`}</BotaoLink>
+          {!ev.ingressos_digitais && <BotaoLink href={`/eventos/${id}/envio`}>A enviar{aEnviar > 0 && ` (${aEnviar})`}</BotaoLink>}
           {ev.ingressos_digitais && <BotaoLink href={`/eventos/${id}/ingressos-digitais`} variante="primario">Ingressos digitais</BotaoLink>}
           <a href={`/eventos/${id}/exportar`} className="inline-flex min-h-10 items-center rounded-lg px-4 py-2 text-sm font-bold text-mrv-700 ring-1 ring-mrv-600 hover:bg-mrv-50">Exportar XLSX</a>
           <BotaoLink href={`/eventos/${id}/relatorio`} variante="fantasma">Relatório</BotaoLink>
@@ -81,7 +82,7 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
         <div className="mb-6">
           <AcoesConvidados evento={id} areas={areasAtivas ?? []} setores={opcoesAdicionar(setores, linhas, areasAtivas ?? [])}
             anfitrioes={await carregarAnfitrioes(id)} eventoInfo={{ titulo: ev.titulo, inicio: ev.inicio, abertura_portoes: ev.abertura_portoes }}
-            exigirEmail={ev.ingressos_digitais} />
+            exigirEmail={ev.ingressos_digitais} facial={ev.exige_facial} />
         </div>
       )}
 
@@ -115,6 +116,15 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
               <h2 className="text-lg font-bold text-mrv-900">{ROTULO_SETOR[st.setor]}</h2>
               {!st.cota_por_area && <span className="text-xs text-tinta/60">Sem cota por área — controle pelas {st.capacidade} vagas</span>}
             </div>
+            {s.staff && (
+              <div className="mb-4">
+                <EditorCotas evento={id} setor={st.setor} capacidade={st.capacidade} cotaPorArea={st.cota_por_area}
+                  areas={(areasAtivas ?? []).map((a) => {
+                    const l = doSetor.find((x) => x.area_id === a.id);
+                    return { area_id: a.id, area_nome: a.nome, cota: l?.cota ?? 0, usados: l?.ocupados ?? 0 };
+                  })} />
+              </div>
+            )}
             <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <Numero rotulo="Ocupados" valor={st.ocupados} de={st.capacidade} />
               <Numero rotulo="Disponíveis" valor={Math.max(0, st.capacidade - st.ocupados)} tom="cinza" />
@@ -165,30 +175,24 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
                 </tbody>
               </Tabela>
             )}
-            {s.staff && (
-              <div className="mt-4">
-                <EditorCotas evento={id} setor={st.setor} capacidade={st.capacidade} cotaPorArea={st.cota_por_area}
-                  areas={(areasAtivas ?? []).map((a) => {
-                    const l = doSetor.find((x) => x.area_id === a.id);
-                    return { area_id: a.id, area_nome: a.nome, cota: l?.cota ?? 0, usados: l?.ocupados ?? 0 };
-                  })} />
-              </div>
-            )}
+
           </Cartao>
         );
       })}
 
       {s.staff && (
         <Cartao className="mb-6">
-          <h2 className="mb-1 text-lg font-bold">E-mails para as áreas e o camarote</h2>
+          <h2 className="mb-1 text-lg font-bold">{temCamarote ? "E-mails para as áreas e o camarote" : "E-mails para as áreas"}</h2>
           <p className="mb-4 text-sm text-cinza">Convocação com a cota, os prazos e o link da lista de cada área. O texto se edita em E-mails › Modelos.</p>
-          <Convocacao evento={id} areas={await areasParaConvocar(id)} envioReal={envioReal()} />
+          <Convocacao evento={id} areas={await areasParaConvocar(id)} envioReal={envioReal()} facial={ev.exige_facial} />
+          {temCamarote && <>
           <h3 className="mt-8 mb-1 font-bold">Camarote</h3>
           <p className="mb-3 text-sm text-cinza">
             Em ondas, sem mexer em cota: os VPs recebem primeiro; Diretoria e Gestores só quando vocês decidirem abrir.
             Os contatos de cada grupo ficam em Configurações › Áreas e responsáveis.
           </p>
           {camarote && <ConvocacaoCamarote evento={id} grupos={camarote.grupos} operacaoEm={camarote.operacao_em} />}
+          </>}
         </Cartao>
       )}
 

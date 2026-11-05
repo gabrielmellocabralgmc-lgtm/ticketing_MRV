@@ -18,6 +18,7 @@ import { linkTorcedor, linkWhatsApp, textoConvite } from "@/lib/mensagens";
 import { atualizarDadosAdmin } from "../adicionar-actions";
 import type { OpcaoSetor } from "../adicionar-opcoes";
 import { NomeEditavel } from "../nome-editavel";
+import { EditorCotas, type AreaCota } from "../editor-cotas";
 
 export interface LinhaPainel {
   id: string;
@@ -62,7 +63,7 @@ export interface ConvitePendente {
   id: string; token: string; nome_previsto: string | null; qtd_lugares: number; expira_em: string; setor: Setor; area_id: string; area_nome: string; contato: string | null;
 }
 
-export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins, opcoes, anfitrioes, eventoInfo, convites, simples, digital = false, facial = true, digitais = {} }: {
+export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins, opcoes, anfitrioes, eventoInfo, convites, simples, digital = false, facial = true, digitais = {}, cotas = {} }: {
   evento: string; linhas: LinhaPainel[]; setores: SetorPainel[];
   areas: { id: string; nome: string }[]; areaPadrao: string; walkins: Walkin[];
   opcoes: OpcaoSetor[]; anfitrioes: PessoaDaLista[]; convites: ConvitePendente[];
@@ -75,6 +76,8 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
   facial?: boolean;
   /** Ingressos digitais distribuídos: id do ingresso → já enviado? */
   digitais?: Record<string, boolean>;
+  /** Cotas de cada setor, para editar/remanejar daqui mesmo. */
+  cotas?: Record<string, { capacidade: number; cotaPorArea: boolean; areas: AreaCota[] }>;
 }) {
   const [setor, setSetor] = useState<Setor>(setores.find((s) => s.setor === "arquibancada")?.setor ?? setores[0]?.setor ?? "arquibancada");
   const [busca, setBusca] = useState("");
@@ -106,7 +109,7 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
 
       {/* as mesmas ações do Admin: abatem da cota e entram aprovadas */}
       <AcoesConvidados key={setor} evento={evento} areas={areas} setores={opcoes} setorInicial={setor} areaInicial={areaPadrao}
-        anfitrioes={anfitrioes} eventoInfo={eventoInfo} simples={simples} exigirEmail={digital} />
+        anfitrioes={anfitrioes} eventoInfo={eventoInfo} simples={simples} exigirEmail={digital} facial={facial} />
       {digital && (
         <div className="flex justify-end">
           <a href={`/eventos/${evento}/ingressos-digitais`} className="rounded-lg bg-mrv-600 px-4 py-2 text-sm font-bold text-white hover:bg-mrv-700">Ingressos digitais (PDF/links) →</a>
@@ -114,6 +117,11 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
       )}
 
       {setor === "camarote" && <PortaCamarote evento={evento} walkins={walkins} />}
+
+      {cotas[setor] && (
+        <EditorCotas key={`cotas-${setor}`} evento={evento} setor={setor} capacidade={cotas[setor].capacidade}
+          cotaPorArea={cotas[setor].cotaPorArea} areas={cotas[setor].areas} />
+      )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Grande rotulo="Ocupados" valor={`${info?.ocupados ?? 0} / ${info?.capacidade ?? 0}`} />

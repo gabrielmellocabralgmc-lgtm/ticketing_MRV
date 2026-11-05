@@ -4,6 +4,7 @@ import { AreaTexto, Aviso, Botao, Campo, Entrada, Selecao } from "@/components/u
 import { paraInputLocal } from "@/lib/formato";
 import type { Resultado } from "@/lib/erros";
 import type { Evento } from "@/lib/tipos";
+import { CotasNovoEvento, cotasIniciais, type AreaSimples, type PadraoTipo } from "./cotas-novo";
 
 type Acao = (estado: Resultado | null, form: FormData) => Promise<Resultado>;
 
@@ -18,12 +19,26 @@ function portoesJogo(inicio: string) {
   return `${dia}/${mes} às ${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
-export function FormEvento({ acao, evento, anteriores }: { acao: Acao; evento?: Evento; anteriores?: { id: string; titulo: string; inicio: string }[] }) {
+export function FormEvento({ acao, evento, anteriores, padrao, areas = [], temCamarote = true }: {
+  acao: Acao; evento?: Evento; anteriores?: { id: string; titulo: string; inicio: string }[];
+  /** Cotas padrão por tipo (config), para personalizar antes de criar. */
+  padrao?: Record<string, PadraoTipo>;
+  areas?: AreaSimples[];
+  temCamarote?: boolean;
+}) {
   const [estado, enviar, pendente] = useActionState(acao, null);
   const [tipo, setTipo] = useState(evento?.tipo ?? "jogo");
   const [nome, setNome] = useState((evento?.tipo === "show" ? evento?.atracao : evento?.adversario) ?? "");
   const [inicio, setInicio] = useState(paraInputLocal(evento?.inicio));
   const novo = !evento;
+  const [camarote, setCamarote] = useState(temCamarote);
+  const [duplicar, setDuplicar] = useState("");
+  const [personalizar, setPersonalizar] = useState(false);
+  const [cotas, setCotas] = useState<Record<string, PadraoTipo>>(() =>
+    Object.fromEntries(Object.entries(padrao ?? {}).map(([t, p]) => [t, cotasIniciais(p, areas)])));
+  const cotasTipo = cotas[tipo] ?? {};
+  // o que vai para o servidor: só os setores ativos (sem camarote, se desmarcado)
+  const cotasEnviar = Object.fromEntries(Object.entries(cotasTipo).filter(([s]) => camarote || s !== "camarote"));
   return (
     <form action={enviar} className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2">
@@ -36,11 +51,11 @@ export function FormEvento({ acao, evento, anteriores }: { acao: Acao; evento?: 
         </Campo>
         {tipo === "jogo" ? (
           <Campo rotulo="Adversário" dica={`Título: “Galo × ${nome || "adversário"}”`}>
-            <Entrada name="adversario" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Coritiba" required />
+            <Entrada key="adversario" name="adversario" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Coritiba" required />
           </Campo>
         ) : (
           <Campo rotulo="Nome do show" dica="É o título do evento">
-            <Entrada name="atracao" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Gilberto Gil" required />
+            <Entrada key="atracao" name="atracao" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Gilberto Gil" required />
           </Campo>
         )}
         <Campo rotulo={tipo === "jogo" ? "Competição" : "Produtora / observação curta"}>
@@ -51,11 +66,11 @@ export function FormEvento({ acao, evento, anteriores }: { acao: Acao; evento?: 
         </Campo>
         {tipo === "jogo" ? (
           <Campo rotulo="Abertura dos portões" dica="Automática: 3 h antes do jogo">
-            <Entrada value={portoesJogo(inicio)} disabled readOnly aria-label="Abertura dos portões (automática)" />
+            <Entrada key="portoes-jogo" value={portoesJogo(inicio)} disabled readOnly aria-label="Abertura dos portões (automática)" />
           </Campo>
         ) : (
           <Campo rotulo="Abertura dos portões (horário)" dica="No mesmo dia do show">
-            <Entrada type="time" name="portoes_hora" defaultValue={paraInputLocal(evento?.abertura_portoes).slice(11, 16)} />
+            <Entrada key="portoes-show" type="time" name="portoes_hora" defaultValue={paraInputLocal(evento?.abertura_portoes).slice(11, 16)} />
           </Campo>
         )}
         <Campo rotulo="Prazo de solicitação (áreas)" dica="Vale também para alterar convidados e validar a lista">
@@ -63,6 +78,10 @@ export function FormEvento({ acao, evento, anteriores }: { acao: Acao; evento?: 
         </Campo>
       </div>
       <div className="flex flex-wrap gap-6 text-sm">
+        <label className="flex items-center gap-2">
+          <input type="checkbox" name="tem_camarote" checked={camarote} onChange={(e) => setCamarote(e.target.checked)} className="size-4 accent-mrv-700" />
+          Camarote disponível neste evento <span className="text-tinta/60">(desmarcado: nada de camarote aparece no evento)</span>
+        </label>
         <label key={`dig-${tipo}`} className="flex items-center gap-2">
           <input type="checkbox" name="ingressos_digitais" defaultChecked={evento?.ingressos_digitais ?? tipo === "show"} className="size-4 accent-mrv-700" />
           Ingressos digitais enviados pelo sistema <span className="text-tinta/60">(PDF ou link, por e-mail)</span>
@@ -71,7 +90,7 @@ export function FormEvento({ acao, evento, anteriores }: { acao: Acao; evento?: 
           <input type="checkbox" name="exige_facial" defaultChecked={evento?.exige_facial ?? tipo === "jogo"} className="size-4 accent-mrv-700" />
           Exige cadastro facial <span className="text-tinta/60">(Super App do Galo / Galo ID)</span>
         </label>
-        {tipo === "show" && (
+        {tipo === "show" && camarote && (
           <label className="flex items-center gap-2">
             <input type="checkbox" name="show_proprio" defaultChecked={evento?.show_proprio ?? true} className="size-4 accent-mrv-700" />
             Show próprio da Arena <span className="text-tinta/60">(desmarcado: MRV compra o camarote a preço de custo)</span>
@@ -81,13 +100,27 @@ export function FormEvento({ acao, evento, anteriores }: { acao: Acao; evento?: 
       {novo && (
         <div className="grid gap-4 sm:grid-cols-2">
           <Campo rotulo="Cotas" dica="Padrão do regulamento ou copiar as cotas de um evento anterior">
-            <Selecao name="duplicar_de" defaultValue="">
+            <Selecao name="duplicar_de" value={duplicar} onChange={(e) => { setDuplicar(e.target.value); if (e.target.value) setPersonalizar(false); }}>
               <option value="">Padrão do regulamento</option>
               {anteriores?.map((a) => (
                 <option key={a.id} value={a.id}>Copiar de: {a.titulo} ({new Date(a.inicio).toLocaleDateString("pt-BR")})</option>
               ))}
             </Selecao>
           </Campo>
+          {!duplicar && padrao && (
+            <div className="sm:col-span-2">
+              <button type="button" onClick={() => setPersonalizar((v) => !v)} className="text-sm font-semibold text-mrv-700 hover:underline">
+                {personalizar ? "▾ Usar as cotas padrão (fechar)" : "▸ Personalizar cotas antes de criar"}
+              </button>
+              {personalizar && (
+                <div className="mt-2">
+                  <CotasNovoEvento valor={cotasTipo} areas={areas} camarote={camarote}
+                    onChange={(v) => setCotas((c) => ({ ...c, [tipo]: v }))} />
+                  <input type="hidden" name="cotas" value={JSON.stringify(cotasEnviar)} />
+                </div>
+              )}
+            </div>
+          )}
           <Campo rotulo="Status inicial">
             <Selecao name="status" defaultValue="rascunho">
               <option value="rascunho">Rascunho (só Marketing vê)</option>

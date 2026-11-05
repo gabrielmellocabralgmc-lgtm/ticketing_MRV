@@ -23,7 +23,7 @@ function problemas(p: PessoaForm, avulsos = false, exigirEmail = false) {
   return e;
 }
 
-export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, enviarCom, avisoExcede, excedeVaiParaEspera = true, avulsos = false, colarInicial = false, simples = false, exigirEmail = false }: {
+export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, enviarCom, avisoExcede, excedeVaiParaEspera = true, avulsos = false, colarInicial = false, simples = false, exigirEmail = false, facial = true }: {
   evento: string; setor: Setor; area: string; saldo: number; padraoConvidados: number;
   /** Ação alternativa (ex.: Admin adicionando convidado pelo painel do jogo). */
   enviarCom?: (pessoas: PessoaForm[], excede: boolean) => Promise<Resultado<unknown>>;
@@ -38,6 +38,8 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
   simples?: boolean;
   /** Evento com ingresso digital: o ingresso vai por e-mail. */
   exigirEmail?: boolean;
+  /** Evento exige facial (cita o Galo ID no aviso de privacidade). */
+  facial?: boolean;
 }) {
   const [pessoas, setPessoas] = useState<PessoaForm[]>(() => Array.from({ length: 1 + padraoConvidados }, vazia));
   const [tocado, setTocado] = useState(false);
@@ -141,7 +143,7 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
           : enviarCom ? `Adicionar ${preenchidas.length} convidado(s)` : `Solicitar ${preenchidas.length} ingresso(s)`}
       </Botao>
       <p className="text-xs text-tinta/60">
-        Ao enviar, você confirma que as pessoas foram informadas de que a MRV usará {simples ? "nome e CPF" : "nome, CPF e celular"} só para emitir o ingresso e orientar o cadastro no Galo ID.
+        Ao enviar, você confirma que as pessoas foram informadas de que a MRV usará {simples ? "nome e CPF" : "nome, CPF e celular"} só para emitir o ingresso{facial ? " e orientar o cadastro no Galo ID" : ""}.
       </p>
     </div>
   );

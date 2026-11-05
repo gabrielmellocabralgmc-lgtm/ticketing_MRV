@@ -111,7 +111,7 @@ export function ListaGeral({ linhas, acoes }: { linhas: LinhaGeral[]; acoes: Aco
       </div>
 
       <div className="flex flex-wrap gap-1.5">
-        {FILTROS.filter((f) => f.id !== "sem_nome" || conta(f) > 0).map((f) => (
+        {FILTROS.filter((f) => (f.id !== "sem_nome" || conta(f) > 0) && (acoes.facial || f.id !== "pendente_facial")).map((f) => (
           <button key={f.id} onClick={() => setFiltro(f.id)} aria-pressed={f.id === filtro}
             className={clsx("rounded-full px-3 py-1 text-sm font-medium", f.id === filtro ? "bg-mrv-700 text-white" : "bg-white text-mrv-700 ring-1 ring-borda hover:bg-mrv-50")}>
             {f.rotulo} <span className="tabular opacity-70">{conta(f)}</span>
