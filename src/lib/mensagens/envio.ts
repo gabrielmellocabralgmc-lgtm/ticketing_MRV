@@ -35,7 +35,11 @@ export async function enviarModelo(itens: ItemEnvio[], opcoes: { autor?: string 
   const res: ResultadoEnvio = { enviados: 0, simulados: 0, falhas: 0, erros: [] };
   if (!itens.length) return res;
   const sb = await supabaseServico();
-  const tipos = [...new Set(itens.map((i) => i.tipo))];
+  // shows usam "<chave>_show" quando esse modelo existe
+  const evIds = [...new Set(itens.map((i) => i.evento_id).filter(Boolean))] as string[];
+  const { data: tiposEv } = evIds.length ? await sb.from("eventos").select("id, tipo").in("id", evIds) : { data: [] };
+  const ehShow = new Set(((tiposEv ?? []) as { id: string; tipo: string }[]).filter((e) => e.tipo === "show").map((e) => e.id));
+  const tipos = [...new Set(itens.flatMap((i) => [i.tipo, `${i.tipo}_show`]))];
   const { data: modelos } = await sb.from("modelos_email").select("chave, assunto, corpo").in("chave", tipos);
   const porChave = new Map((modelos ?? []).map((m) => [m.chave as string, m as { assunto: string; corpo: string }]));
   const img = await imagensDisponiveis();
@@ -43,13 +47,17 @@ export async function enviarModelo(itens: ItemEnvio[], opcoes: { autor?: string 
   const canal = envioReal() ? canalEmail() : null;
 
   for (const item of itens) {
-    const modelo = opcoes.modelo ?? porChave.get(item.tipo);
+    const modelo = opcoes.modelo
+      ?? (item.evento_id && ehShow.has(item.evento_id) ? porChave.get(`${item.tipo}_show`) : undefined)
+      ?? porChave.get(item.tipo);
     if (!modelo) { res.falhas++; res.erros.push(`Modelo ${item.tipo} não encontrado`); continue; }
     const assunto = preencher(modelo.assunto, item.vars);
     const texto = preencher(modelo.corpo, item.vars);
     let status: "enviado" | "simulado" | "falhou" = "simulado";
     let erro: string | null = null;
-    if (canal) {
+    // endereços de teste (@*.invalid / @exemplo.com) nunca saem de verdade: só ficam na caixa de saída
+    const ficticio = /@([^@]+\.)?(invalid|exemplo\.com|example\.com)$/i.test(item.para.email);
+    if (canal && !ficticio) {
       const r = await canal.enviar({ para: { nome: item.para.nome ?? "", email: item.para.email }, assunto, texto, html: htmlEmail(texto, { logoUrl, botao: item.botao }) });
       status = r.ok ? "enviado" : "falhou";
       erro = r.ok ? null : r.erro ?? "erro";
@@ -83,6 +91,21 @@ export interface EventoVars {
   prazo_validacao: string | null;
   /** Evento exige facial: os e-mails incluem as orientações do Super App do Galo. */
   exige_facial?: boolean;
+  /** "jogo" ou "show": shows usam os modelos "<chave>_show" quando existem. */
+  tipo?: string;
+  /** Ingresso (PDF/link) enviado pelo sistema por e-mail. */
+  ingressos_digitais?: boolean;
+}
+
+/** Passo a passo de como o convidado recebe o ingresso, conforme o evento. */
+export function textoComoReceber(ev: Pick<EventoVars, "tipo" | "ingressos_digitais" | "exige_facial">) {
+  if (ev.ingressos_digitais) {
+    return "O ingresso chega por e-mail (remetente naoresponda@ingressos.weareact3.com), com o botão “Baixar meu ingresso”: pode ser um PDF ou um link da bilheteria, conforme o evento. Ele também fica na página pessoal do convidado, junto com as orientações do dia. Vale conferir a caixa de spam.";
+  }
+  if (ev.tipo === "jogo" || ev.exige_facial) {
+    return "O ingresso é enviado pelo Super App do Galo, até 4h antes do evento, e a entrada na Arena MRV é pelo reconhecimento facial (cadastro em https://ingressos.galonaveia.com.br/).";
+  }
+  return "A MRV envia o ingresso antes do evento, pelos contatos informados (e-mail e WhatsApp), com as orientações do dia.";
 }
 
 const TZ = "America/Sao_Paulo";
@@ -109,6 +132,9 @@ export function varsEvento(ev: EventoVars): Vars {
     // sem facial no evento, esses trechos somem do e-mail
     requisitos_facial: ev.exige_facial === false ? "" : "2. Tenham cadastro ativo no Super App do Galo, inclusive os acompanhantes.\n3. Concluam o cadastro facial no site https://ingressos.galonaveia.com.br/",
     facial_frase: ev.exige_facial === false ? "" : ", com cadastro facial no Super App do Galo",
+    evento: ev.titulo,
+    como_receber: textoComoReceber(ev),
+    requisito_email: ev.ingressos_digitais ? " e o e-mail (é por ele que o ingresso chega)" : "",
   };
 }
 
@@ -132,7 +158,7 @@ async function carregarContatos(ids: string[]) {
   const ingressos = (data ?? []) as IngressoContato[];
   const evIds = [...new Set(ingressos.map((i) => i.evento_id))];
   const { data: evs } = evIds.length
-    ? await sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial").in("id", evIds)
+    ? await sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais").in("id", evIds)
     : { data: [] };
   return { ingressos, eventos: new Map(((evs ?? []) as EventoVars[]).map((e) => [e.id, e])) };
 }
@@ -236,7 +262,7 @@ const INTERVALO_VALIDACAO_H = 12;
 export async function avisarValidacaoPendente(evento?: string, area?: string): Promise<ResultadoEnvio> {
   const sb = await supabaseServico();
   const agora = Date.now();
-  let q = sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, status").eq("status", "aberto");
+  let q = sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, status").eq("status", "aberto");
   if (evento) q = q.eq("id", evento);
   const { data: evs } = await q;
   const itens: ItemEnvio[] = [];
@@ -287,7 +313,7 @@ export async function executarLembretes(): Promise<{ areas: ResultadoEnvio; faci
   const agora = Date.now();
   const { data: cfg } = await sb.from("config").select("valor").eq("chave", "lembrete_area_horas").maybeSingle();
   const horas = Number(cfg?.valor ?? 24);
-  const { data: evs } = await sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, status").in("status", ["aberto", "fechado"]);
+  const { data: evs } = await sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, status").in("status", ["aberto", "fechado"]);
   const eventos = (evs ?? []) as (EventoVars & { status: string })[];
 
   const itensAreas: ItemEnvio[] = [];
@@ -411,7 +437,7 @@ export async function avisarOperacaoLista(evento: string, autor?: string | null)
   const sb = await supabaseServico();
   const { data: cam } = await sb.from("evento_setores").select("setor").eq("evento_id", evento).eq("setor", "camarote").maybeSingle();
   if (!cam) return { enviados: 0, simulados: 0, falhas: 0, erros: [] }; // evento sem camarote
-  const { data: ev } = await sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial").eq("id", evento).single();
+  const { data: ev } = await sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais").eq("id", evento).single();
   const { data: ings } = await sb.from("v_ingressos").select("nome, convidado_de_nome, area_nome").eq("evento_id", evento).eq("setor", "camarote").in("status", STATUS_CONFIRMADO);
   const lista = ((ings ?? []) as { nome: string | null; convidado_de_nome: string | null; area_nome: string }[])
     .map((i) => `• ${i.nome ?? "(sem nome)"}${i.convidado_de_nome ? ` — convidado de ${i.convidado_de_nome}` : ""}`)
@@ -429,7 +455,7 @@ export async function avisarOperacaoLista(evento: string, autor?: string | null)
 export async function avisarRelatorioOperacao(evento: string, autor?: string | null): Promise<ResultadoEnvio> {
   const sb = await supabaseServico();
   const [{ data: ev }, { data: rel }, { data: resp }, { data: itens }, { data: beb }, { data: presenca }] = await Promise.all([
-    sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial").eq("id", evento).single(),
+    sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais").eq("id", evento).single(),
     sb.from("op_relatorios").select("*").eq("evento_id", evento).maybeSingle(),
     sb.from("op_respostas").select("item_id, status, observacao").eq("evento_id", evento).eq("status", "problema"),
     sb.from("op_itens").select("id, secao, texto"),
@@ -470,7 +496,7 @@ export async function avisarRelatorioOperacao(evento: string, autor?: string | n
 export async function enviarIngressosDigitais(evento: string, autor?: string | null) {
   const sb = await supabaseServico();
   const [{ data: ev }, { data: digs }] = await Promise.all([
-    sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial").eq("id", evento).single(),
+    sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais").eq("id", evento).single(),
     sb.from("ingressos_digitais").select("ingresso_id, enviado_em").eq("evento_id", evento),
   ]);
   const pendentes = ((digs ?? []) as { ingresso_id: string | null; enviado_em: string | null }[])
@@ -483,7 +509,7 @@ export async function enviarIngressosDigitais(evento: string, autor?: string | n
     if (!i.email) { res.semEmail.push(i.nome ?? i.id); continue; }
     const r = await enviarModelo([{
       tipo: "ingresso_digital", para: { nome: i.nome, email: i.email }, evento_id: evento, ingresso_id: i.id,
-      vars: { ...varsEvento(ev as EventoVars), nome: primeiroNome(i.nome), setor: ROTULO_SETOR[i.setor] },
+      vars: { ...varsEvento(ev as EventoVars), nome: primeiroNome(i.nome), setor: ROTULO_SETOR[i.setor], link: linkTorcedor(i.token) },
       botao: { rotulo: "Baixar meu ingresso", url: `${siteUrl()}/i/${i.token}/ingresso` },
     }], { autor });
     if (r.enviados || r.simulados) res.enviados.push(i.id);

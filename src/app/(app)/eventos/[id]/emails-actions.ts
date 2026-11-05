@@ -13,7 +13,7 @@ import { supabaseServico } from "@/lib/supabase/server";
 
 async function carregar(evento: string) {
   const { data } = await (await supabaseServico()).from("eventos")
-    .select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial").eq("id", evento).single();
+    .select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais").eq("id", evento).single();
   return data as EventoVars;
 }
 
@@ -24,7 +24,10 @@ export async function previaConvocacao(evento: string, area: string): Promise<{ 
   const a = areas.find((x) => x.area_id === area);
   if (!a) return null;
   const item = itensArea("convocacao_area", ev, { ...a, responsaveis: a.responsaveis.length ? a.responsaveis : [{ nome: "Responsável", email: "—" }] })[0];
-  const { data: m } = await (await supabaseServico()).from("modelos_email").select("assunto, corpo").eq("chave", "convocacao_area").single();
+  // shows usam a versão "_show" do modelo, se existir
+  const chaves = ev.tipo === "show" ? ["convocacao_area_show", "convocacao_area"] : ["convocacao_area"];
+  const { data: ms } = await (await supabaseServico()).from("modelos_email").select("chave, assunto, corpo").in("chave", chaves);
+  const m = chaves.map((c) => (ms ?? []).find((x) => x.chave === c)).find(Boolean);
   const img = await imagensDisponiveis();
   return {
     assunto: preencher(m!.assunto, item.vars),
