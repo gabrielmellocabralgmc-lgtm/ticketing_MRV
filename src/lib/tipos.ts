@@ -23,6 +23,10 @@ export interface Evento {
   ingressos_digitais: boolean;
   /** Exige cadastro facial (Galo ID) antes do envio — padrão nos jogos. */
   exige_facial: boolean;
+  /** Ingresso por link de resgate de uso único (ex.: Eventim), resgatado pelo convidado. */
+  resgate_unico: boolean;
+  /** Orientações extras para o convidado (página pessoal e e-mail do ingresso). */
+  orientacoes_convidado: string | null;
   status: StatusEvento;
   observacoes: string | null;
 }

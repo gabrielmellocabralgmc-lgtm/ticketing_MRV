@@ -95,10 +95,17 @@ export interface EventoVars {
   tipo?: string;
   /** Ingresso (PDF/link) enviado pelo sistema por e-mail. */
   ingressos_digitais?: boolean;
+  /** Link de resgate de uso único (ex.: Eventim): o convidado resgata pela página pessoal. */
+  resgate_unico?: boolean;
+  /** Orientações extras do evento para o convidado (idade, documentos etc.). */
+  orientacoes_convidado?: string | null;
 }
 
 /** Passo a passo de como o convidado recebe o ingresso, conforme o evento. */
-export function textoComoReceber(ev: Pick<EventoVars, "tipo" | "ingressos_digitais" | "exige_facial">) {
+export function textoComoReceber(ev: Pick<EventoVars, "tipo" | "ingressos_digitais" | "exige_facial" | "resgate_unico">) {
+  if (ev.ingressos_digitais && ev.resgate_unico) {
+    return "O ingresso é um LINK ÚNICO da Eventim, enviado por e-mail (remetente naoresponda@ingressos.weareact3.com). Antes de resgatar, o próprio convidado precisa baixar o app EVENTIM BRASIL no celular que vai levar ao evento, criar a conta com os próprios dados (nome, CPF e e-mail) e entrar no app. O resgate é feito pela página pessoal do convidado e só pode ser feito UMA VEZ: depois disso o ingresso fica na conta Eventim dele e não pode ser repassado. Por isso o e-mail informado precisa ser o de quem vai ao evento.";
+  }
   if (ev.ingressos_digitais) {
     return "O ingresso chega por e-mail (remetente naoresponda@ingressos.weareact3.com), com o botão “Baixar meu ingresso”: pode ser um PDF ou um link da bilheteria, conforme o evento. Ele também fica na página pessoal do convidado, junto com as orientações do dia. Vale conferir a caixa de spam.";
   }
@@ -135,6 +142,7 @@ export function varsEvento(ev: EventoVars): Vars {
     evento: ev.titulo,
     como_receber: textoComoReceber(ev),
     requisito_email: ev.ingressos_digitais ? " e o e-mail (é por ele que o ingresso chega)" : "",
+    orientacoes: ev.orientacoes_convidado?.trim() ? ev.orientacoes_convidado.trim().split(/\n+/).map((l) => (/^[•\-*]/.test(l) ? l.replace(/^[-*]\s*/, "• ") : `• ${l}`)).join("\n") : "",
   };
 }
 
@@ -158,7 +166,7 @@ async function carregarContatos(ids: string[]) {
   const ingressos = (data ?? []) as IngressoContato[];
   const evIds = [...new Set(ingressos.map((i) => i.evento_id))];
   const { data: evs } = evIds.length
-    ? await sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais").in("id", evIds)
+    ? await sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, resgate_unico, orientacoes_convidado").in("id", evIds)
     : { data: [] };
   return { ingressos, eventos: new Map(((evs ?? []) as EventoVars[]).map((e) => [e.id, e])) };
 }
@@ -262,7 +270,7 @@ const INTERVALO_VALIDACAO_H = 12;
 export async function avisarValidacaoPendente(evento?: string, area?: string): Promise<ResultadoEnvio> {
   const sb = await supabaseServico();
   const agora = Date.now();
-  let q = sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, status").eq("status", "aberto");
+  let q = sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, resgate_unico, orientacoes_convidado, status").eq("status", "aberto");
   if (evento) q = q.eq("id", evento);
   const { data: evs } = await q;
   const itens: ItemEnvio[] = [];
@@ -313,7 +321,7 @@ export async function executarLembretes(): Promise<{ areas: ResultadoEnvio; faci
   const agora = Date.now();
   const { data: cfg } = await sb.from("config").select("valor").eq("chave", "lembrete_area_horas").maybeSingle();
   const horas = Number(cfg?.valor ?? 24);
-  const { data: evs } = await sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, status").in("status", ["aberto", "fechado"]);
+  const { data: evs } = await sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, resgate_unico, orientacoes_convidado, status").in("status", ["aberto", "fechado"]);
   const eventos = (evs ?? []) as (EventoVars & { status: string })[];
 
   const itensAreas: ItemEnvio[] = [];
@@ -437,7 +445,7 @@ export async function avisarOperacaoLista(evento: string, autor?: string | null)
   const sb = await supabaseServico();
   const { data: cam } = await sb.from("evento_setores").select("setor").eq("evento_id", evento).eq("setor", "camarote").maybeSingle();
   if (!cam) return { enviados: 0, simulados: 0, falhas: 0, erros: [] }; // evento sem camarote
-  const { data: ev } = await sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais").eq("id", evento).single();
+  const { data: ev } = await sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, resgate_unico, orientacoes_convidado").eq("id", evento).single();
   const { data: ings } = await sb.from("v_ingressos").select("nome, convidado_de_nome, area_nome").eq("evento_id", evento).eq("setor", "camarote").in("status", STATUS_CONFIRMADO);
   const lista = ((ings ?? []) as { nome: string | null; convidado_de_nome: string | null; area_nome: string }[])
     .map((i) => `• ${i.nome ?? "(sem nome)"}${i.convidado_de_nome ? ` — convidado de ${i.convidado_de_nome}` : ""}`)
@@ -455,7 +463,7 @@ export async function avisarOperacaoLista(evento: string, autor?: string | null)
 export async function avisarRelatorioOperacao(evento: string, autor?: string | null): Promise<ResultadoEnvio> {
   const sb = await supabaseServico();
   const [{ data: ev }, { data: rel }, { data: resp }, { data: itens }, { data: beb }, { data: presenca }] = await Promise.all([
-    sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais").eq("id", evento).single(),
+    sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, resgate_unico, orientacoes_convidado").eq("id", evento).single(),
     sb.from("op_relatorios").select("*").eq("evento_id", evento).maybeSingle(),
     sb.from("op_respostas").select("item_id, status, observacao").eq("evento_id", evento).eq("status", "problema"),
     sb.from("op_itens").select("id, secao, texto"),
@@ -496,21 +504,25 @@ export async function avisarRelatorioOperacao(evento: string, autor?: string | n
 export async function enviarIngressosDigitais(evento: string, autor?: string | null) {
   const sb = await supabaseServico();
   const [{ data: ev }, { data: digs }] = await Promise.all([
-    sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais").eq("id", evento).single(),
+    sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, resgate_unico, orientacoes_convidado").eq("id", evento).single(),
     sb.from("ingressos_digitais").select("ingresso_id, enviado_em").eq("evento_id", evento),
   ]);
   const pendentes = ((digs ?? []) as { ingresso_id: string | null; enviado_em: string | null }[])
     .filter((d) => d.ingresso_id && !d.enviado_em).map((d) => d.ingresso_id!);
   const res = { enviados: [] as string[], semEmail: [] as string[], falhas: [] as string[], simulado: !envioReal() };
   if (!pendentes.length) return res;
+  const resgate = !!(ev as EventoVars | null)?.resgate_unico;
   const { data: ings } = await sb.from("v_ingressos").select("id, nome, email, setor, token, status").in("id", pendentes);
   for (const i of (ings ?? []) as { id: string; nome: string | null; email: string | null; setor: Setor; token: string; status: string }[]) {
     if (i.status !== "facial_ok") continue; // só quem está pronto para envio
     if (!i.email) { res.semEmail.push(i.nome ?? i.id); continue; }
     const r = await enviarModelo([{
-      tipo: "ingresso_digital", para: { nome: i.nome, email: i.email }, evento_id: evento, ingresso_id: i.id,
+      tipo: resgate ? "ingresso_resgate" : "ingresso_digital", para: { nome: i.nome, email: i.email }, evento_id: evento, ingresso_id: i.id,
       vars: { ...varsEvento(ev as EventoVars), nome: primeiroNome(i.nome), setor: ROTULO_SETOR[i.setor], link: linkTorcedor(i.token) },
-      botao: { rotulo: "Baixar meu ingresso", url: `${siteUrl()}/i/${i.token}/ingresso` },
+      // resgate único: o link da Eventim nunca vai no e-mail; o botão leva ao passo a passo
+      botao: resgate
+        ? { rotulo: "Ver passo a passo e resgatar", url: linkTorcedor(i.token) }
+        : { rotulo: "Baixar meu ingresso", url: `${siteUrl()}/i/${i.token}/ingresso` },
     }], { autor });
     if (r.enviados || r.simulados) res.enviados.push(i.id);
     else res.falhas.push(`${i.nome}: ${r.erros.join("; ")}`);

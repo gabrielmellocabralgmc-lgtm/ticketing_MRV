@@ -133,3 +133,49 @@ describe("excluir evento", () => {
     expect(n).toBe(0);
   });
 });
+
+describe("link de resgate de uso único (Eventim)", () => {
+  it("só revela o link pelo resgate; tolera nova tentativa por 30 min; depois trava; equipe libera de novo", async () => {
+    const ev = await show();
+    await b.sql(`update eventos set resgate_unico = true where id = $1`, [ev]);
+    const [i1] = await pedir(ev, [nova("Resgate Um")]);
+    await b.como(adm, `select dig_adicionar($1, 'pista', '[{"tipo":"link","url":"https://www.eventim.com.br/transfer/abc123"}]')`, [ev]);
+    await b.como(adm, `select dig_atribuir($1)`, [ev]);
+    const [{ token }] = await b.sql<{ token: string }>(`select token from ingressos where id = $1`, [i1]);
+
+    // antes de enviado não resgata
+    await expect(b.sql(`select dig_resgatar($1)`, [token])).rejects.toThrow(/ainda não foi liberado/);
+    await b.como(adm, `select dig_marcar_enviados($1)`, [[i1]]);
+
+    const [{ dig_resgatar: url }] = await b.sql<{ dig_resgatar: string }>(`select dig_resgatar($1)`, [token]);
+    expect(url).toBe("https://www.eventim.com.br/transfer/abc123");
+    // depois de aberto, não dá mais para cancelar pelo link
+    await expect(b.sql(`select acao_torcedor($1, 'cancelar')`, [token])).rejects.toThrow(/JA_RESGATADO/);
+    // segunda tentativa dentro da janela: ok
+    await b.sql(`select dig_resgatar($1)`, [token]);
+    const [d] = await b.sql<{ id: string; resgate_vezes: number }>(`select id, resgate_vezes from ingressos_digitais where ingresso_id = $1`, [i1]);
+    expect(d.resgate_vezes).toBe(2);
+
+    // passou a janela: trava
+    await b.sql(`update ingressos_digitais set resgate_aberto_em = now() - interval '31 minutes' where id = $1`, [d.id]);
+    await expect(b.sql(`select dig_resgatar($1)`, [token])).rejects.toThrow(/JA_RESGATADO: este ingresso já foi resgatado em/);
+    const [estado] = await b.sql<{ travado: boolean }>(`select * from dig_resgate_estado($1)`, [token]);
+    expect(estado.travado).toBe(true);
+
+    // só a equipe libera um novo resgate
+    await expect(b.como(respDH, `select dig_liberar_resgate($1)`, [d.id])).rejects.toThrow();
+    await b.como(mkt, `select dig_liberar_resgate($1)`, [d.id]);
+    await b.sql(`select dig_resgatar($1)`, [token]);
+
+    // confirmou que apareceu no app: trava de vez
+    await b.sql(`select acao_torcedor($1, 'recebido')`, [token]);
+    await expect(b.sql(`select dig_resgatar($1)`, [token])).rejects.toThrow(/JA_RESGATADO/);
+  });
+
+  it("evento comum não usa o resgate", async () => {
+    const ev = await show();
+    const [i1] = await pedir(ev, [nova("Comum Um")]);
+    const [{ token }] = await b.sql<{ token: string }>(`select token from ingressos where id = $1`, [i1]);
+    await expect(b.sql(`select dig_resgatar($1)`, [token])).rejects.toThrow(/não usa link de resgate/);
+  });
+});

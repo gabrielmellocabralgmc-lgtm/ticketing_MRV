@@ -7,12 +7,13 @@ import { formatarCpf } from "@/lib/cpf";
 import { dataHora } from "@/lib/formato";
 import { linkTorcedor } from "@/lib/mensagens";
 import { ROTULO_SETOR, type Setor, type StatusIngresso } from "@/lib/tipos";
-import { colarLinks, desatribuir, distribuir, enviar, liberarSemEmail, remover, subirPdf } from "./actions";
+import { colarLinks, desatribuir, distribuir, enviar, liberarResgate, liberarSemEmail, remover, subirPdf } from "./actions";
 
 export interface Digital {
   id: string; setor: Setor; tipo: "pdf" | "link"; url: string | null; nome_arquivo: string | null;
   titular_nome: string | null; titular_cpf: string | null; ingresso_id: string | null;
   atribuido_em: string | null; enviado_em: string | null; criado_em: string;
+  resgate_aberto_em?: string | null; resgate_vezes?: number;
 }
 export interface Convidado {
   id: string; nome: string | null; cpf: string | null; email: string | null; setor: Setor;
@@ -21,7 +22,7 @@ export interface Convidado {
 
 const PRONTOS: StatusIngresso[] = ["facial_ok", "enviado", "confirmado"];
 
-export function PainelDigitais({ evento, setores, digitais, convidados }: { evento: string; setores: Setor[]; digitais: Digital[]; convidados: Convidado[] }) {
+export function PainelDigitais({ evento, setores, digitais, convidados, resgate = false }: { evento: string; setores: Setor[]; digitais: Digital[]; convidados: Convidado[]; resgate?: boolean }) {
   const [setor, setSetor] = useState<Setor>(setores[0] ?? "pista");
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   const [pendente, iniciar] = useTransition();
@@ -116,19 +117,26 @@ export function PainelDigitais({ evento, setores, digitais, convidados }: { even
                   <tr key={d.id} className="border-t border-[#edeeed] align-top">
                     <td className="max-w-64 px-3 py-2">
                       <Selo tom={d.tipo === "pdf" ? "azul" : "cinza"}>{d.tipo === "pdf" ? "PDF" : "Link"}</Selo>{" "}
-                      <span className="break-all text-xs">{d.nome_arquivo ?? d.url}</span>
+                      <span className="break-all text-xs">{d.nome_arquivo ?? (resgate && d.tipo === "link" ? `🔒 ${d.url ?? "link"}` : d.url)}</span>
                     </td>
                     <td className="px-3 py-2 text-xs">{d.titular_nome || d.titular_cpf ? <>{d.titular_nome}{d.titular_cpf && <div className="font-mono">{formatarCpf(d.titular_cpf)}</div>}</> : <span className="text-cinza">genérico</span>}</td>
                     <td className="px-3 py-2">
                       {c ? <><div className="font-medium">{c.nome}</div><div className="text-xs text-cinza">{c.area_nome}{c.email ? ` · ${c.email}` : " · sem e-mail"}</div></> : <span className="text-cinza">—</span>}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
-                      {d.enviado_em ? <Selo tom="verde">Enviado {dataHora(d.enviado_em)}</Selo> : c ? <SeloStatus status={c.status} /> : <Selo>Livre</Selo>}
+                      {resgate && d.resgate_aberto_em ? <Selo tom={c?.status === "confirmado" ? "verde" : "amarelo"}>{c?.status === "confirmado" ? "✓ No app · " : "Resgatado "}{dataHora(d.resgate_aberto_em)}</Selo>
+                        : d.enviado_em ? <Selo tom="verde">Enviado {dataHora(d.enviado_em)}</Selo> : c ? <SeloStatus status={c.status} /> : <Selo>Livre</Selo>}
                     </td>
                     <td className="px-3 py-2 text-right whitespace-nowrap">
                       <div className="flex flex-wrap items-center justify-end gap-1.5">
-                        <a href={`/eventos/${evento}/ingressos-digitais/arquivo/${d.id}`} target="_blank" rel="noopener noreferrer"
-                          className="rounded-md px-2 py-1 text-xs font-semibold text-mrv-700 ring-1 ring-mrv-600/30 hover:bg-mrv-50">Ver</a>
+                        {!(resgate && d.tipo === "link") && (
+                          <a href={`/eventos/${evento}/ingressos-digitais/arquivo/${d.id}`} target="_blank" rel="noopener noreferrer"
+                            className="rounded-md px-2 py-1 text-xs font-semibold text-mrv-700 ring-1 ring-mrv-600/30 hover:bg-mrv-50">Ver</a>
+                        )}
+                        {resgate && d.resgate_aberto_em && c?.status !== "confirmado" && (
+                          <button disabled={pendente} onClick={() => rodar(() => liberarResgate(evento, d.id), `Liberar um novo resgate para ${c?.nome ?? "este convidado"}? Faça isso só se o ingresso NÃO apareceu no app dele (confira com a pessoa).`)}
+                            className="text-xs font-semibold text-mrv-700 hover:underline">liberar novo resgate</button>
+                        )}
                         {c && <BotaoCopiar texto={`${linkTorcedor(c.token)}/ingresso`} rotulo="Link do ingresso" />}
                         {c && !d.enviado_em && c.status === "facial_ok" && (
                           <button disabled={pendente} onClick={() => rodar(() => liberarSemEmail(evento, c.id), `Já mandou o ingresso de ${c.nome} por fora (WhatsApp etc.)? Marcar como enviado?`)}

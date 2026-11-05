@@ -3,7 +3,8 @@ import { useState, useTransition } from "react";
 import { Aviso, Botao } from "@/components/ui";
 import { acaoTorcedor } from "./actions";
 
-export function BotoesTorcedor({ token, status }: { token: string; status: string }) {
+/** resgate: evento com link de resgate único (o "recebi" fica no bloco do resgate); travarCancelar: já resgatado. */
+export function BotoesTorcedor({ token, status, resgate = false, travarCancelar = false }: { token: string; status: string; resgate?: boolean; travarCancelar?: boolean }) {
   const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciar] = useTransition();
   const rodar = (acao: "facial_ok" | "recebido" | "cancelar") =>
@@ -11,7 +12,7 @@ export function BotoesTorcedor({ token, status }: { token: string; status: strin
       const r = await acaoTorcedor(token, acao);
       setErro(r.ok ? null : r.erro);
     });
-  const podeCancelar = !["presente", "cancelado", "recusado", "no_show", "convite_expirado"].includes(status);
+  const podeCancelar = !travarCancelar && !["presente", "cancelado", "recusado", "no_show", "convite_expirado"].includes(status);
   return (
     <div className="space-y-3">
       {(status === "aprovado" || status === "facial_pendente") && (
@@ -19,7 +20,7 @@ export function BotoesTorcedor({ token, status }: { token: string; status: strin
           ✓ Já tenho a facial cadastrada
         </Botao>
       )}
-      {status === "enviado" && (
+      {status === "enviado" && !resgate && (
         <Botao className="w-full" disabled={pendente} onClick={() => rodar("recebido")}>Recebi meu ingresso</Botao>
       )}
       {podeCancelar && (

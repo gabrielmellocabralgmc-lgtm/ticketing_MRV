@@ -107,3 +107,12 @@ export async function liberarSemEmail(evento: string, ingresso: string): Promise
   revalidatePath(caminho(evento));
   return { ok: true, mensagem: "Marcado como enviado. O ingresso também aparece na página pessoal do convidado." };
 }
+
+/** Link de resgate único: o convidado abriu e não deu certo (ex.: não estava logado). Libera uma nova tentativa. */
+export async function liberarResgate(evento: string, id: string): Promise<Resultado> {
+  await exigirStaff();
+  const { error } = await (await supabaseServidor()).rpc("dig_liberar_resgate", { p_id: id });
+  if (error) return falha(error);
+  revalidatePath(caminho(evento));
+  return { ok: true, mensagem: "Novo resgate liberado. O convidado já pode tentar de novo pela página pessoal." };
+}

@@ -36,3 +36,12 @@ export async function acaoTorcedor(token: string, acao: "facial_ok" | "recebido"
   revalidatePath(`/i/${token}`);
   return { ok: true };
 }
+
+/** Resgate de uso único (ex.: Eventim): só aqui o link é revelado, e o banco registra o horário. */
+export async function resgatarIngresso(token: string): Promise<Resultado<string>> {
+  if (!tokenValido(token)) return { ok: false, erro: "Link inválido." };
+  const { data, error } = await (await supabaseServico()).rpc("dig_resgatar", { p_token: token });
+  if (error) return falha(error);
+  revalidatePath(`/i/${token}`);
+  return { ok: true, dados: data as string };
+}

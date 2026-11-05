@@ -15,7 +15,7 @@ export default async function Emails() {
     supabase.from("envios").select("id, tipo, para_nome, para_email, assunto, corpo, status, erro, criado_em").order("id", { ascending: false }).limit(300),
     imagensDisponiveis(),
   ]);
-  const ordem = ["convocacao_area", "convocacao_area_show", "lembrete_area", "lembrete_area_show", "validacao_pendente", "camarote_vp", "camarote_diretoria", "camarote_gestor", "operacao_lista", "operacao_relatorio", "ingresso_digital", "convite_convidado", "convite_convidado_show", "galo_id", "ingresso_enviado", "ingresso_enviado_show", "lembrete_facial"];
+  const ordem = ["convocacao_area", "convocacao_area_show", "lembrete_area", "lembrete_area_show", "validacao_pendente", "camarote_vp", "camarote_diretoria", "camarote_gestor", "operacao_lista", "operacao_relatorio", "ingresso_digital", "ingresso_resgate", "convite_convidado", "convite_convidado_show", "galo_id", "ingresso_enviado", "ingresso_enviado_show", "lembrete_facial"];
   const lista = ((modelos ?? []) as Modelo[]).sort((a, b) => ordem.indexOf(a.chave) - ordem.indexOf(b.chave));
   return (
     <>

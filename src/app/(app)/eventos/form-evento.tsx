@@ -34,6 +34,7 @@ export function FormEvento({ acao, evento, anteriores, padrao, areas = [], temCa
   const [camarote, setCamarote] = useState(temCamarote);
   const [duplicar, setDuplicar] = useState("");
   const [personalizar, setPersonalizar] = useState(false);
+  const [digital, setDigital] = useState(evento?.ingressos_digitais ?? (evento?.tipo ?? "jogo") === "show");
   const [cotas, setCotas] = useState<Record<string, PadraoTipo>>(() =>
     Object.fromEntries(Object.entries(padrao ?? {}).map(([t, p]) => [t, cotasIniciais(p, areas)])));
   const cotasTipo = cotas[tipo] ?? {};
@@ -43,7 +44,7 @@ export function FormEvento({ acao, evento, anteriores, padrao, areas = [], temCa
     <form action={enviar} className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2">
         <Campo rotulo="Tipo">
-          <Selecao name="tipo" value={tipo} onChange={(e) => { setTipo(e.target.value as "jogo" | "show"); setNome(""); }} disabled={!novo}>
+          <Selecao name="tipo" value={tipo} onChange={(e) => { setTipo(e.target.value as "jogo" | "show"); setNome(""); setDigital(e.target.value === "show"); }} disabled={!novo}>
             <option value="jogo">Jogo do Galo (mando)</option>
             <option value="show">Show</option>
           </Selecao>
@@ -83,7 +84,7 @@ export function FormEvento({ acao, evento, anteriores, padrao, areas = [], temCa
           Camarote disponível neste evento <span className="text-tinta/60">(desmarcado: nada de camarote aparece no evento)</span>
         </label>
         <label key={`dig-${tipo}`} className="flex items-center gap-2">
-          <input type="checkbox" name="ingressos_digitais" defaultChecked={evento?.ingressos_digitais ?? tipo === "show"} className="size-4 accent-mrv-700" />
+          <input type="checkbox" name="ingressos_digitais" checked={digital} onChange={(e) => setDigital(e.target.checked)} className="size-4 accent-mrv-700" />
           Ingressos digitais enviados pelo sistema <span className="text-tinta/60">(PDF ou link, por e-mail)</span>
         </label>
         <label key={`fac-${tipo}`} className="flex items-center gap-2">
@@ -97,6 +98,15 @@ export function FormEvento({ acao, evento, anteriores, padrao, areas = [], temCa
           </label>
         )}
       </div>
+      {digital && (
+        <label className="flex items-start gap-2 rounded-lg bg-amarelo-500/10 p-3 text-sm ring-1 ring-amarelo-500/40">
+          <input type="checkbox" name="resgate_unico" defaultChecked={evento?.resgate_unico ?? false} className="mt-0.5 size-4 accent-mrv-700" />
+          <span>
+            <b>Link de resgate de uso único (ex.: transferência Eventim)</b>
+            <span className="block text-tinta/70">O link nunca vai no e-mail nem aparece para a equipe: o convidado lê o passo a passo (baixar o app, criar a conta com os próprios dados, entrar), confirma que é ele quem vai e resgata pela página pessoal, uma única vez.</span>
+          </span>
+        </label>
+      )}
       {novo && (
         <div className="grid gap-4 sm:grid-cols-2">
           <Campo rotulo="Cotas" dica="Padrão do regulamento ou copiar as cotas de um evento anterior">
@@ -129,6 +139,9 @@ export function FormEvento({ acao, evento, anteriores, padrao, areas = [], temCa
           </Campo>
         </div>
       )}
+      <Campo rotulo="Orientações para o convidado (opcional)" dica="Uma por linha. Aparecem na página pessoal e no e-mail do ingresso. Ex.: classificação etária, documentos.">
+        <AreaTexto name="orientacoes_convidado" rows={3} defaultValue={evento?.orientacoes_convidado ?? ""} />
+      </Campo>
       <Campo rotulo="Observações internas">
         <AreaTexto name="observacoes" rows={2} defaultValue={evento?.observacoes ?? ""} />
       </Campo>

@@ -11,6 +11,7 @@ import { supabaseServico } from "@/lib/supabase/server";
 import { ROTULO_SETOR, type Setor, type StatusIngresso } from "@/lib/tipos";
 import { BotoesTorcedor } from "./botoes-torcedor";
 import { FormConvidado } from "./form-convidado";
+import { ResgateIngresso } from "./resgate";
 
 export const metadata: Metadata = { title: "Seu ingresso MRV", robots: { index: false, follow: false }, referrer: "no-referrer" };
 export const dynamic = "force-dynamic";
@@ -28,8 +29,18 @@ interface InfoIngresso {
 
 /** Configurações do evento que mudam a página: facial e ingresso digital. */
 async function configEvento(eventoId: string) {
-  const { data } = await (await supabaseServico()).from("eventos").select("ingressos_digitais, exige_facial").eq("id", eventoId).maybeSingle();
-  return { digital: !!data?.ingressos_digitais, facial: data?.exige_facial ?? true };
+  const { data } = await (await supabaseServico()).from("eventos").select("ingressos_digitais, exige_facial, resgate_unico, orientacoes_convidado").eq("id", eventoId).maybeSingle();
+  return {
+    digital: !!data?.ingressos_digitais, facial: data?.exige_facial ?? true,
+    resgate: !!data?.ingressos_digitais && !!data?.resgate_unico,
+    orientacoes: ((data?.orientacoes_convidado as string | null) ?? "").split(/\n+/).map((l) => l.replace(/^[•\-*]\s*/, "").trim()).filter(Boolean),
+  };
+}
+
+async function estadoResgate(token: string) {
+  const { data } = await (await supabaseServico()).rpc("dig_resgate_estado", { p_token: token });
+  const r = ((data ?? []) as { aberto_em: string | null; expira_em: string | null; travado: boolean }[])[0];
+  return r ?? null;
 }
 
 async function temIngressoDigital(token: string) {
@@ -94,7 +105,9 @@ async function PaginaIngresso({ token, info, acompanhantes }: { token: string; i
   const camarote = info.setor === "camarote";
   const cfg = await configEvento(info.evento.id);
   const baixar = !encerrado && (await temIngressoDigital(token));
-  const etapas = ETAPAS.filter((e) => cfg.facial || e.rotulo !== "Facial confirmada");
+  const resgate = cfg.resgate && baixar ? await estadoResgate(token) : null;
+  const etapas = ETAPAS.filter((e) => cfg.facial || e.rotulo !== "Facial confirmada").map((e) => !cfg.resgate ? e
+    : { ...e, rotulo: e.rotulo === "Ingresso enviado" ? "Ingresso liberado" : e.rotulo === "Ingresso recebido" ? "Ingresso resgatado no app" : e.rotulo });
   return (
     <>
       <CabecalhoEvento evento={info.evento} setor={info.setor} area={info.area} />
@@ -128,7 +141,15 @@ async function PaginaIngresso({ token, info, acompanhantes }: { token: string; i
         {info.status === "recusado" && <div className="mt-4"><Aviso tom="info">Este pedido não pôde ser atendido desta vez.</Aviso></div>}
       </Cartao>
 
-      {baixar && (
+      {baixar && cfg.resgate && (
+        <Cartao className="ring-2 ring-mrv-600/40">
+          <h2 className="mb-3 font-bold text-mrv-900">Seu ingresso está liberado</h2>
+          <ResgateIngresso token={token} nome={info.pessoa?.nome ?? "convidado"} status={info.status}
+            abertoEm={resgate?.aberto_em ?? null} expiraEm={resgate?.expira_em ?? null} travado={!!resgate?.travado} />
+        </Cartao>
+      )}
+
+      {baixar && !cfg.resgate && (
         <Cartao className="ring-2 ring-mrv-600/40">
           <h2 className="mb-1 font-bold text-mrv-900">Seu ingresso está pronto</h2>
           <p className="mb-4 text-sm text-tinta/70">Ele é pessoal: não compartilhe este link.</p>
@@ -143,13 +164,24 @@ async function PaginaIngresso({ token, info, acompanhantes }: { token: string; i
         <Cartao>
           <h2 className="mb-3 font-bold text-mrv-900">Como funciona</h2>
           <ol className="list-decimal space-y-2 pl-5 text-sm">
-            <li>Depois da validação, {cfg.digital ? <>o ingresso chega no seu <b>e-mail</b> e fica disponível <b>nesta página</b>.</> : "a MRV envia o seu ingresso."}</li>
+            {cfg.resgate ? (
+              <>
+                <li>Depois da validação, você recebe um <b>e-mail</b> avisando que o ingresso foi liberado, e o resgate aparece <b>nesta página</b>.</li>
+                <li>O ingresso é um <b>link único da Eventim</b>: já deixe pronto no celular que vai levar ao evento o app <b>EVENTIM BRASIL</b>, com a <b>sua</b> conta (nome, CPF e e-mail) e logado. O resgate só pode ser feito uma vez, por você.</li>
+                <li>O QR code é dinâmico e aparece no app perto do evento (até 24h antes). Print não vale.</li>
+              </>
+            ) : (
+              <li>Depois da validação, {cfg.digital ? <>o ingresso chega no seu <b>e-mail</b> e fica disponível <b>nesta página</b>.</> : "a MRV envia o seu ingresso."}</li>
+            )}
             <li><b>No dia:</b> chegue com antecedência{info.evento.abertura_portoes ? ` (portões às ${dataHora(info.evento.abertura_portoes).split(" ")[1]})` : ""} e vá ao setor {ROTULO_SETOR[info.setor]}. O ingresso é pessoal e intransferível.</li>
           </ol>
           {camarote && (
             <div className="mt-4"><Aviso tom="alerta">O camarote MRV é corporativo: quem convidou você precisa estar presente durante o evento. O ingresso não pode ser repassado.</Aviso></div>
           )}
-          <div className="mt-5"><BotoesTorcedor token={token} status={info.status} /></div>
+          {cfg.orientacoes.length > 0 && (
+            <ul className="mt-4 list-disc space-y-1 pl-5 text-sm">{cfg.orientacoes.map((o) => <li key={o}>{o}</li>)}</ul>
+          )}
+          <div className="mt-5"><BotoesTorcedor token={token} status={info.status} resgate={cfg.resgate} travarCancelar={!!resgate?.aberto_em} /></div>
         </Cartao>
       )}
 

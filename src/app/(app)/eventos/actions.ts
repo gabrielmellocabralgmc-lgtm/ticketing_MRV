@@ -37,6 +37,8 @@ function dadosEvento(form: FormData) {
     prazo_solicitacao: deInputLocal(form.get("prazo_solicitacao")),
     observacoes: String(form.get("observacoes") ?? "").trim() || null,
     ingressos_digitais: form.get("ingressos_digitais") === "on",
+    resgate_unico: form.get("ingressos_digitais") === "on" && form.get("resgate_unico") === "on",
+    orientacoes_convidado: String(form.get("orientacoes_convidado") ?? "").trim() || null,
     exige_facial: form.get("exige_facial") === "on",
     tem_camarote: form.get("tem_camarote") === "on",
   };
@@ -54,6 +56,11 @@ export async function criarEvento(_: unknown, form: FormData): Promise<Resultado
   const supabase = await supabaseServidor();
   const { data, error } = await supabase.rpc("criar_evento", { p });
   if (error) return falha(error);
+  // colunas que o criar_evento não conhece
+  if (p.resgate_unico || p.orientacoes_convidado) {
+    const { error: e2 } = await supabase.from("eventos").update({ resgate_unico: p.resgate_unico, orientacoes_convidado: p.orientacoes_convidado }).eq("id", data as string);
+    if (e2) return falha(e2);
+  }
   redirect(`/eventos/${data}`);
 }
 
