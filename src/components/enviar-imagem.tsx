@@ -5,7 +5,7 @@ import { useRef, useState, useTransition } from "react";
 import clsx from "clsx";
 import { removerImagem, salvarImagem } from "@/app/img/actions";
 
-async function prepararArquivo(f: File, maxLado: number): Promise<{ mime: string; base64: string }> {
+async function prepararArquivo(f: File, maxLado: number, forcarJpeg = false): Promise<{ mime: string; base64: string }> {
   const lerBase64 = (b: Blob) =>
     new Promise<string>((ok, erro) => {
       const r = new FileReader();
@@ -13,16 +13,16 @@ async function prepararArquivo(f: File, maxLado: number): Promise<{ mime: string
       r.onerror = erro;
       r.readAsDataURL(b);
     });
-  if (f.type === "image/svg+xml") return { mime: f.type, base64: await lerBase64(f) };
+  if (f.type === "image/svg+xml" && !forcarJpeg) return { mime: f.type, base64: await lerBase64(f) };
   const bitmap = await createImageBitmap(f);
   const escala = Math.min(1, maxLado / Math.max(bitmap.width, bitmap.height));
-  if (escala === 1 && f.size < 1.5 * 1024 * 1024) return { mime: f.type, base64: await lerBase64(f) };
+  if (escala === 1 && f.size < 1.5 * 1024 * 1024 && !forcarJpeg) return { mime: f.type, base64: await lerBase64(f) };
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(bitmap.width * escala);
   canvas.height = Math.round(bitmap.height * escala);
   canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   // PNG mantém a transparência do escudo; foto vira JPEG
-  const mime = f.type === "image/png" ? "image/png" : "image/jpeg";
+  const mime = f.type === "image/png" && !forcarJpeg ? "image/png" : "image/jpeg";
   const blob = await new Promise<Blob>((ok) => canvas.toBlob((b) => ok(b!), mime, 0.85));
   return { mime, base64: await lerBase64(blob) };
 }
@@ -34,7 +34,8 @@ export function EnviarImagem({
   url?: string;
   rotulo: string;
   dica?: string;
-  formato?: "foto" | "escudo" | "logo" | "icone";
+  /** capa: capa de e-mail (sempre JPEG, até 1200 px, que abre em qualquer leitor de e-mail) */
+  formato?: "foto" | "escudo" | "logo" | "icone" | "capa";
   escuro?: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
@@ -49,7 +50,7 @@ export function EnviarImagem({
     setErro(null);
     iniciar(async () => {
       try {
-        const { mime, base64 } = await prepararArquivo(f, formato === "foto" ? 1920 : formato === "logo" ? 800 : 512);
+        const { mime, base64 } = await prepararArquivo(f, formato === "foto" ? 1920 : formato === "capa" ? 1200 : formato === "logo" ? 800 : 512, formato === "capa");
         const r = await salvarImagem(chave, mime, base64);
         if (!r.ok) return setErro(r.erro);
         setPrevia(`data:${mime};base64,${base64}`);
@@ -71,14 +72,14 @@ export function EnviarImagem({
         aria-label={`${rotulo}: ${previa ? "trocar" : "enviar"} imagem`}
         className={clsx(
           "group relative flex w-full items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed transition",
-          formato === "foto" ? "aspect-video max-h-[420px]" : formato === "logo" ? "aspect-[3/1] max-w-80" : formato === "icone" ? "aspect-square max-w-28" : "aspect-[8/9] max-w-40",
+          formato === "foto" || formato === "capa" ? "aspect-video max-h-[420px]" : formato === "logo" ? "aspect-[3/1] max-w-80" : formato === "icone" ? "aspect-square max-w-28" : "aspect-[8/9] max-w-40",
           escuro ? "border-white/35 bg-preto text-white/75" : "border-[#c9ccca] bg-white text-cinza",
           arrastando && "border-mrv-600 bg-mrv-50",
         )}
       >
         {previa ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={previa} alt="" className={clsx("absolute inset-0 h-full w-full", formato === "foto" ? "object-cover" : "object-contain p-4")} />
+          <img src={previa} alt="" className={clsx("absolute inset-0 h-full w-full", formato === "foto" || formato === "capa" ? "object-cover" : "object-contain p-4")} />
         ) : (
           <span className="flex flex-col items-center gap-2 p-4 text-center text-sm">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

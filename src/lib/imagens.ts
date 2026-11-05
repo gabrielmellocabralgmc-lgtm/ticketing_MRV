@@ -8,6 +8,8 @@ export const CHAVE_LOGO_ESCURO = "logo-mrv-escuro"; // para fundo escuro (opcion
 export const CHAVE_ICONE = "icone"; // ícone da aba do navegador (opcional)
 export const CHAVE_ESCUDO_ATLETICO = "escudo-atletico";
 export const chaveEscudoAdversario = (evento: string) => `escudo-${evento}`;
+/** Capa do evento: aparece no topo dos e-mails que o convidado recebe. */
+export const chaveCapaEvento = (evento: string) => `capa-${evento}`;
 
 /** chave → URL (com versão) das imagens já enviadas; ausente = mostrar o espaço vazio. */
 export const imagensDisponiveis = cache(async (): Promise<Record<string, string>> => {

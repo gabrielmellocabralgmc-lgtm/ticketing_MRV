@@ -1,6 +1,6 @@
 import { EnviarImagem } from "@/components/enviar-imagem";
 import { Cartao, Titulo } from "@/components/ui";
-import { CHAVE_ESCUDO_ATLETICO, chaveEscudoAdversario, imagensDisponiveis } from "@/lib/imagens";
+import { CHAVE_ESCUDO_ATLETICO, chaveCapaEvento, chaveEscudoAdversario, imagensDisponiveis } from "@/lib/imagens";
 import { exigirAdmin } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
 import { atualizarEvento } from "../../actions";
@@ -22,12 +22,19 @@ export default async function EditarEvento({ params }: { params: Promise<{ id: s
         <Cartao>
           <FormEvento acao={atualizarEvento.bind(null, id)} evento={ev} temCamarote={!!cam} />
         </Cartao>
+        <div className="space-y-6">
+        <Cartao id="capa" className="h-fit">
+          <h2 className="mb-1 font-bold">Capa do evento</h2>
+          <p className="mb-4 text-sm text-cinza">Aparece no topo dos e-mails que o convidado recebe (convite, ingresso, avisos). Sem capa, o e-mail sai como antes.</p>
+          <EnviarImagem chave={chaveCapaEvento(id)} url={img[chaveCapaEvento(id)]} rotulo="Capa do evento" formato="capa" dica="JPG ou PNG, de preferência horizontal (ex.: 1200 × 600)" />
+        </Cartao>
         {ev.tipo === "jogo" && <Cartao id="escudos" className="h-fit">
           <h2 className="mb-1 font-bold">Escudo do {ev.adversario ?? "adversário"}</h2>
           <p className="mb-4 text-sm text-cinza">Aparece no cabeçalho deste jogo, ao lado do escudo do Atlético.</p>
           <EnviarImagem chave={chaveEscudoAdversario(id)} url={img[chaveEscudoAdversario(id)]} rotulo={`Escudo ${ev.adversario ? `do ${ev.adversario}` : "do adversário"}`} formato="escudo" escuro dica="PNG transparente ou SVG" />
           {!img[CHAVE_ESCUDO_ATLETICO] && <p className="mt-4 text-xs text-cinza">O escudo do Atlético é enviado uma vez só, em Aparência.</p>}
         </Cartao>}
+        </div>
       </div>
     </>
   );

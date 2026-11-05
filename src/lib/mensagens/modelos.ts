@@ -61,7 +61,16 @@ export function preencher(texto: string, vars: Record<string, string | number | 
 const escapar = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /** Texto simples → HTML de e-mail (tabelas e estilos inline, para funcionar nos clientes de e-mail). */
-export function htmlEmail(texto: string, opcoes: { logoUrl?: string; botao?: { rotulo: string; url: string } } = {}) {
+/** Averta (fonte da MRV): usada por quem a tem instalada ou quando os arquivos web estão em /public/fonts;
+ *  nos demais leitores (Gmail, Outlook do Windows) cai para Arial. */
+export const FONTE_EMAIL = "'Averta','Averta Std',Arial,Helvetica,sans-serif";
+function fontFaceAverta(siteUrl?: string) {
+  if (!siteUrl) return "";
+  const f = (peso: number, arq: string) => `@font-face{font-family:'Averta';font-style:normal;font-weight:${peso};src:url('${siteUrl}/fonts/${arq}.woff2') format('woff2'),url('${siteUrl}/fonts/${arq}.woff') format('woff');}`;
+  return `<style>${f(400, "averta-regular")}${f(700, "averta-bold")}${f(800, "averta-extrabold")}</style>`;
+}
+
+export function htmlEmail(texto: string, opcoes: { logoUrl?: string; botao?: { rotulo: string; url: string }; capaUrl?: string; siteUrl?: string } = {}) {
   const corpo = escapar(texto)
     .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#00843D;font-weight:600">$1</a>')
     .split(/\n{2,}/)
@@ -69,17 +78,21 @@ export function htmlEmail(texto: string, opcoes: { logoUrl?: string; botao?: { r
     .join("");
   const logo = opcoes.logoUrl
     ? `<img src="${escapar(opcoes.logoUrl)}" alt="MRV" height="32" style="height:32px;display:block">`
-    : `<span style="background:#00843D;color:#fff;font-weight:800;font-size:15px;padding:4px 8px;border-radius:6px;font-family:Arial,sans-serif">MRV</span>`;
+    : `<span style="background:#00843D;color:#fff;font-weight:800;font-size:15px;padding:4px 8px;border-radius:6px;font-family:${FONTE_EMAIL}">MRV</span>`;
   const listras = Array.from({ length: 12 }, (_, i) => `<td style="height:6px;background:${i % 2 ? "#121212" : "#ffffff"}"></td>`).join("");
   const botao = opcoes.botao
-    ? `<p style="margin:22px 0 6px"><a href="${escapar(opcoes.botao.url)}" style="display:inline-block;background:#00843D;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:8px">${escapar(opcoes.botao.rotulo)}</a></p>`
+    ? `<p style="margin:22px 0 6px"><a href="${escapar(opcoes.botao.url)}" style="display:inline-block;background:#00843D;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:8px;font-family:${FONTE_EMAIL}">${escapar(opcoes.botao.rotulo)}</a></p>`
     : "";
-  return `<!doctype html><html lang="pt-BR"><body style="margin:0;background:#F4F5F4">
+  const capa = opcoes.capaUrl
+    ? `<tr><td style="padding:0;line-height:0"><img src="${escapar(opcoes.capaUrl)}" alt="" width="560" style="display:block;width:100%;max-width:560px;height:auto;border:0"></td></tr>`
+    : "";
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">${fontFaceAverta(opcoes.siteUrl)}</head><body style="margin:0;background:#F4F5F4">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F5F4;padding:24px 12px"><tr><td align="center">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #E5E5E5;border-radius:16px;overflow:hidden;font-family:Arial,Helvetica,sans-serif;color:#242625">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #E5E5E5;border-radius:16px;overflow:hidden;font-family:${FONTE_EMAIL};color:#242625">
 <tr><td style="padding:18px 24px;background:#ffffff">${logo}</td></tr>
 <tr><td style="background:#121212;padding:14px 24px;color:#ffffff;font-weight:800;letter-spacing:.06em;font-size:13px">INGRESSOS MRV · ARENA MRV</td></tr>
 <tr><td style="padding:0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#121212"><tr>${listras}</tr></table></td></tr>
+${capa}
 <tr><td style="padding:24px;font-size:15px;line-height:1.55">${corpo}${botao}</td></tr>
 <tr><td style="padding:16px 24px;background:#F4F5F4;font-size:12px;color:#5D615F">MRV&amp;CO · Patrocinadora da Arena MRV. Seus dados são usados só para emitir o ingresso e orientar o cadastro no Galo ID.</td></tr>
 </table></td></tr></table></body></html>`;

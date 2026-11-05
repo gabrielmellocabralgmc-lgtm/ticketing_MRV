@@ -3,7 +3,7 @@ import "server-only";
 // (domínio ingressos.weareact3.com); sem ela (modo demo/local), fica registrado como "simulado".
 // Tudo vai para a tabela `envios` (caixa de saída).
 import { dataHora, dataLonga } from "@/lib/formato";
-import { CHAVE_LOGO, imagensDisponiveis } from "@/lib/imagens";
+import { CHAVE_LOGO, chaveCapaEvento, imagensDisponiveis } from "@/lib/imagens";
 import { linkTorcedor, siteUrl } from "@/lib/mensagens";
 import { canalEmail } from "@/lib/mensagens/email";
 import { htmlEmail, preencher } from "@/lib/mensagens/modelos";
@@ -30,6 +30,9 @@ export interface ResultadoEnvio {
 }
 
 export const envioReal = () => !!process.env.RESEND_API_KEY;
+
+/** E-mails que o convidado recebe: levam a capa do evento, quando houver. */
+const PARA_CONVIDADO = new Set(["convite_convidado", "galo_id", "ingresso_enviado", "lembrete_facial", "ingresso_digital", "ingresso_resgate"]);
 
 export async function enviarModelo(itens: ItemEnvio[], opcoes: { autor?: string | null; modelo?: { assunto: string; corpo: string } } = {}): Promise<ResultadoEnvio> {
   const res: ResultadoEnvio = { enviados: 0, simulados: 0, falhas: 0, erros: [] };
@@ -58,7 +61,9 @@ export async function enviarModelo(itens: ItemEnvio[], opcoes: { autor?: string 
     // endereços de teste (@*.invalid / @exemplo.com) nunca saem de verdade: só ficam na caixa de saída
     const ficticio = /@([^@]+\.)?(invalid|exemplo\.com|example\.com)$/i.test(item.para.email);
     if (canal && !ficticio) {
-      const r = await canal.enviar({ para: { nome: item.para.nome ?? "", email: item.para.email }, assunto, texto, html: htmlEmail(texto, { logoUrl, botao: item.botao }) });
+      const capa = item.evento_id && PARA_CONVIDADO.has(item.tipo) ? img[chaveCapaEvento(item.evento_id)] : undefined;
+      const html = htmlEmail(texto, { logoUrl, botao: item.botao, capaUrl: capa ? `${siteUrl()}${capa}` : undefined, siteUrl: siteUrl() });
+      const r = await canal.enviar({ para: { nome: item.para.nome ?? "", email: item.para.email }, assunto, texto, html });
       status = r.ok ? "enviado" : "falhou";
       erro = r.ok ? null : r.erro ?? "erro";
     }
