@@ -20,7 +20,7 @@ jobs:
         run: |
           if [ -z "$SITE_URL" ] || [ -z "$CRON_SECRET" ]; then echo "::error::Faltam os secrets SITE_URL e/ou CRON_SECRET"; exit 1; fi
           URL="${SITE_URL%/}/api/cron/tudo"
-          CODIGO=$(curl -sS -o resposta.txt -w '%{http_code}' --max-time 90 -H "Authorization: Bearer $CRON_SECRET" "$URL")
+          CODIGO=$(curl -sS -o resposta.txt -w '%{http_code}' --max-time 90 -H "Authorization: Bearer $(printf %s "$CRON_SECRET" | tr -d "[:space:]")" "$URL")
           echo "HTTP $CODIGO"; head -c 1500 resposta.txt; echo
           case "$CODIGO" in
             200) echo "Rotinas executadas." ;;
