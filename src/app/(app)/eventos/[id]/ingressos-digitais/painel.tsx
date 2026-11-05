@@ -90,7 +90,7 @@ export function PainelDigitais({ evento, setores, digitais, convidados }: { even
           </Botao>
         </div>
         {semEmail.length > 0 && (
-          <div className="mt-3"><Aviso tom="alerta">{semEmail.length} convidado(s) sem e-mail: não recebem pelo e-mail. Na tabela abaixo, clique em <b>Liberar p/ WhatsApp</b> e mande o <b>Link pessoal</b> pelo WhatsApp.</Aviso></div>
+          <div className="mt-3"><Aviso tom="alerta">{semEmail.length} convidado(s) sem e-mail: não recebem pelo e-mail. Na tabela abaixo, copie o <b>Link do ingresso</b>, mande pelo WhatsApp e clique em <b>Marcar como enviado</b>.</Aviso></div>
         )}
         {semIngresso.length > 0 && (
           <p className="mt-3 text-sm text-laranja-700">
@@ -126,13 +126,17 @@ export function PainelDigitais({ evento, setores, digitais, convidados }: { even
                       {d.enviado_em ? <Selo tom="verde">Enviado {dataHora(d.enviado_em)}</Selo> : c ? <SeloStatus status={c.status} /> : <Selo>Livre</Selo>}
                     </td>
                     <td className="px-3 py-2 text-right whitespace-nowrap">
-                      {c && !c.email && !d.enviado_em && c.status === "facial_ok" && (
-                        <button disabled={pendente} onClick={() => rodar(() => liberarSemEmail(evento, c.id), `Liberar o ingresso de ${c.nome} para enviar o link pelo WhatsApp?`)}
-                          className="mr-2 rounded-md bg-[#25D366]/15 px-2 py-1 text-xs font-semibold text-[#0d7a3a] hover:bg-[#25D366]/25">Liberar p/ WhatsApp</button>
-                      )}
-                      {c && <BotaoCopiar texto={linkTorcedor(c.token)} rotulo="Link pessoal" />}
-                      {!d.enviado_em && c && <button disabled={pendente} onClick={() => rodar(() => desatribuir(evento, d.id))} className="ml-2 text-xs text-cinza hover:underline">devolver ao estoque</button>}
-                      {!d.enviado_em && <button disabled={pendente} onClick={() => rodar(() => remover(evento, d.id), "Remover este ingresso do estoque?")} className="ml-2 text-xs text-red-700 hover:underline">remover</button>}
+                      <div className="flex flex-wrap items-center justify-end gap-1.5">
+                        <a href={`/eventos/${evento}/ingressos-digitais/arquivo/${d.id}`} target="_blank" rel="noopener noreferrer"
+                          className="rounded-md px-2 py-1 text-xs font-semibold text-mrv-700 ring-1 ring-mrv-600/30 hover:bg-mrv-50">Ver</a>
+                        {c && <BotaoCopiar texto={`${linkTorcedor(c.token)}/ingresso`} rotulo="Link do ingresso" />}
+                        {c && !d.enviado_em && c.status === "facial_ok" && (
+                          <button disabled={pendente} onClick={() => rodar(() => liberarSemEmail(evento, c.id), `Já mandou o ingresso de ${c.nome} por fora (WhatsApp etc.)? Marcar como enviado?`)}
+                            className="rounded-md bg-[#25D366]/15 px-2 py-1 text-xs font-semibold text-[#0d7a3a] hover:bg-[#25D366]/25">Marcar como enviado</button>
+                        )}
+                        {!d.enviado_em && c && <button disabled={pendente} onClick={() => rodar(() => desatribuir(evento, d.id))} className="text-xs text-cinza hover:underline">devolver ao estoque</button>}
+                        {!d.enviado_em && <button disabled={pendente} onClick={() => rodar(() => remover(evento, d.id), "Remover este ingresso do estoque?")} className="text-xs text-red-700 hover:underline">remover</button>}
+                      </div>
                     </td>
                   </tr>
                 );

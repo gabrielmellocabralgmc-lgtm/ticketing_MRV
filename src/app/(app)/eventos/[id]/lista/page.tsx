@@ -1,6 +1,7 @@
 import { AoVivo } from "@/components/ao-vivo";
 import { Titulo } from "@/components/ui";
 import { exigirAdmin } from "@/lib/sessao";
+import { supabaseServidor } from "@/lib/supabase/server";
 import { carregarEvento } from "../dados";
 import { carregarIngressos } from "../ingressos";
 import { desfazerEnvio, enviados, enviadosSemFacial, facialOk, pendenteFacial, registrarCopia, validarIngressos } from "../marketing-actions";
@@ -13,6 +14,11 @@ export default async function PaginaLista({ params }: { params: Promise<{ id: st
   await exigirAdmin();
   const { id } = await params;
   const ev = await carregarEvento(id);
+  const { data: digs } = ev.ingressos_digitais
+    ? await (await supabaseServidor()).from("ingressos_digitais").select("ingresso_id, enviado_em").eq("evento_id", id)
+    : { data: [] };
+  const digitais = Object.fromEntries(((digs ?? []) as { ingresso_id: string | null; enviado_em: string | null }[])
+    .filter((d) => d.ingresso_id).map((d) => [d.ingresso_id!, !!d.enviado_em]));
   const linhas = (await carregarIngressos(id, [
     "solicitado", "validado_area", "aprovado", "facial_pendente", "facial_ok", "enviado", "confirmado", "presente",
     "lista_espera", "cancelado", "recusado", "no_show",
@@ -32,6 +38,7 @@ export default async function PaginaLista({ params }: { params: Promise<{ id: st
           evento: { titulo: ev.titulo, inicio: ev.inicio, abertura_portoes: ev.abertura_portoes },
           facial: ev.exige_facial,
           digital: ev.ingressos_digitais,
+          digitais,
           pendenteFacial: pendenteFacial.bind(null, id),
           facialOk: facialOk.bind(null, id),
           validar: validarIngressos.bind(null, id),

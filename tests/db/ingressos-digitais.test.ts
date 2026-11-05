@@ -79,7 +79,8 @@ describe("ingressos digitais (shows)", () => {
     expect(n).toBe(1);
 
     const [{ token }] = await b.sql<{ token: string }>(`select token from ingressos where id = $1`, [i1]);
-    expect(await b.sql(`select * from dig_do_token($1)`, [token])).toHaveLength(0); // ainda não enviado
+    expect(await b.sql(`select * from dig_do_token($1)`, [token])).toHaveLength(0); // página: só depois de enviado
+    expect(await b.sql(`select * from dig_arquivo_do_token($1)`, [token])).toHaveLength(1); // link direto: já vale (envio por fora)
     await b.como(adm, `select dig_marcar_enviados($1)`, [[i1]]);
     const [st] = await b.sql<{ status: string }>(`select status from ingressos where id = $1`, [i1]);
     expect(st.status).toBe("enviado");

@@ -77,7 +77,7 @@ export async function enviar(evento: string): Promise<Resultado> {
   revalidatePath(caminho(evento));
   if (!r.enviados.length && !r.semEmail.length && !r.falhas.length) return { ok: false, erro: "Nada para enviar: distribua os ingressos primeiro (só vai para quem está pronto para envio)." };
   const partes = [`${r.enviados.length} ingresso(s) enviado(s)${r.simulado ? " (modo sem e-mail real: ficaram na caixa de saída)" : ""}`];
-  if (r.semEmail.length) partes.push(`${r.semEmail.length} sem e-mail (use “Liberar p/ WhatsApp” na tabela): ${r.semEmail.slice(0, 5).join(", ")}${r.semEmail.length > 5 ? "…" : ""}`);
+  if (r.semEmail.length) partes.push(`${r.semEmail.length} sem e-mail: copie o “Link do ingresso” na tabela, mande pelo WhatsApp e clique em “Marcar como enviado”: ${r.semEmail.slice(0, 5).join(", ")}${r.semEmail.length > 5 ? "…" : ""}`);
   if (r.falhas.length) partes.push(`${r.falhas.length} com falha: ${r.falhas.slice(0, 2).join(" | ")}`);
   return r.falhas.length ? { ok: false, erro: partes.join(". ") + "." } : { ok: true, mensagem: partes.join(". ") + "." };
 }
@@ -99,11 +99,11 @@ export async function desatribuir(evento: string, id: string): Promise<Resultado
   return { ok: true, mensagem: "O ingresso voltou para o estoque." };
 }
 
-/** Convidado sem e-mail: libera o ingresso na página pessoal para mandar o link pelo WhatsApp. */
+/** Enviado "por fora" (WhatsApp etc.): marca como enviado e libera o botão na página do convidado. */
 export async function liberarSemEmail(evento: string, ingresso: string): Promise<Resultado> {
   await exigirStaff();
   const { error } = await (await supabaseServidor()).rpc("dig_marcar_enviados", { p_ingressos: [ingresso] });
   if (error) return falha(error);
   revalidatePath(caminho(evento));
-  return { ok: true, mensagem: "Liberado: copie o “Link pessoal” e mande pelo WhatsApp. O ingresso já pode ser baixado por ele." };
+  return { ok: true, mensagem: "Marcado como enviado. O ingresso também aparece na página pessoal do convidado." };
 }

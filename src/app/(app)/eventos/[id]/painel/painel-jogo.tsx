@@ -30,6 +30,7 @@ export interface LinhaPainel {
   email: string | null;
   manual_admin?: boolean;
   anfitriao_externo?: string | null;
+  token?: string;
   chegada_em?: string | null;
   convidado_de: string | null;
   convidado_de_nome: string | null;
@@ -61,7 +62,7 @@ export interface ConvitePendente {
   id: string; token: string; nome_previsto: string | null; qtd_lugares: number; expira_em: string; setor: Setor; area_id: string; area_nome: string; contato: string | null;
 }
 
-export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins, opcoes, anfitrioes, eventoInfo, convites, simples, digital = false, facial = true }: {
+export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins, opcoes, anfitrioes, eventoInfo, convites, simples, digital = false, facial = true, digitais = {} }: {
   evento: string; linhas: LinhaPainel[]; setores: SetorPainel[];
   areas: { id: string; nome: string }[]; areaPadrao: string; walkins: Walkin[];
   opcoes: OpcaoSetor[]; anfitrioes: PessoaDaLista[]; convites: ConvitePendente[];
@@ -72,6 +73,8 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
   digital?: boolean;
   /** Evento exige facial: mostra os botões de facial. */
   facial?: boolean;
+  /** Ingressos digitais distribuídos: id do ingresso → já enviado? */
+  digitais?: Record<string, boolean>;
 }) {
   const [setor, setSetor] = useState<Setor>(setores.find((s) => s.setor === "arquibancada")?.setor ?? setores[0]?.setor ?? "arquibancada");
   const [busca, setBusca] = useState("");
@@ -131,7 +134,7 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
             <div className="w-full sm:w-72"><Entrada value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar nome, CPF ou área…" aria-label="Buscar" /></div>
           </div>
         </div>
-        <TabelaSimples linhas={filtrar(ativos)} vazio="Ninguém neste setor ainda." evento={evento} facial={facial} />
+        <TabelaSimples linhas={filtrar(ativos)} vazio="Ninguém neste setor ainda." evento={evento} facial={facial} digitais={digitais} />
       </div>
 
       <LinksPendentes evento={evento} convites={convites.filter((c) => c.setor === setor)} eventoInfo={eventoInfo} />
@@ -190,7 +193,9 @@ function Grande({ rotulo, valor, laranja }: { rotulo: string; valor: number | st
   );
 }
 
-function TabelaSimples({ linhas, vazio, posicao, evento, facial = true }: { linhas: LinhaPainel[]; vazio: string; posicao?: boolean; evento?: string; facial?: boolean }) {
+function TabelaSimples({ linhas, vazio, posicao, evento, facial = true, digitais = {} }: {
+  linhas: LinhaPainel[]; vazio: string; posicao?: boolean; evento?: string; facial?: boolean; digitais?: Record<string, boolean>;
+}) {
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   const [ocupado, iniciar] = useTransition();
   const rodar = (f: () => Promise<{ ok: boolean; mensagem?: string; erro?: string }>, confirmar: string) =>
@@ -223,6 +228,9 @@ function TabelaSimples({ linhas, vazio, posicao, evento, facial = true }: { linh
                 <td className="px-4 py-2 font-mono text-xs whitespace-nowrap">{l.cpf ? formatarCpf(l.cpf) : "—"}</td>
                 <td className="px-4 py-2 text-xs">{l.area_nome}</td>
                 <td className="px-4 py-2 whitespace-nowrap">
+                  {l.token && l.id in digitais && (
+                    <span className="mr-1.5 inline-block"><BotaoCopiar texto={`${linkTorcedor(l.token)}/ingresso`} rotulo="🎟 Link do ingresso" /></span>
+                  )}
                   <Selo tom={st.tom}>{st.rotulo}</Selo>
                   {l.chegada_em && <span className="ml-1"><Selo tom="verde">Chegou {dataHora(l.chegada_em).split(" ")[1]}</Selo></span>}
                   {l.enviado_em && <span className="ml-1 text-xs text-tinta/50">{dataHora(l.enviado_em)}</span>}

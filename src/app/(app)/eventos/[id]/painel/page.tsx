@@ -27,6 +27,11 @@ export default async function Painel({ params }: { params: Promise<{ id: string 
     supabase.from("convites").select("id, token, nome_previsto, qtd_lugares, expira_em, setor, area_id, contato").eq("evento_id", id).eq("status", "aguardando").order("criado_em"),
   ]);
   const nomeArea = new Map((areas ?? []).map((a) => [a.id, a.nome]));
+  const { data: digs } = ev.ingressos_digitais
+    ? await supabase.from("ingressos_digitais").select("ingresso_id, enviado_em").eq("evento_id", id)
+    : { data: [] };
+  const digitais = Object.fromEntries(((digs ?? []) as { ingresso_id: string | null; enviado_em: string | null }[])
+    .filter((d) => d.ingresso_id).map((d) => [d.ingresso_id!, !!d.enviado_em]));
   const areaPadrao = (areas ?? []).find((a) => a.slug === "marketing")?.id ?? areas?.[0]?.id ?? "";
 
   return (
@@ -46,6 +51,7 @@ export default async function Painel({ params }: { params: Promise<{ id: string 
         anfitrioes={anfitrioes}
         simples={s.papel === "marketing"}
         digital={ev.ingressos_digitais}
+        digitais={digitais}
         facial={ev.exige_facial}
         eventoInfo={{ titulo: ev.titulo, inicio: ev.inicio, abertura_portoes: ev.abertura_portoes }}
         convites={((convites ?? []) as Omit<ConvitePendente, "area_nome">[]).map((c) => ({ ...c, area_nome: nomeArea.get(c.area_id) ?? "" }))}

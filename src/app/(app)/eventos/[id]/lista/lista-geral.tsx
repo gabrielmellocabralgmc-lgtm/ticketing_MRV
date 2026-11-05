@@ -3,10 +3,11 @@
 // nome sempre primeiro, CPF a um clique e "Enviar ingresso" na própria linha.
 import { useMemo, useState, useTransition } from "react";
 import clsx from "clsx";
+import { BotaoCopiar } from "@/components/copiar";
 import { Aviso, Entrada, Selecao, Selo, SeloStatus } from "@/components/ui";
 import { formatarCpf, somenteDigitos } from "@/lib/cpf";
 import { celular, dataHora } from "@/lib/formato";
-import { linkWhatsApp, textoGaloId } from "@/lib/mensagens";
+import { linkTorcedor, linkWhatsApp, textoGaloId } from "@/lib/mensagens";
 import type { Resultado } from "@/lib/erros";
 import { normalizarTexto } from "@/lib/texto";
 import { ROTULO_SETOR, type Setor, type StatusIngresso } from "@/lib/tipos";
@@ -37,6 +38,8 @@ interface Acoes {
   facial: boolean;
   /** Ingresso digital: o envio é pela tela "Ingressos digitais" (PDF/link por e-mail). */
   digital: boolean;
+  /** Ingressos digitais já distribuídos: id do ingresso → já enviado? */
+  digitais: Record<string, boolean>;
   pendenteFacial: (ids: string[]) => Promise<Resultado>;
   facialOk: (ids: string[]) => Promise<Resultado>;
   validar: (ids: string[]) => Promise<Resultado>;
@@ -199,6 +202,9 @@ function TabelaSetor({ setor, todas, linhas, ordem, nomesPorId, pendente, acoes,
                   <td className="px-3 py-1.5 text-xs whitespace-nowrap">{celular(l.celular)}</td>
                   <td className="px-3 py-1.5 text-xs">{l.area_nome}</td>
                   <td className="px-3 py-1.5 text-right whitespace-nowrap">
+                    {acoes.digital && l.id in acoes.digitais && (
+                      <span className="mr-2 inline-block"><BotaoCopiar texto={`${linkTorcedor(l.token)}/ingresso`} rotulo="🎟 Link do ingresso" /></span>
+                    )}
                     {l.status === "facial_ok" ? (
                       <span className="inline-flex items-center gap-1.5">
                         {acoes.facial && (
