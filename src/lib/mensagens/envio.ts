@@ -453,3 +453,34 @@ export async function avisarRelatorioOperacao(evento: string, autor?: string | n
   }));
   return enviarModelo(itensEnvio, { autor });
 }
+
+// ---------------------------------------------------------------- ingressos digitais (shows)
+/**
+ * Convidados prontos para envio que já têm ingresso digital atribuído e ainda não receberam.
+ * Manda o e-mail com o botão "Baixar meu ingresso" e devolve quem recebeu (para marcar como enviado)
+ * e quem ficou de fora por não ter e-mail.
+ */
+export async function enviarIngressosDigitais(evento: string, autor?: string | null) {
+  const sb = await supabaseServico();
+  const [{ data: ev }, { data: digs }] = await Promise.all([
+    sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao").eq("id", evento).single(),
+    sb.from("ingressos_digitais").select("ingresso_id, enviado_em").eq("evento_id", evento),
+  ]);
+  const pendentes = ((digs ?? []) as { ingresso_id: string | null; enviado_em: string | null }[])
+    .filter((d) => d.ingresso_id && !d.enviado_em).map((d) => d.ingresso_id!);
+  const res = { enviados: [] as string[], semEmail: [] as string[], falhas: [] as string[], simulado: !envioReal() };
+  if (!pendentes.length) return res;
+  const { data: ings } = await sb.from("v_ingressos").select("id, nome, email, setor, token, status").in("id", pendentes);
+  for (const i of (ings ?? []) as { id: string; nome: string | null; email: string | null; setor: Setor; token: string; status: string }[]) {
+    if (i.status !== "facial_ok") continue; // só quem está pronto para envio
+    if (!i.email) { res.semEmail.push(i.nome ?? i.id); continue; }
+    const r = await enviarModelo([{
+      tipo: "ingresso_digital", para: { nome: i.nome, email: i.email }, evento_id: evento, ingresso_id: i.id,
+      vars: { ...varsEvento(ev as EventoVars), nome: primeiroNome(i.nome), setor: ROTULO_SETOR[i.setor] },
+      botao: { rotulo: "Baixar meu ingresso", url: `${siteUrl()}/i/${i.token}/ingresso` },
+    }], { autor });
+    if (r.enviados || r.simulados) res.enviados.push(i.id);
+    else res.falhas.push(`${i.nome}: ${r.erros.join("; ")}`);
+  }
+  return res;
+}

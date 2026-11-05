@@ -7,24 +7,25 @@ import { preencherConvite } from "./actions";
 type P = { nome: string; cpf: string; celular: string; email: string };
 const vazia = (): P => ({ nome: "", cpf: "", celular: "", email: "" });
 
-function erros(p: P) {
+function erros(p: P, exigirEmail = false) {
   const e: Partial<Record<keyof P, string>> = {};
   if (p.nome.trim().split(/\s+/).length < 2) e.nome = "Informe o nome completo";
   if (!cpfValido(p.cpf)) e.cpf = "CPF inválido";
   const c = somenteDigitos(p.celular);
   if (c.length < 10 || c.length > 11) e.celular = "Celular com DDD";
-  if (p.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(p.email)) e.email = "E-mail inválido";
+  if (exigirEmail && !p.email.trim()) e.email = "Informe o e-mail: o ingresso é enviado por ele";
+  else if (p.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(p.email)) e.email = "E-mail inválido";
   return e;
 }
 
-export function FormConvidado({ token, lugares, privacidade }: { token: string; lugares: number; privacidade: string }) {
+export function FormConvidado({ token, lugares, privacidade, exigirEmail = false }: { token: string; lugares: number; privacidade: string; exigirEmail?: boolean }) {
   const [pessoas, setPessoas] = useState<P[]>(() => Array.from({ length: lugares }, vazia));
   const [aceite, setAceite] = useState(false);
   const [tocado, setTocado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciar] = useTransition();
   const usadas = pessoas.filter((p, i) => i === 0 || p.nome || p.cpf || p.celular);
-  const ok = usadas.every((p) => Object.keys(erros(p)).length === 0) && aceite;
+  const ok = usadas.every((p) => Object.keys(erros(p, exigirEmail)).length === 0) && aceite;
   const set = (i: number, k: keyof P, v: string) => setPessoas((ps) => ps.map((p, j) => (j === i ? { ...p, [k]: v } : p)));
 
   return (
@@ -41,7 +42,7 @@ export function FormConvidado({ token, lugares, privacidade }: { token: string; 
       }}
     >
       {pessoas.map((p, i) => {
-        const e = tocado && (i === 0 || p.nome || p.cpf || p.celular) ? erros(p) : {};
+        const e = tocado && (i === 0 || p.nome || p.cpf || p.celular) ? erros(p, exigirEmail) : {};
         return (
           <fieldset key={i} className="space-y-3 rounded-xl p-4 ring-1 ring-black/10">
             <legend className="px-1 text-sm font-semibold text-mrv-900">{i === 0 ? "Seus dados" : `Acompanhante ${i}${i > 0 ? " (opcional)" : ""}`}</legend>
@@ -52,7 +53,7 @@ export function FormConvidado({ token, lugares, privacidade }: { token: string; 
               </Campo>
               <Campo rotulo="Celular (WhatsApp)" erro={e.celular}><Entrada value={p.celular} inputMode="tel" autoComplete={i === 0 ? "tel" : "off"} onChange={(ev) => set(i, "celular", ev.target.value)} /></Campo>
             </div>
-            <Campo rotulo="E-mail (opcional)" erro={e.email}><Entrada type="email" value={p.email} autoComplete={i === 0 ? "email" : "off"} onChange={(ev) => set(i, "email", ev.target.value)} /></Campo>
+            <Campo rotulo={exigirEmail ? "E-mail (o ingresso chega por ele)" : "E-mail (opcional)"} erro={e.email}><Entrada type="email" value={p.email} autoComplete={i === 0 ? "email" : "off"} onChange={(ev) => set(i, "email", ev.target.value)} /></Campo>
           </fieldset>
         );
       })}

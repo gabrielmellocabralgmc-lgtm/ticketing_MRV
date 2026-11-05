@@ -36,6 +36,8 @@ function dadosEvento(form: FormData) {
     abertura_portoes: aberturaPortoes(tipo, inicio, String(form.get("portoes_hora") ?? "")),
     prazo_solicitacao: deInputLocal(form.get("prazo_solicitacao")),
     observacoes: String(form.get("observacoes") ?? "").trim() || null,
+    ingressos_digitais: form.get("ingressos_digitais") === "on",
+    exige_facial: form.get("exige_facial") === "on",
   };
 }
 
@@ -46,6 +48,8 @@ export async function criarEvento(_: unknown, form: FormData): Promise<Resultado
   const supabase = await supabaseServidor();
   const { data, error } = await supabase.rpc("criar_evento", { p });
   if (error) return falha(error);
+  // opções que o criar_evento não recebe: grava logo em seguida
+  await supabase.from("eventos").update({ ingressos_digitais: p.ingressos_digitais, exige_facial: p.exige_facial }).eq("id", data as string);
   redirect(`/eventos/${data}`);
 }
 

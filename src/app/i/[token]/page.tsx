@@ -26,6 +26,17 @@ interface InfoIngresso {
   facial_em: string | null; enviado_em: string | null; recebido_em: string | null;
 }
 
+/** Configurações do evento que mudam a página: facial e ingresso digital. */
+async function configEvento(eventoId: string) {
+  const { data } = await (await supabaseServico()).from("eventos").select("ingressos_digitais, exige_facial").eq("id", eventoId).maybeSingle();
+  return { digital: !!data?.ingressos_digitais, facial: data?.exige_facial ?? true };
+}
+
+async function temIngressoDigital(token: string) {
+  const { data } = await (await supabaseServico()).rpc("dig_do_token", { p_token: token });
+  return ((data ?? []) as unknown[]).length > 0;
+}
+
 async function consultar(token: string) {
   if (!/^[A-Za-z0-9_-]{30,60}$/.test(token)) return null;
   const { data } = await (await supabaseServico()).rpc("consultar_link", { p_token: token });
@@ -52,13 +63,13 @@ async function CabecalhoEvento({ evento, setor, area }: { evento: EventoPublico;
   return (
     <section className="overflow-hidden rounded-2xl bg-preto text-white">
       <div className="flex items-center gap-4 p-5">
-        <Escudo url={img[CHAVE_ESCUDO_ATLETICO]} nome="do Atlético" />
+        {evento.tipo === "jogo" && <Escudo url={img[CHAVE_ESCUDO_ATLETICO]} nome="do Atlético" />}
         <div className="min-w-0 flex-1">
           <div className="font-display text-xs font-bold tracking-[0.1em] text-amarelo-500 uppercase">{evento.competicao ?? (evento.tipo === "jogo" ? "Jogo" : "Show")}</div>
           <h1 className="font-display text-2xl leading-tight font-extrabold uppercase">{evento.titulo}</h1>
           <p className="text-sm text-white/80 first-letter:uppercase">{dataLonga(evento.inicio)}</p>
         </div>
-        <Escudo url={img[chaveEscudoAdversario(evento.id)]} nome="do adversário" />
+        {evento.tipo === "jogo" && <Escudo url={img[chaveEscudoAdversario(evento.id)]} nome="do adversário" />}
       </div>
       <Listras />
       <dl className="grid grid-cols-2 gap-3 bg-white p-5 text-sm text-tinta">
@@ -81,6 +92,9 @@ const ETAPAS: { rotulo: string; feitos: StatusIngresso[] }[] = [
 async function PaginaIngresso({ token, info, acompanhantes }: { token: string; info: InfoIngresso; acompanhantes?: { token: string; nome: string }[] }) {
   const encerrado = ["cancelado", "recusado", "no_show", "convite_expirado"].includes(info.status);
   const camarote = info.setor === "camarote";
+  const cfg = await configEvento(info.evento.id);
+  const baixar = !encerrado && (await temIngressoDigital(token));
+  const etapas = ETAPAS.filter((e) => cfg.facial || e.rotulo !== "Facial confirmada");
   return (
     <>
       <CabecalhoEvento evento={info.evento} setor={info.setor} area={info.area} />
@@ -95,7 +109,7 @@ async function PaginaIngresso({ token, info, acompanhantes }: { token: string; i
         </div>
         {!encerrado && (
           <ol className="mt-5 space-y-2">
-            {ETAPAS.map((e) => {
+            {etapas.map((e) => {
               const ok = e.feitos.includes(info.status);
               return (
                 <li key={e.rotulo} className="flex items-center gap-3 text-sm">
@@ -107,14 +121,39 @@ async function PaginaIngresso({ token, info, acompanhantes }: { token: string; i
           </ol>
         )}
         {(info.status === "solicitado" || info.status === "validado_area") && (
-          <div className="mt-4"><Aviso tom="info">Recebemos seus dados. Agora o pedido passa pela validação do responsável da área que convidou você; avisaremos quando for liberado. Enquanto isso, confira o cadastro facial (abaixo).</Aviso></div>
+          <div className="mt-4"><Aviso tom="info">Recebemos seus dados. Agora o pedido passa pela validação do responsável da área que convidou você; avisaremos quando for liberado.{cfg.facial && " Enquanto isso, confira o cadastro facial (abaixo)."}</Aviso></div>
         )}
         {info.status === "lista_espera" && <div className="mt-4"><Aviso tom="alerta">Você está na lista de espera. Se abrir vaga, avisamos.</Aviso></div>}
         {info.status === "cancelado" && <div className="mt-4"><Aviso tom="info">Este ingresso foi cancelado.</Aviso></div>}
         {info.status === "recusado" && <div className="mt-4"><Aviso tom="info">Este pedido não pôde ser atendido desta vez.</Aviso></div>}
       </Cartao>
 
-      {!encerrado && info.status !== "presente" && (
+      {baixar && (
+        <Cartao className="ring-2 ring-mrv-600/40">
+          <h2 className="mb-1 font-bold text-mrv-900">Seu ingresso está pronto</h2>
+          <p className="mb-4 text-sm text-tinta/70">Ele é pessoal: não compartilhe este link.</p>
+          <a href={`/i/${token}/ingresso`} target="_blank" rel="noopener noreferrer"
+            className="flex min-h-14 w-full items-center justify-center rounded-lg bg-mrv-600 px-4 text-base font-extrabold tracking-wide text-white uppercase hover:bg-mrv-700">
+            ⬇ Baixar meu ingresso
+          </a>
+        </Cartao>
+      )}
+
+      {!encerrado && info.status !== "presente" && !cfg.facial && (
+        <Cartao>
+          <h2 className="mb-3 font-bold text-mrv-900">Como funciona</h2>
+          <ol className="list-decimal space-y-2 pl-5 text-sm">
+            <li>Depois da validação, {cfg.digital ? <>o ingresso chega no seu <b>e-mail</b> e fica disponível <b>nesta página</b>.</> : "a MRV envia o seu ingresso."}</li>
+            <li><b>No dia:</b> chegue com antecedência{info.evento.abertura_portoes ? ` (portões às ${dataHora(info.evento.abertura_portoes).split(" ")[1]})` : ""} e vá ao setor {ROTULO_SETOR[info.setor]}. O ingresso é pessoal e intransferível.</li>
+          </ol>
+          {camarote && (
+            <div className="mt-4"><Aviso tom="alerta">O camarote MRV é corporativo: quem convidou você precisa estar presente durante o evento. O ingresso não pode ser repassado.</Aviso></div>
+          )}
+          <div className="mt-5"><BotoesTorcedor token={token} status={info.status} /></div>
+        </Cartao>
+      )}
+
+      {!encerrado && info.status !== "presente" && cfg.facial && (
         <Cartao>
           <h2 className="mb-3 font-bold text-mrv-900">Passo a passo</h2>
           <p className="mb-3 text-sm">A entrada na Arena MRV é pelo <b>reconhecimento facial</b>. Se você já tem a facial cadastrada, é só confirmar no botão abaixo.</p>
@@ -185,6 +224,7 @@ export default async function PaginaPublica({ params }: { params: Promise<{ toke
   }
 
   const { data: priv } = await (await supabaseServico()).from("config").select("valor").eq("chave", "privacidade").maybeSingle();
+  const cfgConvite = await configEvento(info.evento.id);
   return (
     <Moldura>
       <CabecalhoEvento evento={info.evento} setor={info.setor} area={info.area} />
@@ -194,7 +234,7 @@ export default async function PaginaPublica({ params }: { params: Promise<{ toke
           Válido até {dataHora(info.expira_em)}. Depois de enviar, o pedido passa pela validação do responsável da área que convidou você.
           {info.setor === "camarote" && " Camarote: quem convidou precisa estar presente; o ingresso não pode ser repassado."}
         </p>
-        <FormConvidado token={token} lugares={info.qtd_lugares} privacidade={String(priv?.valor ?? "")} />
+        <FormConvidado token={token} lugares={info.qtd_lugares} privacidade={String(priv?.valor ?? "")} exigirEmail={cfgConvite.digital} />
       </Cartao>
     </Moldura>
   );

@@ -33,6 +33,10 @@ type Ordem = "area" | "nome" | "status";
 
 interface Acoes {
   evento: { titulo: string; inicio: string; abertura_portoes: string | null };
+  /** Evento exige facial (jogos): mostra "Pendente facial". */
+  facial: boolean;
+  /** Ingresso digital: o envio é pela tela "Ingressos digitais" (PDF/link por e-mail). */
+  digital: boolean;
   pendenteFacial: (ids: string[]) => Promise<Resultado>;
   facialOk: (ids: string[]) => Promise<Resultado>;
   validar: (ids: string[]) => Promise<Resultado>;
@@ -197,11 +201,17 @@ function TabelaSetor({ setor, todas, linhas, ordem, nomesPorId, pendente, acoes,
                   <td className="px-3 py-1.5 text-right whitespace-nowrap">
                     {l.status === "facial_ok" ? (
                       <span className="inline-flex items-center gap-1.5">
-                        <button disabled={pendente} onClick={() => rodar(l, acoes.pendenteFacial, `${l.nome} está sem facial no sistema do Atlético? Vamos marcar como pendente e mandar o passo a passo.`)}
-                          title="A facial não está cadastrada no sistema do Atlético"
-                          className="rounded-lg px-2.5 py-1.5 text-xs font-bold text-red-700 ring-1 ring-red-300 hover:bg-red-50 disabled:opacity-50">Pendente facial</button>
-                        <button disabled={pendente} onClick={() => rodar(l, acoes.enviados)}
-                          className="rounded-lg bg-mrv-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-mrv-700 disabled:opacity-50">Enviar ingresso</button>
+                        {acoes.facial && (
+                          <button disabled={pendente} onClick={() => rodar(l, acoes.pendenteFacial, `${l.nome} está sem facial no sistema do Atlético? Vamos marcar como pendente e mandar o passo a passo.`)}
+                            title="A facial não está cadastrada no sistema do Atlético"
+                            className="rounded-lg px-2.5 py-1.5 text-xs font-bold text-red-700 ring-1 ring-red-300 hover:bg-red-50 disabled:opacity-50">Pendente facial</button>
+                        )}
+                        {acoes.digital ? (
+                          <Selo tom="verde">Pronto · envio digital</Selo>
+                        ) : (
+                          <button disabled={pendente} onClick={() => rodar(l, acoes.enviados)}
+                            className="rounded-lg bg-mrv-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-mrv-700 disabled:opacity-50">Enviar ingresso</button>
+                        )}
                       </span>
                     ) : l.status === "facial_pendente" || l.status === "aprovado" ? (
                       <span className="inline-flex items-center gap-1.5">

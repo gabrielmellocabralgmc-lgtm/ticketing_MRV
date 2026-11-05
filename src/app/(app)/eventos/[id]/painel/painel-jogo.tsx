@@ -61,13 +61,17 @@ export interface ConvitePendente {
   id: string; token: string; nome_previsto: string | null; qtd_lugares: number; expira_em: string; setor: Setor; area_id: string; area_nome: string; contato: string | null;
 }
 
-export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins, opcoes, anfitrioes, eventoInfo, convites, simples }: {
+export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins, opcoes, anfitrioes, eventoInfo, convites, simples, digital = false, facial = true }: {
   evento: string; linhas: LinhaPainel[]; setores: SetorPainel[];
   areas: { id: string; nome: string }[]; areaPadrao: string; walkins: Walkin[];
   opcoes: OpcaoSetor[]; anfitrioes: PessoaDaLista[]; convites: ConvitePendente[];
   eventoInfo: { titulo: string; inicio: string; abertura_portoes: string | null };
   /** Marketing: adicionar convidado só com nome, CPF e área. */
   simples?: boolean;
+  /** Evento com ingresso digital (PDF/link enviado pelo sistema). */
+  digital?: boolean;
+  /** Evento exige facial: mostra os botões de facial. */
+  facial?: boolean;
 }) {
   const [setor, setSetor] = useState<Setor>(setores.find((s) => s.setor === "arquibancada")?.setor ?? setores[0]?.setor ?? "arquibancada");
   const [busca, setBusca] = useState("");
@@ -99,7 +103,12 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
 
       {/* as mesmas ações do Admin: abatem da cota e entram aprovadas */}
       <AcoesConvidados key={setor} evento={evento} areas={areas} setores={opcoes} setorInicial={setor} areaInicial={areaPadrao}
-        anfitrioes={anfitrioes} eventoInfo={eventoInfo} simples={simples} />
+        anfitrioes={anfitrioes} eventoInfo={eventoInfo} simples={simples} exigirEmail={digital} />
+      {digital && (
+        <div className="flex justify-end">
+          <a href={`/eventos/${evento}/ingressos-digitais`} className="rounded-lg bg-mrv-600 px-4 py-2 text-sm font-bold text-white hover:bg-mrv-700">Ingressos digitais (PDF/links) →</a>
+        </div>
+      )}
 
       {setor === "camarote" && <PortaCamarote evento={evento} walkins={walkins} />}
 
@@ -122,7 +131,7 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
             <div className="w-full sm:w-72"><Entrada value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar nome, CPF ou área…" aria-label="Buscar" /></div>
           </div>
         </div>
-        <TabelaSimples linhas={filtrar(ativos)} vazio="Ninguém neste setor ainda." evento={evento} />
+        <TabelaSimples linhas={filtrar(ativos)} vazio="Ninguém neste setor ainda." evento={evento} facial={facial} />
       </div>
 
       <LinksPendentes evento={evento} convites={convites.filter((c) => c.setor === setor)} eventoInfo={eventoInfo} />
@@ -181,7 +190,7 @@ function Grande({ rotulo, valor, laranja }: { rotulo: string; valor: number | st
   );
 }
 
-function TabelaSimples({ linhas, vazio, posicao, evento }: { linhas: LinhaPainel[]; vazio: string; posicao?: boolean; evento?: string }) {
+function TabelaSimples({ linhas, vazio, posicao, evento, facial = true }: { linhas: LinhaPainel[]; vazio: string; posicao?: boolean; evento?: string; facial?: boolean }) {
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   const [ocupado, iniciar] = useTransition();
   const rodar = (f: () => Promise<{ ok: boolean; mensagem?: string; erro?: string }>, confirmar: string) =>
@@ -217,7 +226,7 @@ function TabelaSimples({ linhas, vazio, posicao, evento }: { linhas: LinhaPainel
                   <Selo tom={st.tom}>{st.rotulo}</Selo>
                   {l.chegada_em && <span className="ml-1"><Selo tom="verde">Chegou {dataHora(l.chegada_em).split(" ")[1]}</Selo></span>}
                   {l.enviado_em && <span className="ml-1 text-xs text-tinta/50">{dataHora(l.enviado_em)}</span>}
-                  {evento && l.status === "facial_ok" && (
+                  {evento && facial && l.status === "facial_ok" && (
                     <button disabled={ocupado} onClick={() => rodar(() => pendenteFacial(evento, [l.id]), `${l.nome} está sem facial no sistema do Atlético?`)}
                       className="ml-2 rounded-md px-2 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-red-300 hover:bg-red-50">Pendente facial</button>
                   )}

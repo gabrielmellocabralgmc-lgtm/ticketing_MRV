@@ -45,6 +45,8 @@ export default async function Painel({ params }: { params: Promise<{ id: string 
         opcoes={opcoesAdicionar(setores, resumo, areas ?? [])}
         anfitrioes={anfitrioes}
         simples={s.papel === "marketing"}
+        digital={ev.ingressos_digitais}
+        facial={ev.exige_facial}
         eventoInfo={{ titulo: ev.titulo, inicio: ev.inicio, abertura_portoes: ev.abertura_portoes }}
         convites={((convites ?? []) as Omit<ConvitePendente, "area_nome">[]).map((c) => ({ ...c, area_nome: nomeArea.get(c.area_id) ?? "" }))}
       />

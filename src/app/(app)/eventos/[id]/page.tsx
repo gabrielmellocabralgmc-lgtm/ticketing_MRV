@@ -71,6 +71,7 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
           <BotaoLink href={`/eventos/${id}/lista`}>Lista geral</BotaoLink>
           <BotaoLink href={`/eventos/${id}/aprovacao`}>Aprovação{pendenteAprovar > 0 && ` (${pendenteAprovar})`}</BotaoLink>
           <BotaoLink href={`/eventos/${id}/envio`}>A enviar{aEnviar > 0 && ` (${aEnviar})`}</BotaoLink>
+          {ev.ingressos_digitais && <BotaoLink href={`/eventos/${id}/ingressos-digitais`} variante="primario">Ingressos digitais</BotaoLink>}
           <a href={`/eventos/${id}/exportar`} className="inline-flex min-h-10 items-center rounded-lg px-4 py-2 text-sm font-bold text-mrv-700 ring-1 ring-mrv-600 hover:bg-mrv-50">Exportar XLSX</a>
           <BotaoLink href={`/eventos/${id}/relatorio`} variante="fantasma">Relatório</BotaoLink>
           <BotaoLink href={`/eventos/${id}/editar`} variante="fantasma">Editar</BotaoLink>
@@ -79,7 +80,8 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
       {s.staff && (
         <div className="mb-6">
           <AcoesConvidados evento={id} areas={areasAtivas ?? []} setores={opcoesAdicionar(setores, linhas, areasAtivas ?? [])}
-            anfitrioes={await carregarAnfitrioes(id)} eventoInfo={{ titulo: ev.titulo, inicio: ev.inicio, abertura_portoes: ev.abertura_portoes }} />
+            anfitrioes={await carregarAnfitrioes(id)} eventoInfo={{ titulo: ev.titulo, inicio: ev.inicio, abertura_portoes: ev.abertura_portoes }}
+            exigirEmail={ev.ingressos_digitais} />
         </div>
       )}
 

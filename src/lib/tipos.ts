@@ -19,6 +19,10 @@ export interface Evento {
   prazo_solicitacao: string | null;
   prazo_validacao: string | null;
   concorrido: boolean;
+  /** Ingressos (PDF/link) enviados pelo próprio sistema — padrão nos shows. */
+  ingressos_digitais: boolean;
+  /** Exige cadastro facial (Galo ID) antes do envio — padrão nos jogos. */
+  exige_facial: boolean;
   status: StatusEvento;
   observacoes: string | null;
 }

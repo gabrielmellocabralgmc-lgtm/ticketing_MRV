@@ -63,6 +63,14 @@ export function FormEvento({ acao, evento, anteriores }: { acao: Acao; evento?: 
         </Campo>
       </div>
       <div className="flex flex-wrap gap-6 text-sm">
+        <label key={`dig-${tipo}`} className="flex items-center gap-2">
+          <input type="checkbox" name="ingressos_digitais" defaultChecked={evento?.ingressos_digitais ?? tipo === "show"} className="size-4 accent-mrv-700" />
+          Ingressos digitais enviados pelo sistema <span className="text-tinta/60">(PDF ou link, por e-mail)</span>
+        </label>
+        <label key={`fac-${tipo}`} className="flex items-center gap-2">
+          <input type="checkbox" name="exige_facial" defaultChecked={evento?.exige_facial ?? tipo === "jogo"} className="size-4 accent-mrv-700" />
+          Exige cadastro facial <span className="text-tinta/60">(Super App do Galo / Galo ID)</span>
+        </label>
         {tipo === "show" && (
           <label className="flex items-center gap-2">
             <input type="checkbox" name="show_proprio" defaultChecked={evento?.show_proprio ?? true} className="size-4 accent-mrv-700" />

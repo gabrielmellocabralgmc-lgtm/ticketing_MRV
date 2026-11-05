@@ -30,6 +30,8 @@ export default async function PaginaLista({ params }: { params: Promise<{ id: st
         linhas={linhas}
         acoes={{
           evento: { titulo: ev.titulo, inicio: ev.inicio, abertura_portoes: ev.abertura_portoes },
+          facial: ev.exige_facial,
+          digital: ev.ingressos_digitais,
           pendenteFacial: pendenteFacial.bind(null, id),
           facialOk: facialOk.bind(null, id),
           validar: validarIngressos.bind(null, id),

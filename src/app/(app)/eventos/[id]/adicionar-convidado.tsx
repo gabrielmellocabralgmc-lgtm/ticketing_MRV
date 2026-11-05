@@ -21,6 +21,8 @@ interface Comum {
   setorInicial?: Setor; areaInicial?: string; eventoInfo: { titulo: string; inicio: string; abertura_portoes: string | null };
   /** Marketing: formulário enxuto — só nome, CPF e área (setor = aba aberta). */
   simples?: boolean;
+  /** Evento com ingresso digital: pede o e-mail (o ingresso vai por ele). */
+  exigirEmail?: boolean;
 }
 
 export function AcoesConvidados(p: Comum) {
@@ -149,7 +151,7 @@ function AdicionarConvidado(p: Comum & { massa: boolean }) {
       {p.massa && <div className="mb-4"><EscolhaAnfitriao anfitrioes={p.anfitrioes} valor={anfitriao} onChange={setAnfitriao} /></div>}
       {area ? (
         <FormSolicitacao key={`${setor}-${area}`} evento={p.evento} setor={setor} area={area} saldo={saldo}
-          padraoConvidados={0} avulsos colarInicial={p.massa} simples={p.simples}
+          padraoConvidados={0} avulsos colarInicial={p.massa} simples={p.simples} exigirEmail={p.exigirEmail}
           excedeVaiParaEspera={semSaldo === "espera"}
           enviarCom={async (pessoas) => {
             if (p.massa && anfitriaoIncompleto(anfitriao)) return { ok: false, erro: "Escolha ou digite de quem são os convidados (ou marque “Sem vínculo”)." };

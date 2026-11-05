@@ -10,18 +10,20 @@ import { solicitar, type PessoaForm } from "./actions";
 const vazia = (): PessoaForm => ({ nome: "", cpf: "", celular: "", email: "" });
 
 // avulsos (Admin): só o CPF é obrigatório; nome e celular podem ser informados depois
-function problemas(p: PessoaForm, avulsos = false) {
+// exigirEmail: evento com ingresso digital (vai por e-mail). Para a equipe (avulsos) é só recomendado.
+function problemas(p: PessoaForm, avulsos = false, exigirEmail = false) {
   const e: Partial<Record<keyof PessoaForm, string>> = {};
   if ((!avulsos || p.nome.trim()) && p.nome.trim().split(/\s+/).length < 2) e.nome = "Nome completo";
   if (!p.cpf) e.cpf = "Obrigatório";
   else if (!cpfValido(p.cpf)) e.cpf = "CPF inválido";
   const cel = somenteDigitos(p.celular);
   if ((!avulsos || cel) && (cel.length < 10 || cel.length > 11)) e.celular = "DDD + número";
-  if (p.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(p.email)) e.email = "E-mail inválido";
+  if (exigirEmail && !avulsos && !p.email?.trim()) e.email = "Obrigatório: o ingresso vai por e-mail";
+  else if (p.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(p.email)) e.email = "E-mail inválido";
   return e;
 }
 
-export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, enviarCom, avisoExcede, excedeVaiParaEspera = true, avulsos = false, colarInicial = false, simples = false }: {
+export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, enviarCom, avisoExcede, excedeVaiParaEspera = true, avulsos = false, colarInicial = false, simples = false, exigirEmail = false }: {
   evento: string; setor: Setor; area: string; saldo: number; padraoConvidados: number;
   /** Ação alternativa (ex.: Admin adicionando convidado pelo painel do jogo). */
   enviarCom?: (pessoas: PessoaForm[], excede: boolean) => Promise<Resultado<unknown>>;
@@ -34,6 +36,8 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
   colarInicial?: boolean;
   /** Só nome e CPF (Marketing adicionando convidados). */
   simples?: boolean;
+  /** Evento com ingresso digital: o ingresso vai por e-mail. */
+  exigirEmail?: boolean;
 }) {
   const [pessoas, setPessoas] = useState<PessoaForm[]>(() => Array.from({ length: 1 + padraoConvidados }, vazia));
   const [tocado, setTocado] = useState(false);
@@ -43,7 +47,7 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
   const [pendente, iniciar] = useTransition();
 
   const preenchidas = pessoas.filter((p, i) => i === 0 || p.nome || p.cpf || p.celular);
-  const erros = preenchidas.map((p) => problemas(p, avulsos));
+  const erros = preenchidas.map((p) => problemas(p, avulsos, exigirEmail));
   const valido = erros.every((e) => Object.keys(e).length === 0);
   const cpfs = preenchidas.map((p) => somenteDigitos(p.cpf).padStart(11, "0"));
   const repetido = cpfs.some((c, i) => c !== "00000000000" && cpfs.indexOf(c) !== i);
@@ -89,11 +93,11 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
         </div>
       )}
       {pessoas.map((p, i) => {
-        const e = tocado && (i === 0 || p.nome || p.cpf || p.celular) ? problemas(p, avulsos) : {};
+        const e = tocado && (i === 0 || p.nome || p.cpf || p.celular) ? problemas(p, avulsos, exigirEmail) : {};
         return (
           <fieldset key={i} className="rounded-xl p-3 ring-1 ring-black/10">
             <legend className="px-1 text-xs font-semibold tracking-wide text-tinta/60 uppercase">{avulsos ? `Convidado ${i + 1}` : i === 0 ? "Titular" : `Convidado ${i}`}</legend>
-            <div className={simples ? "grid gap-3 sm:grid-cols-[2fr_1fr_auto]" : "grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1.4fr_auto]"}>
+            <div className={simples ? (exigirEmail ? "grid gap-3 sm:grid-cols-[2fr_1fr_1.4fr_auto]" : "grid gap-3 sm:grid-cols-[2fr_1fr_auto]") : "grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1.4fr_auto]"}>
               <Campo rotulo={simples ? "Nome" : avulsos ? "Nome (pode informar depois)" : "Nome completo"} erro={e.nome}><Entrada value={p.nome} onChange={(ev) => set(i, "nome", ev.target.value)} autoComplete="off" /></Campo>
               <Campo rotulo="CPF" erro={e.cpf}>
                 <Entrada value={p.cpf} inputMode="numeric" onChange={(ev) => set(i, "cpf", ev.target.value)}
@@ -101,8 +105,12 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
               </Campo>
               {!simples && <>
               <Campo rotulo={avulsos ? "Celular (opcional)" : "Celular (WhatsApp)"} erro={e.celular}><Entrada value={p.celular} inputMode="tel" onChange={(ev) => set(i, "celular", ev.target.value)} placeholder="(31) 9…" /></Campo>
-              <Campo rotulo="E-mail (opcional)" erro={e.email}><Entrada value={p.email} type="email" onChange={(ev) => set(i, "email", ev.target.value)} /></Campo>
               </>}
+              {(!simples || exigirEmail) && (
+                <Campo rotulo={exigirEmail ? (avulsos ? "E-mail (o ingresso vai por ele)" : "E-mail (obrigatório)") : "E-mail (opcional)"} erro={e.email}>
+                  <Entrada value={p.email} type="email" onChange={(ev) => set(i, "email", ev.target.value)} />
+                </Campo>
+              )}
               {i > 0 && (
                 <button type="button" aria-label="Remover" onClick={() => setPessoas((ps) => ps.filter((_, j) => j !== i))} className="self-end pb-2 text-sm text-tinta/50 hover:text-red-700">
                   Remover
