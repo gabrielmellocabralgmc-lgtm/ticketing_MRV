@@ -116,3 +116,20 @@ describe("criação do evento: camarote opcional e cotas personalizadas", () => 
     await expect(b.como(respDH, `select definir_camarote($1, true)`, [id])).rejects.toThrow();
   });
 });
+
+describe("excluir evento", () => {
+  it("só o Admin exclui; leva junto ingressos, ingressos digitais e arquivos", async () => {
+    const ev = await show();
+    await pedir(ev, [nova("Vai Sumir")]);
+    await b.como(adm, `select dig_adicionar($1, 'pista', $2)`, [ev, JSON.stringify([{ tipo: "pdf", caminho: `dig/${ev}/x.pdf`, nome_arquivo: "x.pdf" }])]);
+    await b.sql(`insert into op_arquivos (caminho, mime, dados) values ($1, 'application/pdf', '\\x00')`, [`dig/${ev}/x.pdf`]);
+    await expect(b.como(mkt, `select excluir_evento($1)`, [ev])).rejects.toThrow();
+    await b.como(adm, `select excluir_evento($1)`, [ev]);
+    for (const [t, col] of [["eventos", "id"], ["ingressos", "evento_id"], ["ingressos_digitais", "evento_id"]]) {
+      const [{ n }] = await b.sql<{ n: number }>(`select count(*)::int n from ${t} where ${col} = $1`, [ev]);
+      expect(n).toBe(0);
+    }
+    const [{ n }] = await b.sql<{ n: number }>(`select count(*)::int n from op_arquivos where caminho like $1`, [`dig/${ev}/%`]);
+    expect(n).toBe(0);
+  });
+});

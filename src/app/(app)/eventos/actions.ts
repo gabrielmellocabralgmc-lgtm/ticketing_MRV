@@ -125,3 +125,14 @@ export async function salvarCotas(
   revalidatePath(`/eventos/${evento}`, "layout");
   return { ok: true, mensagem: passos.length ? `${passos.length} alteração(ões) salva(s).` : "Nada mudou." };
 }
+
+/** Excluir o evento e tudo dele (só Admin). */
+export async function excluirEvento(id: string): Promise<Resultado> {
+  const s = await exigirStaff();
+  if (s.papel !== "admin") return { ok: false, erro: "Só o Admin pode excluir eventos." };
+  const supabase = await supabaseServidor();
+  const { data, error } = await supabase.rpc("excluir_evento", { p_evento: id });
+  if (error) return falha(error);
+  revalidatePath("/eventos");
+  return { ok: true, mensagem: `“${data}” foi excluído.` };
+}

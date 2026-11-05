@@ -8,6 +8,7 @@ import { dataLonga, dataHora } from "@/lib/formato";
 import { exigirSessao } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
 import { ROTULO_SETOR, ROTULO_STATUS_EVENTO, type Evento, type Setor } from "@/lib/tipos";
+import { AcoesEvento } from "./acoes-evento";
 
 export const metadata: Metadata = { title: "Eventos" };
 
@@ -37,6 +38,7 @@ export default async function Eventos() {
   const passados = eventos.filter((e) => new Date(e.inicio).getTime() < agora - 6 * 3600e3);
 
   const img = await imagensDisponiveis();
+  const admin = s.papel === "admin";
   const statusTom = (e: Evento) => (e.status === "aberto" ? "verde" : e.status === "rascunho" ? "amarelo" : "cinza") as "verde" | "amarelo" | "cinza";
 
   // Próximos: card com faixa preta e escudos; anteriores: linha compacta
@@ -46,12 +48,12 @@ export default async function Eventos() {
     ) : (
       <div className="grid gap-5 md:grid-cols-2">
         {itens.map((e) => (
-          <Link key={e.id} href={`/eventos/${e.id}`}
-            className="group flex flex-col overflow-hidden rounded-2xl border border-borda bg-white transition hover:border-mrv-600 focus-visible:outline-2 focus-visible:outline-mrv-600">
+          <div key={e.id} className="flex flex-col overflow-hidden rounded-2xl border border-borda bg-white transition hover:border-mrv-600">
+          <Link href={`/eventos/${e.id}`} className="group flex flex-1 flex-col focus-visible:outline-2 focus-visible:outline-mrv-600">
             <div className="flex items-center gap-4 bg-preto p-5">
-              <Escudo url={img[CHAVE_ESCUDO_ATLETICO]} nome="do Atlético" />
+              {e.tipo === "jogo" && <Escudo url={img[CHAVE_ESCUDO_ATLETICO]} nome="do Atlético" />}
               <div className="min-w-0 flex-1 font-display text-[22px] leading-tight font-extrabold text-white uppercase">{e.titulo}</div>
-              <Escudo url={img[chaveEscudoAdversario(e.id)]} nome={e.adversario ? `do ${e.adversario}` : "do adversário"} />
+              {e.tipo === "jogo" && <Escudo url={img[chaveEscudoAdversario(e.id)]} nome={e.adversario ? `do ${e.adversario}` : "do adversário"} />}
             </div>
             <div className="flex flex-1 flex-col gap-3.5 p-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -73,6 +75,8 @@ export default async function Eventos() {
               {e.prazo_solicitacao && e.status === "aberto" && <p className="text-xs text-cinza">Solicitações até {dataHora(e.prazo_solicitacao)}</p>}
             </div>
           </Link>
+          {admin && <AcoesEvento id={e.id} titulo={e.titulo} />}
+          </div>
         ))}
       </div>
     );
@@ -80,14 +84,17 @@ export default async function Eventos() {
   const Linhas = ({ itens }: { itens: Evento[] }) => (
     <div className="grid gap-3 md:grid-cols-2">
       {itens.map((e) => (
-        <Link key={e.id} href={`/eventos/${e.id}`} className="flex items-center gap-4 rounded-2xl border border-borda bg-white px-5 py-4 hover:border-mrv-600">
-          <Escudo url={img[chaveEscudoAdversario(e.id)]} nome={e.adversario ? `do ${e.adversario}` : "do adversário"} tamanho="p" escuro={false} />
+        <div key={e.id} className="overflow-hidden rounded-2xl border border-borda bg-white hover:border-mrv-600">
+        <Link href={`/eventos/${e.id}`} className="flex items-center gap-4 px-5 py-4">
+          {e.tipo === "jogo" && <Escudo url={img[chaveEscudoAdversario(e.id)]} nome={e.adversario ? `do ${e.adversario}` : "do adversário"} tamanho="p" escuro={false} />}
           <div className="min-w-0">
             <div className="font-display text-[17px] font-bold uppercase">{e.titulo}</div>
             <div className="text-[13px] text-cinza first-letter:uppercase">{dataLonga(e.inicio)}{e.competicao && ` · ${e.competicao}`}</div>
           </div>
           <span className="ml-auto"><Selo tom={statusTom(e)}>{ROTULO_STATUS_EVENTO[e.status]}</Selo></span>
         </Link>
+        {admin && <AcoesEvento id={e.id} titulo={e.titulo} />}
+        </div>
       ))}
     </div>
   );
