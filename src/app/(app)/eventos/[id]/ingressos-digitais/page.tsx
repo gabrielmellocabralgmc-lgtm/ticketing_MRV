@@ -31,7 +31,7 @@ export default async function IngressosDigitais({ params }: { params: Promise<{ 
   const supabase = await supabaseServidor();
   const [{ data: setoresRows }, { data: digitais }, convidados] = await Promise.all([
     supabase.from("evento_setores").select("setor").eq("evento_id", id),
-    supabase.from("ingressos_digitais").select("id, setor, tipo, url, nome_arquivo, titular_nome, titular_cpf, ingresso_id, atribuido_em, enviado_em, criado_em, resgate_aberto_em, resgate_vezes").eq("evento_id", id).order("criado_em"),
+    supabase.from("ingressos_digitais").select("id, setor, tipo, url, nome_arquivo, titular_nome, titular_cpf, ingresso_id, atribuido_em, enviado_em, criado_em, resgate_aberto_em, resgate_vezes").eq("evento_id", id).order("ordem"),
     carregarIngressos(id, ["aprovado", "facial_pendente", "facial_ok", "enviado", "confirmado", "presente"], "ingressos_digitais"),
   ]);
   const ordem: Setor[] = ["pista", "camarote", "arquibancada"];

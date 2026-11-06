@@ -179,3 +179,29 @@ describe("link de resgate de uso único (Eventim)", () => {
     await expect(b.sql(`select dig_resgatar($1)`, [token])).rejects.toThrow(/não usa link de resgate/);
   });
 });
+
+describe("distribuição em sequência", () => {
+  it("links saem na ordem colada (1, 2, 3…) e as áreas recebem em bloco, na ordem das áreas", async () => {
+    const ev = await show();
+    const luggo = await b.areaId("luggo");
+    const [{ ordem_dh, ordem_luggo }] = await b.sql<{ ordem_dh: number; ordem_luggo: number }>(
+      `select (select ordem from areas where id = $1) ordem_dh, (select ordem from areas where id = $2) ordem_luggo`, [dh, luggo]);
+    const [primeira, segunda] = ordem_dh <= ordem_luggo ? [dh, luggo] : [luggo, dh];
+    // pedidos intercalados: segunda área, primeira, segunda, primeira
+    const pedirArea = async (area: string, nome: string) => {
+      const [{ r }] = await b.como<{ r: { ingressos: string[] } }>(adm, `select criar_pedido($1, 'pista', $2, $3, '{"origem":"marketing","avulsos":true}') as r`,
+        [ev, area, JSON.stringify([nova(nome)])]);
+      return r.ingressos[0];
+    };
+    const s1 = await pedirArea(segunda, "Seg Um"), p1 = await pedirArea(primeira, "Pri Um");
+    const s2 = await pedirArea(segunda, "Seg Dois"), p2 = await pedirArea(primeira, "Pri Dois");
+    const links = Array.from({ length: 12 }, (_, i) => ({ tipo: "link", url: `https://www.eventim.com.br/teste-${i + 1}` }));
+    await b.como(adm, `select dig_adicionar($1, 'pista', $2)`, [ev, JSON.stringify(links)]);
+    await b.como(adm, `select dig_atribuir($1)`, [ev]);
+    const url = async (i: string) => (await dono(i))!.url;
+    expect([await url(p1), await url(p2), await url(s1), await url(s2)]).toEqual([
+      "https://www.eventim.com.br/teste-1", "https://www.eventim.com.br/teste-2",
+      "https://www.eventim.com.br/teste-3", "https://www.eventim.com.br/teste-4",
+    ]);
+  });
+});
