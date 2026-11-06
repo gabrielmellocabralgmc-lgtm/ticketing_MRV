@@ -6,7 +6,7 @@ import {
   areasParaConvocar, avisarOperacaoLista, enviarModelo, executarLembretes, itensArea, itensCamarote, resumoEnvio,
   type EventoVars, type GrupoCamarote,
 } from "@/lib/mensagens/envio";
-import { CHAVE_LOGO, imagensDisponiveis } from "@/lib/imagens";
+import { CHAVE_LOGO, chaveMapaEvento, imagensDisponiveis } from "@/lib/imagens";
 import { siteUrl } from "@/lib/mensagens";
 import { exigirStaff } from "@/lib/sessao";
 import { supabaseServico } from "@/lib/supabase/server";
@@ -31,7 +31,10 @@ export async function previaConvocacao(evento: string, area: string): Promise<{ 
   const img = await imagensDisponiveis();
   return {
     assunto: preencher(m!.assunto, item.vars),
-    html: htmlEmail(preencher(m!.corpo, item.vars), { logoUrl: img[CHAVE_LOGO] ? `${siteUrl()}${img[CHAVE_LOGO]}` : undefined, botao: item.botao }),
+    html: htmlEmail(preencher(m!.corpo, item.vars), {
+      logoUrl: img[CHAVE_LOGO] ? `${siteUrl()}${img[CHAVE_LOGO]}` : undefined, botao: item.botao,
+      mapaUrl: img[chaveMapaEvento(evento)] ? `${siteUrl()}${img[chaveMapaEvento(evento)]}` : undefined,
+    }),
     para: a.responsaveis.map((r) => r.email).join(", ") || "(área sem responsável)",
   };
 }

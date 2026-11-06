@@ -10,6 +10,8 @@ export const CHAVE_ESCUDO_ATLETICO = "escudo-atletico";
 export const chaveEscudoAdversario = (evento: string) => `escudo-${evento}`;
 /** Capa do evento: aparece no topo dos e-mails que o convidado recebe. */
 export const chaveCapaEvento = (evento: string) => `capa-${evento}`;
+/** Mapa do evento: vai nos e-mails dos gestores (convocação, lembrete, validação). */
+export const chaveMapaEvento = (evento: string) => `mapa-${evento}`;
 
 /** chave → URL (com versão) das imagens já enviadas; ausente = mostrar o espaço vazio. */
 export const imagensDisponiveis = cache(async (): Promise<Record<string, string>> => {

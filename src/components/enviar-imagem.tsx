@@ -35,7 +35,7 @@ export function EnviarImagem({
   rotulo: string;
   dica?: string;
   /** capa: capa de e-mail (sempre JPEG, até 1200 px, que abre em qualquer leitor de e-mail) */
-  formato?: "foto" | "escudo" | "logo" | "icone" | "capa";
+  formato?: "foto" | "escudo" | "logo" | "icone" | "capa" | "mapa";
   escuro?: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
@@ -50,7 +50,7 @@ export function EnviarImagem({
     setErro(null);
     iniciar(async () => {
       try {
-        const { mime, base64 } = await prepararArquivo(f, formato === "foto" ? 1920 : formato === "capa" ? 1200 : formato === "logo" ? 800 : 512, formato === "capa");
+        const { mime, base64 } = await prepararArquivo(f, formato === "foto" ? 1920 : formato === "capa" ? 1200 : formato === "mapa" ? 1600 : formato === "logo" ? 800 : 512, formato === "capa" || formato === "mapa");
         const r = await salvarImagem(chave, mime, base64);
         if (!r.ok) return setErro(r.erro);
         setPrevia(`data:${mime};base64,${base64}`);
@@ -72,7 +72,7 @@ export function EnviarImagem({
         aria-label={`${rotulo}: ${previa ? "trocar" : "enviar"} imagem`}
         className={clsx(
           "group relative flex w-full items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed transition",
-          formato === "foto" || formato === "capa" ? "aspect-video max-h-[420px]" : formato === "logo" ? "aspect-[3/1] max-w-80" : formato === "icone" ? "aspect-square max-w-28" : "aspect-[8/9] max-w-40",
+          formato === "foto" || formato === "capa" || formato === "mapa" ? "aspect-video max-h-[420px]" : formato === "logo" ? "aspect-[3/1] max-w-80" : formato === "icone" ? "aspect-square max-w-28" : "aspect-[8/9] max-w-40",
           escuro ? "border-white/35 bg-preto text-white/75" : "border-[#c9ccca] bg-white text-cinza",
           arrastando && "border-mrv-600 bg-mrv-50",
         )}

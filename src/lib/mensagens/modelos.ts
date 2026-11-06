@@ -73,7 +73,7 @@ function fontFaceAverta(siteUrl?: string) {
   return `<style>${f(400, "averta-regular")}${f(700, "averta-bold")}${f(800, "averta-extrabold")}</style>`;
 }
 
-export function htmlEmail(texto: string, opcoes: { logoUrl?: string; botao?: { rotulo: string; url: string }; capaUrl?: string; siteUrl?: string } = {}) {
+export function htmlEmail(texto: string, opcoes: { logoUrl?: string; botao?: { rotulo: string; url: string }; capaUrl?: string; mapaUrl?: string; siteUrl?: string } = {}) {
   const corpo = escapar(texto)
     .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#00843D">$1</a>')
     .split(/\n{2,}/)
@@ -92,6 +92,11 @@ export function htmlEmail(texto: string, opcoes: { logoUrl?: string; botao?: { r
   const botao = opcoes.botao
     ? `<p style="margin:22px 0 6px"><a href="${escapar(opcoes.botao.url)}" style="display:inline-block;background:#00843D;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;${estiloTitulo}">${escapar(opcoes.botao.rotulo)}</a></p>`
     : "";
+  const mapa = opcoes.mapaUrl
+    ? `<p style="margin:24px 0 8px;${estiloTitulo};font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#006B3F">Mapa do evento</p>
+<a href="${escapar(opcoes.mapaUrl)}" style="display:block;text-decoration:none"><img src="${escapar(opcoes.mapaUrl)}" alt="Mapa do evento" width="512" style="display:block;width:100%;max-width:512px;height:auto;border:1px solid #E5E5E5;border-radius:8px"></a>
+<p style="margin:6px 0 0;font-size:12px;color:#5D615F">Toque no mapa para ampliar.</p>`
+    : "";
   const capa = opcoes.capaUrl
     ? `<tr><td style="padding:0;line-height:0"><img src="${escapar(opcoes.capaUrl)}" alt="" width="560" style="display:block;width:100%;max-width:560px;height:auto;border:0"></td></tr>`
     : "";
@@ -102,7 +107,7 @@ export function htmlEmail(texto: string, opcoes: { logoUrl?: string; botao?: { r
 <tr><td style="background:#121212;padding:14px 24px;color:#ffffff;${estiloTitulo};letter-spacing:.06em;font-size:13px">INGRESSOS MRV · ARENA MRV</td></tr>
 <tr><td style="padding:0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#121212"><tr>${listras}</tr></table></td></tr>
 ${capa}
-<tr><td style="padding:24px;font-size:15px;line-height:1.55">${corpo}${botao}</td></tr>
+<tr><td style="padding:24px;font-size:15px;line-height:1.55">${corpo}${mapa}${botao}</td></tr>
 <tr><td style="padding:16px 24px;background:#F4F5F4;font-size:12px;color:#5D615F">MRV&amp;CO · Patrocinadora da Arena MRV. Seus dados são usados só para emitir o ingresso e orientar o cadastro no Galo ID.</td></tr>
 </table></td></tr></table></body></html>`;
 }

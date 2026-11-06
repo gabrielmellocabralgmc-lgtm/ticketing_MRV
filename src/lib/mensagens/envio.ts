@@ -3,7 +3,7 @@ import "server-only";
 // (domínio ingressos.weareact3.com); sem ela (modo demo/local), fica registrado como "simulado".
 // Tudo vai para a tabela `envios` (caixa de saída).
 import { dataHora, dataLonga } from "@/lib/formato";
-import { CHAVE_LOGO, chaveCapaEvento, imagensDisponiveis } from "@/lib/imagens";
+import { CHAVE_LOGO, chaveCapaEvento, chaveMapaEvento, imagensDisponiveis } from "@/lib/imagens";
 import { linkTorcedor, siteUrl } from "@/lib/mensagens";
 import { canalEmail } from "@/lib/mensagens/email";
 import { htmlEmail, preencher } from "@/lib/mensagens/modelos";
@@ -32,6 +32,8 @@ export interface ResultadoEnvio {
 export const envioReal = () => !!process.env.RESEND_API_KEY;
 
 /** E-mails que o convidado recebe: levam a capa do evento, quando houver. */
+/** E-mails dos gestores das áreas: levam o mapa do evento, quando houver. */
+const PARA_GESTOR = new Set(["convocacao_area", "lembrete_area", "validacao_pendente"]);
 const PARA_CONVIDADO = new Set(["convite_convidado", "galo_id", "ingresso_enviado", "lembrete_facial", "ingresso_digital", "ingresso_resgate"]);
 
 export async function enviarModelo(itens: ItemEnvio[], opcoes: { autor?: string | null; modelo?: { assunto: string; corpo: string } } = {}): Promise<ResultadoEnvio> {
@@ -62,7 +64,11 @@ export async function enviarModelo(itens: ItemEnvio[], opcoes: { autor?: string 
     const ficticio = /@([^@]+\.)?(invalid|exemplo\.com|example\.com)$/i.test(item.para.email);
     if (canal && !ficticio) {
       const capa = item.evento_id && PARA_CONVIDADO.has(item.tipo) ? img[chaveCapaEvento(item.evento_id)] : undefined;
-      const html = htmlEmail(texto, { logoUrl, botao: item.botao, capaUrl: capa ? `${siteUrl()}${capa}` : undefined, siteUrl: siteUrl() });
+      const mapa = item.evento_id && PARA_GESTOR.has(item.tipo) ? img[chaveMapaEvento(item.evento_id)] : undefined;
+      const html = htmlEmail(texto, {
+        logoUrl, botao: item.botao, siteUrl: siteUrl(),
+        capaUrl: capa ? `${siteUrl()}${capa}` : undefined, mapaUrl: mapa ? `${siteUrl()}${mapa}` : undefined,
+      });
       const r = await canal.enviar({ para: { nome: item.para.nome ?? "", email: item.para.email }, assunto, texto, html });
       status = r.ok ? "enviado" : "falhou";
       erro = r.ok ? null : r.erro ?? "erro";
