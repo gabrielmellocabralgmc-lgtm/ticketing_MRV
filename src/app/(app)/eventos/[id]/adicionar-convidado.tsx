@@ -9,10 +9,11 @@ import { useState, useTransition } from "react";
 import { BotaoCopiar, BotaoWhatsApp } from "@/components/copiar";
 import { Aviso, Botao, Campo, Cartao, Entrada, Selecao } from "@/components/ui";
 import { linkTorcedor, linkWhatsApp, textoConvite } from "@/lib/mensagens";
-import { ROTULO_SETOR, type Setor } from "@/lib/tipos";
+import { type Setor } from "@/lib/tipos";
 import { adicionarConvidadoAdmin, gerarLinkConvidados, type Anfitriao } from "./adicionar-actions";
 import type { OpcaoSetor } from "./adicionar-opcoes";
 import { FormSolicitacao } from "./areas/[area]/form-solicitacao";
+import { NomeSetor, useSetores } from "@/components/setores";
 
 type Painel = "um" | "massa" | "link";
 export interface PessoaDaLista { id: string; nome: string; setor: Setor }
@@ -55,6 +56,7 @@ export function AcoesConvidados(p: Comum) {
 }
 
 function useSetorArea(p: Comum) {
+  const { rotulo: nomeSetor, curto: nomeSetorCurto } = useSetores();
   const [setor, setSetor] = useState<Setor>(p.setorInicial ?? p.setores.find((s) => s.setor !== "camarote")?.setor ?? p.setores[0]?.setor ?? "arquibancada");
   const [area, setArea] = useState(p.areaInicial ?? "");
   const op = p.setores.find((s) => s.setor === setor);
@@ -65,7 +67,7 @@ function useSetorArea(p: Comum) {
     <>
       <Campo rotulo="Setor">
         <Selecao value={setor} onChange={(e) => setSetor(e.target.value as Setor)}>
-          {p.setores.map((s) => <option key={s.setor} value={s.setor}>{ROTULO_SETOR[s.setor]}</option>)}
+          {p.setores.map((s) => <option key={s.setor} value={s.setor}>{nomeSetor(s.setor)}</option>)}
         </Selecao>
       </Campo>
       <Campo rotulo="Área (abate da cota dela)" dica={area ? (saldoArea === null ? `Sem cota por área · ${op?.disponiveis ?? 0} vaga(s) no setor` : `Saldo da área: ${saldoArea}`) : undefined}>
@@ -77,7 +79,7 @@ function useSetorArea(p: Comum) {
     </>
   );
   const campoArea = (
-    <Campo rotulo="Área (abate da cota dela)" dica={area ? (saldoArea === null ? `${op?.disponiveis ?? 0} vaga(s) livre(s) no ${ROTULO_SETOR[setor].split(" ")[0].toLowerCase()}` : `Saldo da área: ${saldoArea}`) : undefined}>
+    <Campo rotulo="Área (abate da cota dela)" dica={area ? (saldoArea === null ? `${op?.disponiveis ?? 0} vaga(s) livre(s) no setor ${nomeSetorCurto(setor)}` : `Saldo da área: ${saldoArea}`) : undefined}>
       <Selecao value={area} onChange={(e) => setArea(e.target.value)}>
         <option value="">Escolha a área…</option>
         {p.areas.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
@@ -89,6 +91,7 @@ function useSetorArea(p: Comum) {
 
 /** Vincular a alguém: ninguém, alguém já na lista do jogo ou alguém de fora (não ocupa lugar). */
 function EscolhaAnfitriao({ anfitrioes, valor, onChange }: { anfitrioes: PessoaDaLista[]; valor: Anfitriao; onChange: (a: Anfitriao) => void }) {
+  const { curto: nomeSetorCurto } = useSetores();
   const tipo = valor.ingresso !== undefined ? "lista" : valor.externo !== undefined ? "fora" : "nenhum";
   return (
     <div className="rounded-xl bg-fundo p-3">
@@ -103,7 +106,7 @@ function EscolhaAnfitriao({ anfitrioes, valor, onChange }: { anfitrioes: PessoaD
           <Selecao value={valor.ingresso ?? ""} onChange={(e) => onChange({ ingresso: e.target.value })} aria-label="Anfitrião da lista">
             <option value="">Escolha o diretor/colaborador…</option>
             {[...anfitrioes].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")).map((a) => (
-              <option key={a.id} value={a.id}>{a.nome} · {ROTULO_SETOR[a.setor].split(" ")[0]}</option>
+              <option key={a.id} value={a.id}>{a.nome} · {nomeSetorCurto(a.setor)}</option>
             ))}
           </Selecao>
         </div>
@@ -132,7 +135,7 @@ function AdicionarConvidado(p: Comum & { massa: boolean }) {
     <div>
       <h2 className="text-lg font-bold text-mrv-900">
         {p.massa ? "Adicionar convidados em massa" : "Adicionar convidado"}
-        {p.simples && <span className="ml-2 text-sm font-normal text-cinza">· {ROTULO_SETOR[setor]}</span>}
+        {p.simples && <span className="ml-2 text-sm font-normal text-cinza">· <NomeSetor s={setor} /></span>}
       </h2>
       {p.simples ? (
         <p className="mb-3 text-sm text-tinta/60">Entra direto como <b>Pronto para envio</b>, abatendo da cota da área.</p>

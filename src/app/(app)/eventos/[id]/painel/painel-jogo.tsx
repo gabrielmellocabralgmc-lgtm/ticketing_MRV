@@ -8,7 +8,7 @@ import { Aviso, Entrada, Selo } from "@/components/ui";
 import { formatarCpf } from "@/lib/cpf";
 import { dataHora } from "@/lib/formato";
 import { normalizarTexto } from "@/lib/texto";
-import { ROTULO_SETOR, type Setor, type StatusIngresso } from "@/lib/tipos";
+import { type Setor, type StatusIngresso } from "@/lib/tipos";
 import { facialOk, pendenteFacial } from "../marketing-actions";
 import { PortaCamarote, type Walkin } from "./camarote";
 import { AcoesConvidados, type PessoaDaLista } from "../adicionar-convidado";
@@ -19,6 +19,7 @@ import { atualizarDadosAdmin } from "../adicionar-actions";
 import type { OpcaoSetor } from "../adicionar-opcoes";
 import { NomeEditavel } from "../nome-editavel";
 import { EditorCotas, type AreaCota } from "../editor-cotas";
+import { NomeSetor } from "@/components/setores";
 
 export interface LinhaPainel {
   id: string;
@@ -101,7 +102,7 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
           <button key={s.setor} onClick={() => setSetor(s.setor)}
             aria-pressed={s.setor === setor}
             className={clsx("rounded-xl border px-[18px] py-3 text-left", s.setor === setor ? "border-mrv-700 bg-mrv-700 text-white" : "border-borda bg-white text-tinta hover:border-mrv-600")}>
-            <div className="text-[15px] font-bold">{ROTULO_SETOR[s.setor].split(" ")[0]}</div>
+            <div className="text-[15px] font-bold"><NomeSetor s={s.setor} curto /></div>
             <div className={clsx("tabular text-[13px]", s.setor === setor ? "text-white/85" : "text-cinza")}>{s.ocupados} de {s.capacidade}</div>
           </button>
         ))}
@@ -132,7 +133,7 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
 
       <div className="rounded-2xl border border-borda bg-white p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-xl font-bold">Lista · {ROTULO_SETOR[setor]}</h2>
+          <h2 className="text-xl font-bold">Lista · <NomeSetor s={setor} /></h2>
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
             {setor === "camarote" && (
               <a href={`/eventos/${evento}/camarote/imprimir`} target="_blank" rel="noopener"
@@ -149,7 +150,7 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
 
       {espera.length > 0 && (
         <div className="rounded-2xl border border-[#ffd9b3] bg-white p-5">
-          <h2 className="mb-1 font-bold text-[#6b3a08]">Lista de espera · {ROTULO_SETOR[setor]}</h2>
+          <h2 className="mb-1 font-bold text-[#6b3a08]">Lista de espera · <NomeSetor s={setor} /></h2>
           <p className="mb-3 text-sm text-[#8a4b0f]">Em ordem de chegada. Sobe sozinho quando abre vaga na área.</p>
           <TabelaSimples linhas={filtrar(espera)} posicao vazio="" />
         </div>

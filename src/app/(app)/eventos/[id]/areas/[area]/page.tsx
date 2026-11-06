@@ -8,7 +8,7 @@ import { CHAVE_ESCUDO_ATLETICO, chaveEscudoAdversario, imagensDisponiveis } from
 import { dataHora, paraInputLocal } from "@/lib/formato";
 import { exigirSessao } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
-import { ROTULO_SETOR, type Saldo, type Setor } from "@/lib/tipos";
+import { rotuloSetor, type Saldo, type Setor } from "@/lib/tipos";
 import { carregarEvento } from "../../dados";
 import { validarLista } from "./actions";
 import { FormConvite } from "./form-convite";
@@ -57,7 +57,7 @@ export default async function PainelArea({ params, searchParams }: { params: Pro
     <>
       <AoVivo evento={id} />
       <CabecalhoJogo ev={ev} tamanho="m" escudoAtletico={img[CHAVE_ESCUDO_ATLETICO]} escudoAdversario={img[chaveEscudoAdversario(id)]}
-        rotulo={`${areaRow.nome} · ${ROTULO_SETOR[setor]}`}
+        rotulo={`${areaRow.nome} · ${rotuloSetor(setor, ev.nomes_setores)}`}
         voltar={s.papel === "admin" ? { href: `/eventos/${id}`, rotulo: "Painel do jogo" }
           : s.papel === "marketing" ? { href: `/eventos/${id}/painel`, rotulo: "Painel do jogo" }
           : { href: "/eventos", rotulo: "Meus eventos" }}>
@@ -68,7 +68,7 @@ export default async function PainelArea({ params, searchParams }: { params: Pro
         <div className="mb-4 flex gap-2">
           {setores.map((x) => (
             <Link key={x} href={`?setor=${x}`} className={`rounded-full px-3 py-1 text-sm font-medium ${x === setor ? "bg-mrv-700 text-white" : "bg-white text-mrv-700 ring-1 ring-mrv-700/20"}`}>
-              {ROTULO_SETOR[x]}
+              {rotuloSetor(x, ev.nomes_setores)}
             </Link>
           ))}
         </div>

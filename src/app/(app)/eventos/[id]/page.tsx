@@ -6,7 +6,7 @@ import { BotaoLink, Cartao, Numero, Selo, Tabela, Vazio } from "@/components/ui"
 import { dataHora } from "@/lib/formato";
 import { exigirSessao } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
-import { ROTULO_SETOR, ROTULO_STATUS_EVENTO } from "@/lib/tipos";
+import { type NomesSetores, type Setor, rotuloSetor, ROTULO_STATUS_EVENTO } from "@/lib/tipos";
 import { CabecalhoJogo } from "@/components/jogo";
 import { CHAVE_ESCUDO_ATLETICO, chaveEscudoAdversario, imagensDisponiveis } from "@/lib/imagens";
 import { mudarStatusEvento } from "../actions";
@@ -41,7 +41,7 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
       <>
         <CabecalhoJogo ev={ev} tamanho="m" escudoAtletico={img[CHAVE_ESCUDO_ATLETICO]} escudoAdversario={img[chaveEscudoAdversario(id)]}
           voltar={{ href: "/eventos", rotulo: "Eventos" }} />
-        <VisaoResponsavel id={id} linhas={minhas} />
+        <VisaoResponsavel id={id} linhas={minhas} nomes={ev.nomes_setores} />
       </>
     );
   }
@@ -113,7 +113,7 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
         return (
           <Cartao key={st.setor} className="mb-6">
             <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="text-lg font-bold text-mrv-900">{ROTULO_SETOR[st.setor]}</h2>
+              <h2 className="text-lg font-bold text-mrv-900">{rotuloSetor(st.setor, ev.nomes_setores)}</h2>
               {!st.cota_por_area && <span className="text-xs text-tinta/60">Sem cota por área — controle pelas {st.capacidade} vagas</span>}
             </div>
             {s.staff && (
@@ -205,7 +205,7 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
                 {(historico ?? []).map((h) => (
                   <li key={h.id} className="border-b border-black/5 pb-2">
                     <div>
-                      <b>{(h.areas as unknown as { nome: string } | null)?.nome ?? `Capacidade ${ROTULO_SETOR[h.setor as keyof typeof ROTULO_SETOR]}`}</b>{" "}
+                      <b>{(h.areas as unknown as { nome: string } | null)?.nome ?? `Capacidade ${rotuloSetor(h.setor as Setor, ev.nomes_setores)}`}</b>{" "}
                       <span className="tabular">{h.de ?? "—"} → {h.para}</span>
                     </div>
                     <div className="text-xs text-tinta/60">{dataHora(h.em)} · {h.motivo ?? "sem motivo"}</div>
@@ -221,7 +221,7 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
 }
 
 /** Responsável de área: só as próprias cotas, sem os totais do setor. */
-function VisaoResponsavel({ id, linhas: minhas }: { id: string; linhas: LinhaResumo[] }) {
+function VisaoResponsavel({ id, linhas: minhas, nomes }: { id: string; linhas: LinhaResumo[]; nomes: NomesSetores }) {
   return (
     <>
       <h2 className="mb-4 text-xl font-bold">Suas áreas neste jogo</h2>
@@ -232,7 +232,7 @@ function VisaoResponsavel({ id, linhas: minhas }: { id: string; linhas: LinhaRes
           {minhas.map((l) => (
             <Link key={`${l.setor}-${l.area_id}`} href={`/eventos/${id}/areas/${l.area_id}?setor=${l.setor}`}>
               <Cartao className="transition hover:ring-mrv-600/40">
-                <h2 className="font-bold text-mrv-900">{l.area_nome} · {ROTULO_SETOR[l.setor]}</h2>
+                <h2 className="font-bold text-mrv-900">{l.area_nome} · {rotuloSetor(l.setor, nomes)}</h2>
                 <div className="mt-3 grid grid-cols-3 gap-3">
                   <Numero rotulo="Sua cota" valor={l.cota ?? 0} />
                   <Numero rotulo="Usados" valor={l.ocupados} tom="cinza" />

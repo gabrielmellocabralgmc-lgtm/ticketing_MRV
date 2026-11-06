@@ -39,6 +39,9 @@ function dadosEvento(form: FormData) {
     ingressos_digitais: form.get("ingressos_digitais") === "on",
     resgate_unico: form.get("ingressos_digitais") === "on" && form.get("resgate_unico") === "on",
     orientacoes_convidado: String(form.get("orientacoes_convidado") ?? "").trim() || null,
+    // nome exibido de cada setor (vazio = padrão)
+    nomes_setores: Object.fromEntries((["camarote", "arquibancada", "pista"] as const)
+      .map((s) => [s, String(form.get(`nome_setor_${s}`) ?? "").trim().slice(0, 60)]).filter(([, v]) => v)),
     exige_facial: form.get("exige_facial") === "on",
     tem_camarote: form.get("tem_camarote") === "on",
   };
@@ -57,8 +60,9 @@ export async function criarEvento(_: unknown, form: FormData): Promise<Resultado
   const { data, error } = await supabase.rpc("criar_evento", { p });
   if (error) return falha(error);
   // colunas que o criar_evento não conhece
-  if (p.resgate_unico || p.orientacoes_convidado) {
-    const { error: e2 } = await supabase.from("eventos").update({ resgate_unico: p.resgate_unico, orientacoes_convidado: p.orientacoes_convidado }).eq("id", data as string);
+  if (p.resgate_unico || p.orientacoes_convidado || Object.keys(p.nomes_setores).length) {
+    const { error: e2 } = await supabase.from("eventos")
+      .update({ resgate_unico: p.resgate_unico, orientacoes_convidado: p.orientacoes_convidado, nomes_setores: p.nomes_setores }).eq("id", data as string);
     if (e2) return falha(e2);
   }
   redirect(`/eventos/${data}`);

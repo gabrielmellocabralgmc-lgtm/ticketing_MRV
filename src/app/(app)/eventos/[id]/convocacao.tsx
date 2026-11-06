@@ -3,8 +3,9 @@
 import { useState, useTransition } from "react";
 import { Aviso, Botao, Selo, Tabela } from "@/components/ui";
 import { dataHora } from "@/lib/formato";
-import { ROTULO_SETOR, type Setor } from "@/lib/tipos";
+import { type Setor } from "@/lib/tipos";
 import { enviarConvocacao, enviarConvocacaoFaltantes, previaConvocacao, rodarLembretes } from "./emails-actions";
+import { NomeSetor } from "@/components/setores";
 
 interface Area {
   area_id: string;
@@ -60,7 +61,7 @@ export function Convocacao({ evento, areas, envioReal, facial = true }: { evento
                   </button>
                 )}
               </td>
-              <td className="text-xs whitespace-nowrap">{a.cotas.map((c) => <div key={c.setor}>{c.cota} · {ROTULO_SETOR[c.setor].split(" ")[0]} <span className="text-cinza">({c.ocupados} usados)</span></div>)}</td>
+              <td className="text-xs whitespace-nowrap">{a.cotas.map((c) => <div key={c.setor}>{c.cota} · <NomeSetor s={c.setor} curto /> <span className="text-cinza">({c.ocupados} usados)</span></div>)}</td>
               <td className="text-xs whitespace-nowrap">{a.ultima_convocacao ? <Selo tom="verde">{dataHora(a.ultima_convocacao)}</Selo> : <span className="text-cinza">não enviada</span>}</td>
               <td className="text-xs whitespace-nowrap">{a.ultimo_lembrete ? dataHora(a.ultimo_lembrete) : "—"}</td>
               <td><button className="text-xs font-semibold text-mrv-700 hover:underline" onClick={() => iniciar(async () => setPrevia(await previaConvocacao(evento, a.area_id)))}>Prévia</button></td>

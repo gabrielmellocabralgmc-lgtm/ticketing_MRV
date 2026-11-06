@@ -5,7 +5,7 @@ import { BotaoImprimir } from "@/components/botao-imprimir";
 import { dataHora, dataLonga } from "@/lib/formato";
 import { exigirSessao } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
-import { ROTULO_SETOR, type Setor } from "@/lib/tipos";
+import { rotuloSetor, type NomesSetores, type Setor } from "@/lib/tipos";
 
 export const metadata = { title: "Relatório do jogo" };
 
@@ -28,7 +28,7 @@ export default async function Relatorio({ params }: { params: Promise<{ id: stri
   if (!s.staff) redirect("/eventos");
   const supabase = await supabaseServidor();
   const [{ data: ev }, { data }] = await Promise.all([
-    supabase.from("eventos").select("titulo, inicio, status, competicao").eq("id", id).single(),
+    supabase.from("eventos").select("titulo, inicio, status, competicao, nomes_setores").eq("id", id).single(),
     supabase.rpc("relatorio_evento", { p_evento: id }),
   ]);
   const linhas = (data ?? []) as Linha[];
@@ -56,7 +56,7 @@ export default async function Relatorio({ params }: { params: Promise<{ id: stri
         const ls = linhas.filter((l) => l.setor === st);
         return (
           <section key={st} className="mb-8 break-inside-avoid">
-            <h2 className="mb-2 border-b-2 border-tinta pb-1 text-lg font-bold">{ROTULO_SETOR[st]}</h2>
+            <h2 className="mb-2 border-b-2 border-tinta pb-1 text-lg font-bold">{rotuloSetor(st, ev?.nomes_setores as NomesSetores)}</h2>
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-cinza uppercase">

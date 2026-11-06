@@ -2,7 +2,7 @@
 // disparado por uma pessoa da equipe). A interface CanalMensagem permite plugar a API oficial
 // do WhatsApp Business e o e-mail (Resend) sem mudar quem chama.
 import { dataLonga } from "@/lib/formato";
-import { ROTULO_SETOR, type Setor } from "@/lib/tipos";
+import { rotuloSetor, type NomesSetores, type Setor } from "@/lib/tipos";
 
 export interface Mensagem {
   para: { nome: string; celular?: string | null; email?: string | null };
@@ -46,11 +46,12 @@ interface DadosEvento {
   titulo: string;
   inicio: string;
   abertura_portoes?: string | null;
+  nomes_setores?: NomesSetores;
 }
 
 export function textoConvite(o: { nome?: string | null; evento: DadosEvento; setor: Setor; area: string; token: string; qtd: number }) {
   return [
-    `Olá${o.nome ? `, ${o.nome.split(" ")[0]}` : ""}! A MRV reservou ${o.qtd === 1 ? "um ingresso" : `${o.qtd} ingressos`} para você no ${o.evento.titulo} (${dataLonga(o.evento.inicio)}), ${ROTULO_SETOR[o.setor]}, pela área ${o.area}.`,
+    `Olá${o.nome ? `, ${o.nome.split(" ")[0]}` : ""}! A MRV reservou ${o.qtd === 1 ? "um ingresso" : `${o.qtd} ingressos`} para você no ${o.evento.titulo} (${dataLonga(o.evento.inicio)}), ${rotuloSetor(o.setor, o.evento.nomes_setores)}, pela área ${o.area}.`,
     ``,
     `Para garantir, preencha seus dados (nome, CPF e celular) neste link:`,
     linkTorcedor(o.token),
@@ -73,7 +74,7 @@ export function textoGaloId(o: { nome: string; evento: DadosEvento; setor: Setor
     ``,
     camarote
       ? `Lembrete: o camarote MRV é corporativo. Quem convidou precisa estar presente durante o evento.`
-      : `Setor: ${ROTULO_SETOR[o.setor]}.`,
+      : `Setor: ${rotuloSetor(o.setor, o.evento.nomes_setores)}.`,
   ].join("\n");
 }
 
@@ -83,7 +84,7 @@ export function textoIngressoEnviado(o: { nome: string; evento: DadosEvento; set
     ``,
     `Ele está no Super App do Galo. Confirme aqui que recebeu: ${linkTorcedor(o.token)}`,
     o.evento.abertura_portoes ? `Portões abrem ${dataLonga(o.evento.abertura_portoes)}.` : ``,
-    `Setor: ${ROTULO_SETOR[o.setor]}. Leve um documento com foto.`,
+    `Setor: ${rotuloSetor(o.setor, o.evento.nomes_setores)}. Leve um documento com foto.`,
     `Se não puder ir, cancele pelo link para o ingresso ir para outra pessoa.`,
   ].filter(Boolean).join("\n");
 }

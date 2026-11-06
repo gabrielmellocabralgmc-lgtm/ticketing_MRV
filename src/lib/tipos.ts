@@ -27,6 +27,8 @@ export interface Evento {
   resgate_unico: boolean;
   /** Orientações extras para o convidado (página pessoal e e-mail do ingresso). */
   orientacoes_convidado: string | null;
+  /** Nome exibido de cada setor neste evento (ex.: { pista: "Cadeira Inferior" }). */
+  nomes_setores: Partial<Record<Setor, string>>;
   status: StatusEvento;
   observacoes: string | null;
 }
@@ -46,6 +48,19 @@ export const ROTULO_SETOR: Record<Setor, string> = {
   arquibancada: "Arquibancada (Inter Oeste)",
   pista: "Pista",
 };
+
+/** Nomes dos setores definidos no evento (vazio = nome padrão). */
+export type NomesSetores = Partial<Record<Setor, string>> | null | undefined;
+
+/** Nome do setor no evento: o personalizado, se houver, senão o padrão. */
+export function rotuloSetor(s: Setor, nomes?: NomesSetores) {
+  return nomes?.[s]?.trim() || ROTULO_SETOR[s];
+}
+
+/** Versão curta (ex.: "Arquibancada"); o nome personalizado vai inteiro. */
+export function rotuloSetorCurto(s: Setor, nomes?: NomesSetores) {
+  return nomes?.[s]?.trim() || ROTULO_SETOR[s].split(" ")[0];
+}
 
 export const ROTULO_PAPEL: Record<Papel, string> = {
   admin: "Admin",

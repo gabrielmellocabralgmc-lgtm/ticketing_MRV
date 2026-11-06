@@ -8,7 +8,7 @@ import { Aviso, Cartao, SeloStatus } from "@/components/ui";
 import { dataHora, dataLonga } from "@/lib/formato";
 import { linkTorcedor } from "@/lib/mensagens";
 import { supabaseServico } from "@/lib/supabase/server";
-import { ROTULO_SETOR, type Setor, type StatusIngresso } from "@/lib/tipos";
+import { rotuloSetor, type NomesSetores, type Setor, type StatusIngresso } from "@/lib/tipos";
 import { BotoesTorcedor } from "./botoes-torcedor";
 import { FormConvidado } from "./form-convidado";
 import { ResgateIngresso } from "./resgate";
@@ -29,10 +29,11 @@ interface InfoIngresso {
 
 /** Configurações do evento que mudam a página: facial e ingresso digital. */
 async function configEvento(eventoId: string) {
-  const { data } = await (await supabaseServico()).from("eventos").select("ingressos_digitais, exige_facial, resgate_unico, orientacoes_convidado").eq("id", eventoId).maybeSingle();
+  const { data } = await (await supabaseServico()).from("eventos").select("ingressos_digitais, exige_facial, resgate_unico, orientacoes_convidado, nomes_setores").eq("id", eventoId).maybeSingle();
   return {
     digital: !!data?.ingressos_digitais, facial: data?.exige_facial ?? true,
     resgate: !!data?.ingressos_digitais && !!data?.resgate_unico,
+    nomes: (data?.nomes_setores ?? null) as NomesSetores,
     orientacoes: ((data?.orientacoes_convidado as string | null) ?? "").split(/\n+/).map((l) => l.replace(/^[•\-*]\s*/, "").trim()).filter(Boolean),
   };
 }
@@ -70,7 +71,7 @@ function Moldura({ children }: { children: React.ReactNode }) {
 }
 
 async function CabecalhoEvento({ evento, setor, area }: { evento: EventoPublico; setor: Setor; area: string }) {
-  const img = await imagensDisponiveis();
+  const [img, cfg] = await Promise.all([imagensDisponiveis(), configEvento(evento.id)]);
   return (
     <section className="overflow-hidden rounded-2xl bg-preto text-white">
       <div className="flex items-center gap-4 p-5">
@@ -84,7 +85,7 @@ async function CabecalhoEvento({ evento, setor, area }: { evento: EventoPublico;
       </div>
       <Listras />
       <dl className="grid grid-cols-2 gap-3 bg-white p-5 text-sm text-tinta">
-        <div><dt className="text-xs text-cinza">Setor</dt><dd className="font-semibold">{ROTULO_SETOR[setor]}</dd></div>
+        <div><dt className="text-xs text-cinza">Setor</dt><dd className="font-semibold">{rotuloSetor(setor, cfg.nomes)}</dd></div>
         <div><dt className="text-xs text-cinza">Convite da área</dt><dd className="font-semibold">{area}</dd></div>
         {evento.abertura_portoes && <div><dt className="text-xs text-cinza">Portões</dt><dd className="font-semibold">{dataHora(evento.abertura_portoes)}</dd></div>}
       </dl>
@@ -173,7 +174,7 @@ async function PaginaIngresso({ token, info, acompanhantes }: { token: string; i
             ) : (
               <li>Depois da validação, {cfg.digital ? <>o ingresso chega no seu <b>e-mail</b> e fica disponível <b>nesta página</b>.</> : "a MRV envia o seu ingresso."}</li>
             )}
-            <li><b>No dia:</b> chegue com antecedência{info.evento.abertura_portoes ? ` (portões às ${dataHora(info.evento.abertura_portoes).split(" ")[1]})` : ""} e vá ao setor {ROTULO_SETOR[info.setor]}. O ingresso é pessoal e intransferível.</li>
+            <li><b>No dia:</b> chegue com antecedência{info.evento.abertura_portoes ? ` (portões às ${dataHora(info.evento.abertura_portoes).split(" ")[1]})` : ""} e vá ao setor {rotuloSetor(info.setor, cfg.nomes)}. O ingresso é pessoal e intransferível.</li>
           </ol>
           {camarote && (
             <div className="mt-4"><Aviso tom="alerta">O camarote MRV é corporativo: quem convidou você precisa estar presente durante o evento. O ingresso não pode ser repassado.</Aviso></div>
@@ -195,7 +196,7 @@ async function PaginaIngresso({ token, info, acompanhantes }: { token: string; i
             <li>Faça o <b>cadastro facial</b> em <a className="font-semibold text-mrv-700 underline" href="https://ingressos.galonaveia.com.br/" target="_blank" rel="noopener noreferrer">ingressos.galonaveia.com.br</a>.</li>
             <li>Volte aqui e confirme. Só enviamos o ingresso depois disso.</li>
             <li>O ingresso chega no <b>Super App do Galo</b>, até 4h antes do jogo. Toque em “Recebi meu ingresso”.</li>
-            <li><b>No dia:</b> chegue com antecedência{info.evento.abertura_portoes ? ` (portões às ${dataHora(info.evento.abertura_portoes).split(" ")[1]})` : ""} e vá ao setor {ROTULO_SETOR[info.setor]}. 1 CPF = 1 ingresso, pessoal e intransferível.</li>
+            <li><b>No dia:</b> chegue com antecedência{info.evento.abertura_portoes ? ` (portões às ${dataHora(info.evento.abertura_portoes).split(" ")[1]})` : ""} e vá ao setor {rotuloSetor(info.setor, cfg.nomes)}. 1 CPF = 1 ingresso, pessoal e intransferível.</li>
           </ol>
           {camarote && (
             <div className="mt-4"><Aviso tom="alerta">O camarote MRV é corporativo: quem convidou você precisa estar presente durante o evento. O ingresso não pode ser repassado.</Aviso></div>

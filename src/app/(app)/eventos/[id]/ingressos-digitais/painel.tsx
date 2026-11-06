@@ -6,8 +6,9 @@ import { AreaTexto, Aviso, Botao, Selo, SeloStatus } from "@/components/ui";
 import { formatarCpf } from "@/lib/cpf";
 import { dataHora } from "@/lib/formato";
 import { linkTorcedor } from "@/lib/mensagens";
-import { ROTULO_SETOR, type Setor, type StatusIngresso } from "@/lib/tipos";
+import { type Setor, type StatusIngresso } from "@/lib/tipos";
 import { colarLinks, desatribuir, distribuir, enviar, liberarResgate, liberarSemEmail, remover, subirPdf } from "./actions";
+import { NomeSetor } from "@/components/setores";
 
 export interface Digital {
   id: string; setor: Setor; tipo: "pdf" | "link"; url: string | null; nome_arquivo: string | null;
@@ -49,7 +50,7 @@ export function PainelDigitais({ evento, setores, digitais, convidados, resgate 
           {setores.map((s) => (
             <button key={s} onClick={() => setSetor(s)} aria-pressed={s === setor}
               className={clsx("rounded-full px-4 py-2 text-sm font-semibold", s === setor ? "bg-mrv-700 text-white" : "bg-white text-mrv-700 ring-1 ring-borda hover:bg-mrv-50")}>
-              {ROTULO_SETOR[s]}
+              <NomeSetor s={s} />
             </button>
           ))}
         </div>
@@ -65,7 +66,7 @@ export function PainelDigitais({ evento, setores, digitais, convidados, resgate 
       {msg && <Aviso tom={msg.ok ? "ok" : "erro"}>{msg.texto}</Aviso>}
 
       <section className="rounded-2xl border border-borda bg-white p-5">
-        <h2 className="mb-1 text-lg font-bold">1. Subir ingressos · {ROTULO_SETOR[setor]}</h2>
+        <h2 className="mb-1 text-lg font-bold">1. Subir ingressos · <NomeSetor s={setor} /></h2>
         <p className="mb-4 text-sm text-cinza">
           Marque <b>“nominais”</b> quando cada ingresso já vier com o nome da pessoa: o sistema lê o nome e/ou o CPF do nome do arquivo
           (ex.: <i>Maria Souza - 123.456.789-09.pdf</i>) ou da linha colada, e entrega para essa pessoa. Sem marcar, os ingressos são genéricos.

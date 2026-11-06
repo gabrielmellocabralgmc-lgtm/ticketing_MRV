@@ -3,8 +3,9 @@ import { useMemo, useState } from "react";
 import { BotaoCopiar } from "@/components/copiar";
 import { Campo, Cartao, Selecao } from "@/components/ui";
 import type { Resultado } from "@/lib/erros";
-import { ROTULO_SETOR, STATUS_INGRESSO, type Setor, type StatusIngresso } from "@/lib/tipos";
+import { STATUS_INGRESSO, type Setor, type StatusIngresso } from "@/lib/tipos";
 import { TabelaSelecao, type LinhaIngresso } from "../tabela-selecao";
+import { useSetores } from "@/components/setores";
 
 type Grupo = "a_enviar" | "sem_facial" | "enviados";
 const GRUPOS: Record<Grupo, { rotulo: string; status: StatusIngresso[] }> = {
@@ -26,6 +27,7 @@ export function PainelEnvio({ linhas, evento, acoes, facial = true }: {
     registrarCopia: (tipo: "cpfs" | "nome_cpf", qtd: number) => Promise<void>;
   };
 }) {
+  const { rotulo: nomeSetor } = useSetores();
   const [grupo, setGrupo] = useState<Grupo>("a_enviar");
   const [setor, setSetor] = useState<"" | Setor>("");
   const [area, setArea] = useState("");
@@ -53,7 +55,7 @@ export function PainelEnvio({ linhas, evento, acoes, facial = true }: {
           <Campo rotulo="Setor" className="w-44">
             <Selecao value={setor} onChange={(e) => setSetor(e.target.value as Setor | "")}>
               <option value="">Todos</option>
-              {setores.map((s) => <option key={s} value={s}>{ROTULO_SETOR[s]}</option>)}
+              {setores.map((s) => <option key={s} value={s}>{nomeSetor(s)}</option>)}
             </Selecao>
           </Campo>
           <Campo rotulo="Área" className="w-56">

@@ -7,7 +7,7 @@ import { dataHora, dataLonga } from "@/lib/formato";
 import { CHAVE_ESCUDO_ATLETICO, chaveEscudoAdversario, imagensDisponiveis } from "@/lib/imagens";
 import { exigirStaff } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
-import { ROTULO_SETOR, type Setor } from "@/lib/tipos";
+import { rotuloSetorCurto, type NomesSetores, type Setor } from "@/lib/tipos";
 
 export const metadata = { title: "Dashboard" };
 
@@ -61,6 +61,9 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     imagensDisponiveis(),
   ]);
   const eventos = ((dash ?? []) as { evento: EventoDash }[]).map((d) => d.evento);
+  // nomes dos setores definidos em cada evento (ex.: "Cadeira Inferior")
+  const { data: nomesRows } = eventos.length ? await supabase.from("eventos").select("id, nomes_setores").in("id", eventos.map((e) => e.id)) : { data: [] };
+  const nomesDe = new Map(((nomesRows ?? []) as { id: string; nomes_setores: NomesSetores }[]).map((r) => [r.id, r.nomes_setores]));
   const hAreas = (areas ?? []) as AreaHist[];
   const hPessoas = (pessoas ?? []) as PessoaHist[];
   const hJogos = (jogos ?? []) as EventoHist[];
@@ -102,7 +105,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                   {e.setores.map((s) => (
                     <div key={s.setor}>
                       <div className="mb-2 flex items-baseline justify-between">
-                        <h3 className="font-bold">{ROTULO_SETOR[s.setor].split(" ")[0]}</h3>
+                        <h3 className="font-bold">{rotuloSetorCurto(s.setor, nomesDe.get(e.id))}</h3>
                         <span className="text-xs text-cinza">{s.capacidade} disponíveis{s.espera ? ` · ${s.espera} em espera` : ""}</span>
                       </div>
                       <dl className="space-y-1.5">

@@ -3,7 +3,7 @@ import { AoVivo } from "@/components/ao-vivo";
 import { BotaoAcao } from "@/components/form-acao";
 import { Cartao, Tabela, Titulo } from "@/components/ui";
 import { exigirAdmin } from "@/lib/sessao";
-import { ROTULO_SETOR } from "@/lib/tipos";
+import { rotuloSetor } from "@/lib/tipos";
 import { carregarEvento, carregarResumo } from "../dados";
 import { carregarIngressos } from "../ingressos";
 import { aprovar, cancelarMarketing, facialOk, promover, recusar, validarComoMarketing } from "../marketing-actions";
@@ -40,7 +40,7 @@ export default async function Aprovacao({ params }: { params: Promise<{ id: stri
               {naoValidadas.map((r) => (
                 <tr key={`${r.setor}-${r.area_id}`}>
                   <td className="font-medium"><Link className="hover:underline" href={`/eventos/${id}/areas/${r.area_id}?setor=${r.setor}`}>{r.area_nome}</Link></td>
-                  <td>{ROTULO_SETOR[r.setor]}</td>
+                  <td>{rotuloSetor(r.setor, ev.nomes_setores)}</td>
                   <td className="tabular text-right">{r.solicitados}</td>
                   <td className="text-right">
                     <BotaoAcao acao={validarComoMarketing.bind(null, id, r.setor, r.area_id)} rotulo="Validar pela área"
@@ -89,7 +89,7 @@ export default async function Aprovacao({ params }: { params: Promise<{ id: stri
         <p className="mb-3 text-sm text-tinta/60">Sobe automaticamente quando abre vaga na área. Para liberar agora, remaneje a cota na página do evento e clique em promover.</p>
         <div className="mb-3 flex flex-wrap gap-2">
           {[...new Map(espera.map((e) => [`${e.setor}|${e.area_id}`, e])).values()].map((e) => (
-            <BotaoAcao key={`${e.setor}-${e.area_id}`} acao={promover.bind(null, id, e.setor, e.area_id)} rotulo={`Promover ${e.area_nome} (${ROTULO_SETOR[e.setor]})`} />
+            <BotaoAcao key={`${e.setor}-${e.area_id}`} acao={promover.bind(null, id, e.setor, e.area_id)} rotulo={`Promover ${e.area_nome} (${rotuloSetor(e.setor, ev.nomes_setores)})`} />
           ))}
         </div>
         <TabelaSelecao

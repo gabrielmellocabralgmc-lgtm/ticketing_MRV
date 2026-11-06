@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { falha, type Resultado } from "@/lib/erros";
 import { exigirSessao } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
-import { ROTULO_SETOR, type Setor } from "@/lib/tipos";
+import { rotuloSetor, type Setor } from "@/lib/tipos";
 import { dataHora, deInputLocal } from "@/lib/formato";
 import { linkTorcedor } from "@/lib/mensagens";
 import { avisarAprovadosDoEvento, enviarModelo, resumoEnvio, varsEvento, type EventoVars } from "@/lib/mensagens/envio";
@@ -60,14 +60,14 @@ export async function criarConvite(evento: string, setor: Setor, area: string, _
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { ok: true, dados: { token }, mensagem: "Vaga reservada, mas o e-mail é inválido: mande o link pelo WhatsApp." };
     const s = await exigirSessao();
     const [{ data: ev }, { data: ar }] = await Promise.all([
-      supabase.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, resgate_unico, orientacoes_convidado").eq("id", evento).single(),
+      supabase.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, resgate_unico, orientacoes_convidado, nomes_setores").eq("id", evento).single(),
       supabase.from("areas").select("nome").eq("id", area).single(),
     ]);
     const qtd = Number(form.get("qtd") ?? 1);
     const nome = String(form.get("nome_previsto") ?? "").trim().split(/[\s–-]+/)[0] || null;
     const r = await enviarModelo([{
       tipo: "convite_convidado", para: { nome, email }, evento_id: evento, area_id: area,
-      vars: { ...varsEvento(ev as EventoVars), nome, area: ar?.nome, setor: ROTULO_SETOR[setor], lugares: qtd === 1 ? "1 lugar" : `${qtd} lugares`, validade: dataHora(expira_em), link: linkTorcedor(token) },
+      vars: { ...varsEvento(ev as EventoVars), nome, area: ar?.nome, setor: rotuloSetor(setor, (ev as EventoVars | null)?.nomes_setores), lugares: qtd === 1 ? "1 lugar" : `${qtd} lugares`, validade: dataHora(expira_em), link: linkTorcedor(token) },
       botao: { rotulo: "Preencher meus dados", url: linkTorcedor(token) },
     }], { autor: s.userId });
     aviso = `Vaga reservada. Convite por e-mail: ${resumoEnvio(r)}.`;

@@ -4,7 +4,7 @@ import { exigirAdmin } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
 import Link from "next/link";
 import clsx from "clsx";
-import { ROTULO_SETOR, type Setor } from "@/lib/tipos";
+import { rotuloSetorCurto, type NomesSetores, type Setor } from "@/lib/tipos";
 import { GRUPOS_CAMAROTE } from "@/lib/mensagens/envio";
 import {
   adicionarContatoCamarote, adicionarResponsavel, removerContatoCamarote, removerResponsavel, salvarArea, salvarContatoPedidosCamarote,
@@ -20,18 +20,18 @@ export default async function Areas() {
     supabase.from("areas").select("id, nome, slug, centro_custo, ativo, ordem").order("ativo", { ascending: false }).order("ordem"),
     supabase.rpc("responsaveis_por_area"),
     supabase.from("config").select("valor").eq("chave", "cotas_padrao").single(),
-    supabase.from("eventos").select("id, titulo, inicio").in("status", ["rascunho", "aberto", "fechado"]).gt("inicio", new Date().toISOString()).order("inicio").limit(4),
+    supabase.from("eventos").select("id, titulo, inicio, nomes_setores").in("status", ["rascunho", "aberto", "fechado"]).gt("inicio", new Date().toISOString()).order("inicio").limit(4),
     supabase.from("camarote_contatos").select("id, grupo, nome, email, cargo").eq("ativo", true).order("nome"),
     supabase.from("config").select("valor").eq("chave", "contato_camarote").maybeSingle(),
   ]);
   const pedidosCamarote = (contatoPedidos?.valor ?? {}) as { email?: string; whatsapp?: string };
   // uso das cotas nos próximos jogos, por área
-  const usoPorArea = new Map<string, { evento: string; titulo: string; setor: Setor; cota: number; usados: number }[]>();
+  const usoPorArea = new Map<string, { evento: string; titulo: string; setor: Setor; nomes: NomesSetores; cota: number; usados: number }[]>();
   for (const ev of proximos ?? []) {
     const { data: linhas } = await supabase.rpc("resumo_evento", { p_evento: ev.id });
     for (const l of (linhas ?? []) as { area_id: string; setor: Setor; cota: number | null; ocupados: number }[]) {
       if (l.cota === null) continue;
-      usoPorArea.set(l.area_id, [...(usoPorArea.get(l.area_id) ?? []), { evento: ev.id, titulo: ev.titulo, setor: l.setor, cota: l.cota, usados: l.ocupados }]);
+      usoPorArea.set(l.area_id, [...(usoPorArea.get(l.area_id) ?? []), { evento: ev.id, titulo: ev.titulo, setor: l.setor, nomes: ev.nomes_setores as NomesSetores, cota: l.cota, usados: l.ocupados }]);
     }
   }
   const responsaveis = (resp ?? []) as { area_id: string; user_id: string; nome: string; email: string; ativo: boolean }[];
@@ -110,7 +110,7 @@ export default async function Areas() {
                 <ul className="mb-4 space-y-1 text-sm">
                   {uso.map((u) => (
                     <li key={`${u.evento}-${u.setor}`} className="flex items-center justify-between gap-2">
-                      <Link href={`/eventos/${u.evento}/areas/${a.id}?setor=${u.setor}`} className="hover:underline">{u.titulo} <span className="text-cinza">· {ROTULO_SETOR[u.setor].split(" ")[0]}</span></Link>
+                      <Link href={`/eventos/${u.evento}/areas/${a.id}?setor=${u.setor}`} className="hover:underline">{u.titulo} <span className="text-cinza">· {rotuloSetorCurto(u.setor, u.nomes)}</span></Link>
                       <span className={clsx("tabular font-semibold", u.usados >= u.cota && "text-laranja-700")}>{u.usados}/{u.cota}</span>
                     </li>
                   ))}

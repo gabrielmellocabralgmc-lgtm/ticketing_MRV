@@ -8,7 +8,7 @@ import { linkTorcedor, siteUrl } from "@/lib/mensagens";
 import { canalEmail } from "@/lib/mensagens/email";
 import { htmlEmail, preencher } from "@/lib/mensagens/modelos";
 import { supabaseServico } from "@/lib/supabase/server";
-import { ROTULO_SETOR, type Setor } from "@/lib/tipos";
+import { rotuloSetor, type NomesSetores, type Setor } from "@/lib/tipos";
 
 export type Vars = Record<string, string | number | null | undefined>;
 
@@ -110,6 +110,8 @@ export interface EventoVars {
   resgate_unico?: boolean;
   /** Orientações extras do evento para o convidado (idade, documentos etc.). */
   orientacoes_convidado?: string | null;
+  /** Nomes dos setores neste evento (ex.: { pista: "Cadeira Inferior" }). */
+  nomes_setores?: NomesSetores;
 }
 
 /** Passo a passo de como o convidado recebe o ingresso, conforme o evento. */
@@ -177,7 +179,7 @@ async function carregarContatos(ids: string[]) {
   const ingressos = (data ?? []) as IngressoContato[];
   const evIds = [...new Set(ingressos.map((i) => i.evento_id))];
   const { data: evs } = evIds.length
-    ? await sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, resgate_unico, orientacoes_convidado").in("id", evIds)
+    ? await sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, resgate_unico, orientacoes_convidado, nomes_setores").in("id", evIds)
     : { data: [] };
   return { ingressos, eventos: new Map(((evs ?? []) as EventoVars[]).map((e) => [e.id, e])) };
 }
@@ -192,7 +194,7 @@ export async function avisarAprovados(ids: string[], autor?: string | null): Pro
   const alvo = ingressos.filter((i) => i.status === "aprovado" && i.email);
   const r = await enviarModelo(alvo.map((i) => ({
     tipo: "galo_id", para: { nome: i.nome, email: i.email! }, evento_id: i.evento_id, ingresso_id: i.id,
-    vars: { ...varsEvento(eventos.get(i.evento_id)!), nome: primeiroNome(i.nome), setor: ROTULO_SETOR[i.setor], link: linkTorcedor(i.token) },
+    vars: { ...varsEvento(eventos.get(i.evento_id)!), nome: primeiroNome(i.nome), setor: rotuloSetor(i.setor, eventos.get(i.evento_id)?.nomes_setores), link: linkTorcedor(i.token) },
     botao: { rotulo: "JÁ TENHO A FACIAL CADASTRADA", url: linkTorcedor(i.token) },
   })), { autor });
   if (alvo.length) await (await supabaseServico()).rpc("registrar_orientacao", { p_ids: alvo.map((i) => i.id) });
@@ -205,7 +207,7 @@ export async function avisarEnviados(ids: string[], autor?: string | null): Prom
   const alvo = ingressos.filter((i) => i.status === "enviado" && i.email);
   return enviarModelo(alvo.map((i) => ({
     tipo: "ingresso_enviado", para: { nome: i.nome, email: i.email! }, evento_id: i.evento_id, ingresso_id: i.id,
-    vars: { ...varsEvento(eventos.get(i.evento_id)!), nome: primeiroNome(i.nome), setor: ROTULO_SETOR[i.setor], link: linkTorcedor(i.token) },
+    vars: { ...varsEvento(eventos.get(i.evento_id)!), nome: primeiroNome(i.nome), setor: rotuloSetor(i.setor, eventos.get(i.evento_id)?.nomes_setores), link: linkTorcedor(i.token) },
     botao: { rotulo: "Recebi meu ingresso", url: linkTorcedor(i.token) },
   })), { autor });
 }
@@ -268,7 +270,7 @@ export function itensArea(tipo: "convocacao_area" | "lembrete_area", ev: EventoV
     tipo, para: r, evento_id: ev.id, area_id: a.area_id,
     vars: {
       ...varsEvento(ev), area: a.area_nome, responsavel: primeiroNome(r.nome), cota, saldo, pendentes,
-      setor: a.cotas.map((c) => ROTULO_SETOR[c.setor]).join(" e "), link,
+      setor: a.cotas.map((c) => rotuloSetor(c.setor, ev.nomes_setores)).join(" e "), link,
     },
     botao: { rotulo: "Abrir a lista da área", url: link },
   }));
@@ -284,7 +286,7 @@ const INTERVALO_VALIDACAO_H = 12;
 export async function avisarValidacaoPendente(evento?: string, area?: string): Promise<ResultadoEnvio> {
   const sb = await supabaseServico();
   const agora = Date.now();
-  let q = sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, resgate_unico, orientacoes_convidado, status").eq("status", "aberto");
+  let q = sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, resgate_unico, orientacoes_convidado, nomes_setores, status").eq("status", "aberto");
   if (evento) q = q.eq("id", evento);
   const { data: evs } = await q;
   const itens: ItemEnvio[] = [];
@@ -318,7 +320,7 @@ export async function avisarValidacaoPendente(evento?: string, area?: string): P
           tipo: "validacao_pendente", para: r, evento_id: ev.id, area_id: areaId,
           vars: {
             ...varsEvento(ev), area: a.area_nome, responsavel: primeiroNome(r.nome), pendentes: pend.length,
-            lista: pend.map((p) => `• ${p.nome ?? "—"}`).join("\n"), setor: ROTULO_SETOR[pend[0].setor], link,
+            lista: pend.map((p) => `• ${p.nome ?? "—"}`).join("\n"), setor: rotuloSetor(pend[0].setor, ev.nomes_setores), link,
           },
           botao: { rotulo: "Validar lista", url: link },
         });
@@ -335,7 +337,7 @@ export async function executarLembretes(): Promise<{ areas: ResultadoEnvio; faci
   const agora = Date.now();
   const { data: cfg } = await sb.from("config").select("valor").eq("chave", "lembrete_area_horas").maybeSingle();
   const horas = Number(cfg?.valor ?? 24);
-  const { data: evs } = await sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, resgate_unico, orientacoes_convidado, status").in("status", ["aberto", "fechado"]);
+  const { data: evs } = await sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, resgate_unico, orientacoes_convidado, nomes_setores, status").in("status", ["aberto", "fechado"]);
   const eventos = (evs ?? []) as (EventoVars & { status: string })[];
 
   const itensAreas: ItemEnvio[] = [];
@@ -364,7 +366,7 @@ export async function executarLembretes(): Promise<{ areas: ResultadoEnvio; faci
       const ev = proximos.find((e) => e.id === i.evento_id)!;
       itensFacial.push({
         tipo: "lembrete_facial", para: { nome: i.nome, email: i.email! }, evento_id: i.evento_id, ingresso_id: i.id,
-        vars: { ...varsEvento(ev), nome: primeiroNome(i.nome), setor: ROTULO_SETOR[i.setor], link: linkTorcedor(i.token) },
+        vars: { ...varsEvento(ev), nome: primeiroNome(i.nome), setor: rotuloSetor(i.setor, ev.nomes_setores), link: linkTorcedor(i.token) },
         botao: { rotulo: "JÁ TENHO A FACIAL CADASTRADA", url: linkTorcedor(i.token) },
       });
     }
@@ -395,7 +397,7 @@ export async function avisarPendenteFacial(ids: string[], autor?: string | null)
   const alvo = ingressos.filter((i) => i.status === "facial_pendente" && i.email);
   return enviarModelo(alvo.map((i) => ({
     tipo: "lembrete_facial", para: { nome: i.nome, email: i.email! }, evento_id: i.evento_id, ingresso_id: i.id,
-    vars: { ...varsEvento(eventos.get(i.evento_id)!), nome: primeiroNome(i.nome), setor: ROTULO_SETOR[i.setor], link: linkTorcedor(i.token) },
+    vars: { ...varsEvento(eventos.get(i.evento_id)!), nome: primeiroNome(i.nome), setor: rotuloSetor(i.setor, eventos.get(i.evento_id)?.nomes_setores), link: linkTorcedor(i.token) },
     botao: { rotulo: "JÁ TENHO A FACIAL CADASTRADA", url: linkTorcedor(i.token) },
   })), { autor });
 }
@@ -459,7 +461,7 @@ export async function avisarOperacaoLista(evento: string, autor?: string | null)
   const sb = await supabaseServico();
   const { data: cam } = await sb.from("evento_setores").select("setor").eq("evento_id", evento).eq("setor", "camarote").maybeSingle();
   if (!cam) return { enviados: 0, simulados: 0, falhas: 0, erros: [] }; // evento sem camarote
-  const { data: ev } = await sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, resgate_unico, orientacoes_convidado").eq("id", evento).single();
+  const { data: ev } = await sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, resgate_unico, orientacoes_convidado, nomes_setores").eq("id", evento).single();
   const { data: ings } = await sb.from("v_ingressos").select("nome, convidado_de_nome, area_nome").eq("evento_id", evento).eq("setor", "camarote").in("status", STATUS_CONFIRMADO);
   const lista = ((ings ?? []) as { nome: string | null; convidado_de_nome: string | null; area_nome: string }[])
     .map((i) => `• ${i.nome ?? "(sem nome)"}${i.convidado_de_nome ? ` — convidado de ${i.convidado_de_nome}` : ""}`)
@@ -477,7 +479,7 @@ export async function avisarOperacaoLista(evento: string, autor?: string | null)
 export async function avisarRelatorioOperacao(evento: string, autor?: string | null): Promise<ResultadoEnvio> {
   const sb = await supabaseServico();
   const [{ data: ev }, { data: rel }, { data: resp }, { data: itens }, { data: beb }, { data: presenca }] = await Promise.all([
-    sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, resgate_unico, orientacoes_convidado").eq("id", evento).single(),
+    sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, resgate_unico, orientacoes_convidado, nomes_setores").eq("id", evento).single(),
     sb.from("op_relatorios").select("*").eq("evento_id", evento).maybeSingle(),
     sb.from("op_respostas").select("item_id, status, observacao").eq("evento_id", evento).eq("status", "problema"),
     sb.from("op_itens").select("id, secao, texto"),
@@ -518,7 +520,7 @@ export async function avisarRelatorioOperacao(evento: string, autor?: string | n
 export async function enviarIngressosDigitais(evento: string, autor?: string | null) {
   const sb = await supabaseServico();
   const [{ data: ev }, { data: digs }] = await Promise.all([
-    sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, resgate_unico, orientacoes_convidado").eq("id", evento).single(),
+    sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, resgate_unico, orientacoes_convidado, nomes_setores").eq("id", evento).single(),
     sb.from("ingressos_digitais").select("ingresso_id, enviado_em").eq("evento_id", evento),
   ]);
   const pendentes = ((digs ?? []) as { ingresso_id: string | null; enviado_em: string | null }[])
@@ -532,7 +534,7 @@ export async function enviarIngressosDigitais(evento: string, autor?: string | n
     if (!i.email) { res.semEmail.push(i.nome ?? i.id); continue; }
     const r = await enviarModelo([{
       tipo: resgate ? "ingresso_resgate" : "ingresso_digital", para: { nome: i.nome, email: i.email }, evento_id: evento, ingresso_id: i.id,
-      vars: { ...varsEvento(ev as EventoVars), nome: primeiroNome(i.nome), setor: ROTULO_SETOR[i.setor], link: linkTorcedor(i.token) },
+      vars: { ...varsEvento(ev as EventoVars), nome: primeiroNome(i.nome), setor: rotuloSetor(i.setor, (ev as EventoVars).nomes_setores), link: linkTorcedor(i.token) },
       // resgate único: o link da Eventim nunca vai no e-mail; o botão leva ao passo a passo
       botao: resgate
         ? { rotulo: "Ver passo a passo e resgatar", url: linkTorcedor(i.token) }

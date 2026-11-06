@@ -10,9 +10,10 @@ import { celular, dataHora } from "@/lib/formato";
 import { linkTorcedor, linkWhatsApp, textoGaloId } from "@/lib/mensagens";
 import type { Resultado } from "@/lib/erros";
 import { normalizarTexto } from "@/lib/texto";
-import { ROTULO_SETOR, type Setor, type StatusIngresso } from "@/lib/tipos";
+import { type Setor, type StatusIngresso } from "@/lib/tipos";
 import type { LinhaIngresso } from "../tabela-selecao";
 import { NomeEditavel, semNome } from "../nome-editavel";
+import { NomeSetor } from "@/components/setores";
 
 export type LinhaGeral = LinhaIngresso & { pedido_id: string };
 
@@ -153,7 +154,7 @@ function TabelaSetor({ setor, todas, linhas, ordem, nomesPorId, pendente, acoes,
   return (
     <section className="overflow-hidden rounded-2xl border border-borda bg-white">
       <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-borda px-4 py-3">
-        <h2 className="text-lg font-bold">{ROTULO_SETOR[setor]}</h2>
+        <h2 className="text-lg font-bold"><NomeSetor s={setor} /></h2>
         <span className="text-sm text-cinza">
           Reservados <b className="tabular text-tinta">{reservados}</b> · Enviados <b className="tabular text-mrv-700">{enviados}</b> · Prontos para envio <b className="tabular text-mrv-700">{prontos}</b>
         </span>

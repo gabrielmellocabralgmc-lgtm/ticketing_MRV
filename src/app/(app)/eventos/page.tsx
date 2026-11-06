@@ -7,7 +7,7 @@ import { CHAVE_ESCUDO_ATLETICO, chaveEscudoAdversario, imagensDisponiveis } from
 import { dataLonga, dataHora } from "@/lib/formato";
 import { exigirSessao } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
-import { ROTULO_SETOR, ROTULO_STATUS_EVENTO, type Evento, type Setor } from "@/lib/tipos";
+import { rotuloSetor, rotuloSetorCurto, ROTULO_STATUS_EVENTO, type Evento, type Setor } from "@/lib/tipos";
 import { AcoesEvento } from "./acoes-evento";
 
 export const metadata: Metadata = { title: "Eventos" };
@@ -24,12 +24,12 @@ export default async function Eventos() {
     eventos.map(async (e): Promise<readonly [string, Linha[]]> => {
       if (s.staff) {
         const { data: r } = await supabase.rpc("resumo_setores", { p_evento: e.id });
-        return [e.id, ((r ?? []) as Omit<Linha, "rotulo">[]).map((x) => ({ ...x, rotulo: ROTULO_SETOR[x.setor] }))] as const;
+        return [e.id, ((r ?? []) as Omit<Linha, "rotulo">[]).map((x) => ({ ...x, rotulo: rotuloSetor(x.setor, e.nomes_setores) }))] as const;
       }
       const { data: r } = await supabase.rpc("resumo_evento", { p_evento: e.id });
       return [e.id, ((r ?? []) as { setor: Setor; area_nome: string; cota: number | null; ocupados: number; em_espera: number }[])
         .filter((x) => x.cota !== null)
-        .map((x) => ({ setor: x.setor, rotulo: `${x.area_nome} · ${ROTULO_SETOR[x.setor].split(" ")[0]} (sua cota)`, ocupados: x.ocupados, capacidade: x.cota!, em_espera: x.em_espera }))] as const;
+        .map((x) => ({ setor: x.setor, rotulo: `${x.area_nome} · ${rotuloSetorCurto(x.setor, e.nomes_setores)} (sua cota)`, ocupados: x.ocupados, capacidade: x.cota!, em_espera: x.em_espera }))] as const;
     }),
   );
   const porEvento = Object.fromEntries(resumos);

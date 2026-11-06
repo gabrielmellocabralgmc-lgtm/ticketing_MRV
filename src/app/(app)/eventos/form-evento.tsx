@@ -3,7 +3,7 @@ import { useActionState, useState } from "react";
 import { AreaTexto, Aviso, Botao, Campo, Entrada, Selecao } from "@/components/ui";
 import { paraInputLocal } from "@/lib/formato";
 import type { Resultado } from "@/lib/erros";
-import type { Evento } from "@/lib/tipos";
+import { ROTULO_SETOR, type Evento, type Setor } from "@/lib/tipos";
 import { CotasNovoEvento, cotasIniciais, type AreaSimples, type PadraoTipo } from "./cotas-novo";
 
 type Acao = (estado: Resultado | null, form: FormData) => Promise<Resultado>;
@@ -139,6 +139,17 @@ export function FormEvento({ acao, evento, anteriores, padrao, areas = [], temCa
           </Campo>
         </div>
       )}
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-semibold">Nome dos setores neste evento <span className="font-normal text-tinta/60">(opcional: em branco usa o nome padrão)</span></legend>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {(["pista", "arquibancada", "camarote"] as Setor[]).filter((s) => s !== "camarote" || camarote).map((s) => (
+            <Campo key={s} rotulo={ROTULO_SETOR[s]}>
+              <Entrada name={`nome_setor_${s}`} defaultValue={evento?.nomes_setores?.[s] ?? ""} placeholder={ROTULO_SETOR[s]} maxLength={60} />
+            </Campo>
+          ))}
+        </div>
+        <p className="text-xs text-tinta/60">Aparece em todas as telas, na página do convidado e nos e-mails. Ex.: “Cadeira Inferior”, “Pista Premium”.</p>
+      </fieldset>
       <Campo rotulo="Orientações para o convidado (opcional)" dica="Uma por linha. Aparecem na página pessoal e no e-mail do ingresso. Ex.: classificação etária, documentos.">
         <AreaTexto name="orientacoes_convidado" rows={3} defaultValue={evento?.orientacoes_convidado ?? ""} />
       </Campo>
