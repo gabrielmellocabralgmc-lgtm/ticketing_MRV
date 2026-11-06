@@ -1,4 +1,4 @@
-// Mensagens ao torcedor. Na v1 o canal WhatsApp é "click-to-chat" (wa.me com texto pronto,
+// Mensagens ao convidado. Na v1 o canal WhatsApp é "click-to-chat" (wa.me com texto pronto,
 // disparado por uma pessoa da equipe). A interface CanalMensagem permite plugar a API oficial
 // do WhatsApp Business e o e-mail (Resend) sem mudar quem chama.
 import { dataLonga } from "@/lib/formato";

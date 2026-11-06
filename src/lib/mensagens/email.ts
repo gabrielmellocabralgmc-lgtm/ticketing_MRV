@@ -1,5 +1,5 @@
 // Canal de e-mail via Resend (domínio verificado: ingressos.weareact3.com).
-// Usado pelas mensagens ao torcedor e convocações (fase 3). O magic link de login sai pelo
+// Usado pelas mensagens ao convidado e convocações (fase 3). O magic link de login sai pelo
 // Supabase Auth, configurado com o SMTP do Resend (ver README).
 import type { CanalMensagem, Mensagem } from "./index";
 

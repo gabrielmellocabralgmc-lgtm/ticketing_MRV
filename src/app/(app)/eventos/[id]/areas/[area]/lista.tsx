@@ -153,7 +153,7 @@ export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, p
                         )}
                         {POS_APROVACAO.includes(l.status) && (
                           <>
-                            <BotaoCopiar texto={linkTorcedor(l.token)} rotulo="Link do torcedor" />
+                            <BotaoCopiar texto={linkTorcedor(l.token)} rotulo="Link do convidado" />
                             {facial && ["aprovado", "facial_pendente"].includes(l.status) && (
                               <BotaoWhatsApp rotulo="Passo a passo" link={linkWhatsApp(l.celular, textoGaloId({ nome: l.nome!, evento: eventoInfo, setor, token: l.token }))} />
                             )}
