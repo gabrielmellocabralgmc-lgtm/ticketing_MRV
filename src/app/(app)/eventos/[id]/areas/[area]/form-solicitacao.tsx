@@ -23,8 +23,13 @@ function problemas(p: PessoaForm, avulsos = false, exigirEmail = false) {
   return e;
 }
 
-export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, enviarCom, avisoExcede, excedeVaiParaEspera = true, avulsos = false, colarInicial = false, simples = false, exigirEmail = false, facial = true }: {
+/** Limite de linhas no formulário (a cota de uma área cabe aqui). */
+const MAX_LINHAS = 60;
+
+export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, linhasIniciais, enviarCom, avisoExcede, excedeVaiParaEspera = true, avulsos = false, colarInicial = false, simples = false, exigirEmail = false, facial = true }: {
   evento: string; setor: Setor; area: string; saldo: number; padraoConvidados: number;
+  /** Quantas linhas abrir já de início (ex.: o saldo da área); sem isso, 1 + padraoConvidados. */
+  linhasIniciais?: number;
   /** Ação alternativa (ex.: Admin adicionando convidado pelo painel do jogo). */
   enviarCom?: (pessoas: PessoaForm[], excede: boolean) => Promise<Resultado<unknown>>;
   /** Substitui o aviso de cota excedida. */
@@ -41,7 +46,8 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
   /** Evento exige facial (cita o Galo ID no aviso de privacidade). */
   facial?: boolean;
 }) {
-  const [pessoas, setPessoas] = useState<PessoaForm[]>(() => Array.from({ length: 1 + padraoConvidados }, vazia));
+  const qtdInicial = () => Math.min(MAX_LINHAS, Math.max(1, linhasIniciais ?? 1 + padraoConvidados));
+  const [pessoas, setPessoas] = useState<PessoaForm[]>(() => Array.from({ length: qtdInicial() }, vazia));
   const [tocado, setTocado] = useState(false);
   const [colar, setColar] = useState(colarInicial);
   const [texto, setTexto] = useState("");
@@ -65,7 +71,7 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
       const r = enviarCom ? await enviarCom(preenchidas, excede) : await solicitar(evento, setor, area, preenchidas, excede);
       if (r.ok) {
         setRetorno({ ok: true, msg: r.mensagem ?? "Pronto." });
-        setPessoas(Array.from({ length: 1 + padraoConvidados }, vazia));
+        setPessoas(Array.from({ length: qtdInicial() }, vazia));
         setTocado(false);
       } else setRetorno({ ok: false, msg: r.erro });
     });
@@ -123,7 +129,7 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
         );
       })}
       <div className="flex flex-wrap items-center gap-4">
-        <Botao type="button" variante="fantasma" onClick={() => setPessoas((ps) => [...ps, vazia()])} disabled={pessoas.length >= 20}>+ Convidado</Botao>
+        <Botao type="button" variante="fantasma" onClick={() => setPessoas((ps) => [...ps, vazia()])} disabled={pessoas.length >= MAX_LINHAS}>+ Convidado</Botao>
       </div>
       {excede && avisoExcede}
       {excede && !avisoExcede && (

@@ -100,7 +100,7 @@ export default async function PainelArea({ params, searchParams }: { params: Pro
       {podeSolicitar && (
         <div className="mb-6">
           <ModoPreenchimento prazo={dataHora(ev.prazo_solicitacao)}
-            gestor={<FormSolicitacao evento={id} setor={setor} area={area} saldo={saldo?.saldo ?? 0} padraoConvidados={camarote ? 0 : 1} exigirEmail={ev.ingressos_digitais} facial={ev.exige_facial} />}
+            gestor={<FormSolicitacao evento={id} setor={setor} area={area} saldo={saldo?.saldo ?? 0} padraoConvidados={camarote ? 0 : 1} linhasIniciais={camarote ? undefined : saldo?.saldo} exigirEmail={ev.ingressos_digitais} facial={ev.exige_facial} />}
             convidado={
               <>
                 <p className="mb-4 text-sm text-tinta/60">
