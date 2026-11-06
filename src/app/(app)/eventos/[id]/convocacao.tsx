@@ -4,13 +4,13 @@ import { useState, useTransition } from "react";
 import { Aviso, Botao, Selo, Tabela } from "@/components/ui";
 import { dataHora } from "@/lib/formato";
 import { ROTULO_SETOR, type Setor } from "@/lib/tipos";
-import { enviarConvocacao, previaConvocacao, rodarLembretes } from "./emails-actions";
+import { enviarConvocacao, enviarConvocacaoFaltantes, previaConvocacao, rodarLembretes } from "./emails-actions";
 
 interface Area {
   area_id: string;
   area_nome: string;
   cotas: { setor: Setor; cota: number; ocupados: number; solicitados: number }[];
-  responsaveis: { nome: string; email: string }[];
+  responsaveis: { nome: string; email: string; recebeu?: boolean }[];
   ultima_convocacao: string | null;
   ultimo_lembrete: string | null;
 }
@@ -43,7 +43,23 @@ export function Convocacao({ evento, areas, envioReal, facial = true }: { evento
               <td><input type="checkbox" aria-label={`Selecionar ${a.area_nome}`} className="accent-mrv-700" checked={sel.has(a.area_id)}
                 onChange={(e) => setSel((s) => { const n = new Set(s); if (e.target.checked) n.add(a.area_id); else n.delete(a.area_id); return n; })} /></td>
               <td className="font-medium">{a.area_nome}</td>
-              <td className="text-xs">{a.responsaveis.length ? a.responsaveis.map((r) => <div key={r.email}>{r.nome} <span className="text-cinza">{r.email}</span></div>) : <Selo tom="vermelho">sem responsável</Selo>}</td>
+              <td className="text-xs">
+                {a.responsaveis.length ? a.responsaveis.map((r) => (
+                  <div key={r.email}>
+                    {r.nome} <span className="text-cinza">{r.email}</span>
+                    {a.ultima_convocacao && !r.recebeu && <> <Selo tom="amarelo">ainda não recebeu</Selo></>}
+                  </div>
+                )) : <Selo tom="vermelho">sem responsável</Selo>}
+                {a.ultima_convocacao && a.responsaveis.some((r) => !r.recebeu) && (
+                  <button className="mt-1 text-xs font-semibold text-mrv-700 hover:underline" disabled={pendente}
+                    onClick={() => {
+                      const nomes = a.responsaveis.filter((r) => !r.recebeu).map((r) => r.nome).join(", ");
+                      if (confirm(`Enviar a convocação de ${a.area_nome} só para ${nomes}? Quem já recebeu não recebe de novo.`)) rodar(() => enviarConvocacaoFaltantes(evento, a.area_id));
+                    }}>
+                    Enviar só para quem falta
+                  </button>
+                )}
+              </td>
               <td className="text-xs whitespace-nowrap">{a.cotas.map((c) => <div key={c.setor}>{c.cota} · {ROTULO_SETOR[c.setor].split(" ")[0]} <span className="text-cinza">({c.ocupados} usados)</span></div>)}</td>
               <td className="text-xs whitespace-nowrap">{a.ultima_convocacao ? <Selo tom="verde">{dataHora(a.ultima_convocacao)}</Selo> : <span className="text-cinza">não enviada</span>}</td>
               <td className="text-xs whitespace-nowrap">{a.ultimo_lembrete ? dataHora(a.ultimo_lembrete) : "—"}</td>

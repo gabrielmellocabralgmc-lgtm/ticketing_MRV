@@ -54,6 +54,19 @@ export async function enviarConvocacao(evento: string, areas: string[], soParaMi
   };
 }
 
+/** Reenvio opcional: só para os responsáveis da área que ainda não receberam a convocação (ex.: cadastrados depois). */
+export async function enviarConvocacaoFaltantes(evento: string, area: string): Promise<Resultado> {
+  const s = await exigirStaff();
+  const [ev, todas] = await Promise.all([carregar(evento), areasParaConvocar(evento)]);
+  const a = todas.find((x) => x.area_id === area);
+  const faltam = (a?.responsaveis ?? []).filter((r) => !r.recebeu).map(({ nome, email }) => ({ nome, email }));
+  if (!a || !faltam.length) return { ok: false, erro: "Todos os responsáveis desta área já receberam a convocação." };
+  const r = await enviarModelo(itensArea("convocacao_area", ev, { ...a, responsaveis: faltam }), { autor: s.userId });
+  revalidatePath(`/eventos/${evento}`);
+  if (r.falhas) return { ok: false, erro: `${resumoEnvio(r)}: ${r.erros.join("; ")}` };
+  return { ok: true, mensagem: `Convocação de ${a.area_nome} para ${faltam.map((f) => f.nome).join(", ")}: ${resumoEnvio(r)}.` };
+}
+
 export async function rodarLembretes(evento: string): Promise<Resultado> {
   await exigirStaff();
   const r = await executarLembretes();

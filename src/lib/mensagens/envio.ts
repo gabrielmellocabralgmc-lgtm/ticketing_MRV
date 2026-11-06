@@ -209,7 +209,8 @@ export interface AreaConvocacao {
   area_id: string;
   area_nome: string;
   cotas: { setor: Setor; cota: number; ocupados: number; solicitados: number }[];
-  responsaveis: { nome: string; email: string }[];
+  /** recebeu: já recebeu a convocação deste evento (responsável cadastrado depois pode não ter recebido) */
+  responsaveis: { nome: string; email: string; recebeu?: boolean }[];
   ultima_convocacao: string | null;
   ultimo_lembrete: string | null;
 }
@@ -220,7 +221,7 @@ export async function areasParaConvocar(evento: string): Promise<AreaConvocacao[
   const [{ data: cotas }, { data: resp }, { data: envs }, { data: ocup }] = await Promise.all([
     sb.from("cotas").select("setor, area_id, quantidade, sob_demanda, areas(nome, ordem, slug)").eq("evento_id", evento).neq("setor", "camarote").gt("quantidade", 0),
     sb.from("area_responsaveis").select("area_id, perfis(nome, email, ativo)"),
-    sb.from("envios").select("tipo, area_id, criado_em").eq("evento_id", evento).in("tipo", ["convocacao_area", "lembrete_area"]),
+    sb.from("envios").select("tipo, area_id, criado_em, para_email, status").eq("evento_id", evento).in("tipo", ["convocacao_area", "lembrete_area"]),
     sb.from("ingressos").select("area_id, setor, status").eq("evento_id", evento).neq("setor", "camarote"),
   ]);
   const mapa = new Map<string, AreaConvocacao & { ordem: number }>();
@@ -236,9 +237,11 @@ export async function areasParaConvocar(evento: string): Promise<AreaConvocacao[
     });
     mapa.set(c.area_id, a);
   }
+  const convocados = new Set(((envs ?? []) as { tipo: string; area_id: string; para_email: string; status: string }[])
+    .filter((e) => e.tipo === "convocacao_area" && e.status !== "falhou").map((e) => `${e.area_id}|${e.para_email.toLowerCase()}`));
   for (const r of (resp ?? []) as unknown as { area_id: string; perfis: { nome: string; email: string; ativo: boolean } | null }[]) {
     const a = mapa.get(r.area_id);
-    if (a && r.perfis?.ativo) a.responsaveis.push({ nome: r.perfis.nome, email: r.perfis.email });
+    if (a && r.perfis?.ativo) a.responsaveis.push({ nome: r.perfis.nome, email: r.perfis.email, recebeu: convocados.has(`${r.area_id}|${r.perfis.email.toLowerCase()}`) });
   }
   for (const e of (envs ?? []) as { tipo: string; area_id: string; criado_em: string }[]) {
     const a = mapa.get(e.area_id);
