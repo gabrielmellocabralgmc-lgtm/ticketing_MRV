@@ -619,3 +619,17 @@ describe("validação nome a nome", () => {
     await expect(b.como(respDH, `select validar_ingressos($1)`, [[um]])).rejects.toThrow(/Preenchido/);
   });
 });
+
+describe("gestor sem titular e sem passar da cota", () => {
+  it("sem_titular: ninguém fica como convidado de outro; acima do saldo sem lista de espera é recusado", async () => {
+    const ev = await novoEvento();
+    const { cota } = await saldo(ev, dh);
+    const r = await pedir(respDH, ev, dh, [nova("Conv Um"), nova("Conv Dois"), nova("Conv Tres")], { sem_titular: true, lista_espera: false });
+    const rows = await b.sql<{ convidado_de: string | null }>(`select convidado_de from ingressos where id = any($1)`, [r.ingressos]);
+    expect(rows.every((x) => x.convidado_de === null)).toBe(true);
+    const resto = (await saldo(ev, dh)).saldo;
+    expect(resto).toBe(cota - 3);
+    const demais = Array.from({ length: resto + 1 }, () => nova());
+    await expect(pedir(respDH, ev, dh, demais, { sem_titular: true, lista_espera: false })).rejects.toThrow(/COTA_EXCEDIDA/);
+  });
+});

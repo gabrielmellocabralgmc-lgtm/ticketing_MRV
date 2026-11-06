@@ -132,14 +132,14 @@ export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, p
                   </tr>
                 ) : (
                   <tr key={l.ingresso_id} className={INATIVOS.includes(l.status) ? "opacity-50" : ""}>
-                    <td className={l.titular ? "font-medium" : "pl-9"}>
+                    <td className={l.titular || setor !== "camarote" ? "font-medium" : "pl-9"}>
                       {l.nome}
                       {l.indicacao_de && l.titular && <div className="text-xs font-normal text-tinta/60">Indicação: {l.indicacao_de}</div>}
                     </td>
                     <td className="font-mono text-xs">{l.cpf}</td>
                     <td className="whitespace-nowrap">{celular(l.celular)}</td>
                     <td className="text-xs">
-                      {l.titular ? "Titular" : `Convidado de ${l.convidado_de_nome ?? "?"}`}
+                      {setor !== "camarote" ? "Convidado" : l.titular ? "Titular" : `Convidado de ${l.convidado_de_nome ?? "?"}`}
                       {l.preenchido_por === "convidado" && <div><Selo tom="azul">Preenchido pelo convidado</Selo></div>}
                     </td>
                     <td><SeloStatus status={l.status} /></td>

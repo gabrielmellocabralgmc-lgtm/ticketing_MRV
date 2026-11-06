@@ -173,7 +173,7 @@ function TabelaSetor({ setor, todas, linhas, ordem, nomesPorId, pendente, acoes,
             {ordenadas.map((l, i) => {
               const anfitriao = l.convidado_de ? nomesPorId.get(l.convidado_de) ?? l.convidado_de_nome : null;
               const detalhes = [
-                anfitriao ? `${setor === "camarote" ? "Convidado do anfitrião" : "Acompanhante de"} ${anfitriao}` : setor === "camarote" ? "Anfitrião" : "Titular",
+                anfitriao ? `${setor === "camarote" ? "Convidado do anfitrião" : "Acompanhante de"} ${anfitriao}` : setor === "camarote" ? "Anfitrião" : "Convidado",
                 l.indicacao_de && `Indicação: ${l.indicacao_de}`,
                 l.enviado_em && `Enviado em ${dataHora(l.enviado_em)}`,
                 l.facial_em && `Facial confirmada em ${dataHora(l.facial_em)}`,

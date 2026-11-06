@@ -119,7 +119,7 @@ export function TabelaSelecao({
                 </td>
                 <td className="font-mono text-xs whitespace-nowrap">{l.cpf ? formatarCpf(l.cpf) : "—"}</td>
                 <td className="text-xs">{l.area_nome}<div className="text-tinta/50"><NomeSetor s={l.setor} /></div></td>
-                <td className="text-xs">{l.convidado_de ? `Convidado de ${l.convidado_de_nome ?? "?"}` : "Titular"}{l.indicacao_de && !l.convidado_de && <div className="text-tinta/50">Indicação: {l.indicacao_de}</div>}</td>
+                <td className="text-xs">{l.convidado_de ? `Convidado de ${l.convidado_de_nome ?? "?"}` : l.setor === "camarote" ? "Titular" : "Convidado"}{l.indicacao_de && !l.convidado_de && <div className="text-tinta/50">Indicação: {l.indicacao_de}</div>}</td>
                 <td><SeloStatus status={l.status} />{extra?.(l)}</td>
                 <td>
                   <div className="flex flex-wrap items-center justify-end gap-1.5 text-xs">

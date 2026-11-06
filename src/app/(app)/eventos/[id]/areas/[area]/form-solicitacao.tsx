@@ -26,7 +26,7 @@ function problemas(p: PessoaForm, avulsos = false, exigirEmail = false) {
 /** Limite de linhas no formulário (a cota de uma área cabe aqui). */
 const MAX_LINHAS = 60;
 
-export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, linhasIniciais, enviarCom, avisoExcede, excedeVaiParaEspera = true, avulsos = false, colarInicial = false, simples = false, exigirEmail = false, facial = true }: {
+export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, linhasIniciais, enviarCom, avisoExcede, excedeVaiParaEspera = true, avulsos = false, colarInicial = false, simples = false, exigirEmail = false, facial = true, semTitular = false, limitarAoSaldo = false }: {
   evento: string; setor: Setor; area: string; saldo: number; padraoConvidados: number;
   /** Quantas linhas abrir já de início (ex.: o saldo da área); sem isso, 1 + padraoConvidados. */
   linhasIniciais?: number;
@@ -45,8 +45,13 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
   exigirEmail?: boolean;
   /** Evento exige facial (cita o Galo ID no aviso de privacidade). */
   facial?: boolean;
+  /** Gestor das áreas: cada linha é só "Convidado" (sem titular), com todos os dados obrigatórios. */
+  semTitular?: boolean;
+  /** Não deixa passar do saldo da área (sem lista de espera). */
+  limitarAoSaldo?: boolean;
 }) {
-  const qtdInicial = () => Math.min(MAX_LINHAS, Math.max(1, linhasIniciais ?? 1 + padraoConvidados));
+  const maxLinhas = limitarAoSaldo ? Math.max(1, Math.min(MAX_LINHAS, saldo)) : MAX_LINHAS;
+  const qtdInicial = () => Math.min(maxLinhas, Math.max(1, linhasIniciais ?? 1 + padraoConvidados));
   const [pessoas, setPessoas] = useState<PessoaForm[]>(() => Array.from({ length: qtdInicial() }, vazia));
   const [tocado, setTocado] = useState(false);
   const [colar, setColar] = useState(colarInicial);
@@ -66,9 +71,9 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
 
   const enviar = () => {
     setTocado(true);
-    if (!valido || repetido) return;
+    if (!valido || repetido || (excede && limitarAoSaldo)) return;
     iniciar(async () => {
-      const r = enviarCom ? await enviarCom(preenchidas, excede) : await solicitar(evento, setor, area, preenchidas, excede);
+      const r = enviarCom ? await enviarCom(preenchidas, excede) : await solicitar(evento, setor, area, preenchidas, excede && !limitarAoSaldo, semTitular);
       if (r.ok) {
         setRetorno({ ok: true, msg: r.mensagem ?? "Pronto." });
         setPessoas(Array.from({ length: qtdInicial() }, vazia));
@@ -80,6 +85,10 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
   const aplicarColagem = () => {
     const lidas = separarLista(texto);
     if (!lidas.length) return;
+    if (limitarAoSaldo && lidas.length > saldo) {
+      setRetorno({ ok: false, msg: `A lista tem ${lidas.length} pessoas, mas a sua área tem saldo de ${saldo}. Ficaram só as ${Math.max(0, saldo)} primeiras.` });
+      lidas.splice(Math.max(1, saldo));
+    }
     setPessoas(lidas.map((l) => ({ nome: l.nome, cpf: l.cpf ? formatarCpf(l.cpf) : "", celular: l.celular ?? "", email: l.email ?? "" })));
     setColar(false);
     setTexto("");
@@ -89,7 +98,7 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-tinta/70">{simples ? "Uma pessoa por linha. Chegou só o CPF? Pode deixar o nome em branco e informar depois na lista." : avulsos ? "Cada pessoa é um convidado independente (sem titular). Chegou só o CPF? Pode adicionar e informar o nome depois, na própria lista do jogo (botão “Informar nome”) — mesmo após o envio." : "A 1ª pessoa é o titular (colaborador); as demais ficam como convidadas dele."}</p>
+        <p className="text-sm text-tinta/70">{simples ? "Uma pessoa por linha. Chegou só o CPF? Pode deixar o nome em branco e informar depois na lista." : avulsos ? "Cada pessoa é um convidado independente (sem titular). Chegou só o CPF? Pode adicionar e informar o nome depois, na própria lista do jogo (botão “Informar nome”) — mesmo após o envio." : semTitular ? `Um convidado por linha. Sua área tem ${saldo} ingresso(s) disponível(is).` : "A 1ª pessoa é o titular (colaborador); as demais ficam como convidadas dele."}</p>
         <button type="button" onClick={() => setColar((c) => !c)} className="text-sm font-semibold text-mrv-700 hover:underline">
           {colar ? "Fechar" : "Colar lista (WhatsApp/Excel)"}
         </button>
@@ -104,7 +113,7 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
         const e = tocado && (i === 0 || p.nome || p.cpf || p.celular) ? problemas(p, avulsos, exigirEmail) : {};
         return (
           <fieldset key={i} className="rounded-xl p-3 ring-1 ring-black/10">
-            <legend className="px-1 text-xs font-semibold tracking-wide text-tinta/60 uppercase">{avulsos ? `Convidado ${i + 1}` : i === 0 ? "Titular" : `Convidado ${i}`}</legend>
+            <legend className="px-1 text-xs font-semibold tracking-wide text-tinta/60 uppercase">{avulsos || semTitular ? `Convidado ${i + 1}` : i === 0 ? "Titular" : `Convidado ${i}`}</legend>
             <div className={simples ? (exigirEmail ? "grid gap-3 sm:grid-cols-[2fr_1fr_1.4fr_auto]" : "grid gap-3 sm:grid-cols-[2fr_1fr_auto]") : "grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1.4fr_auto]"}>
               <Campo rotulo={simples ? "Nome" : avulsos ? "Nome (pode informar depois)" : "Nome completo"} erro={e.nome}><Entrada value={p.nome} onChange={(ev) => set(i, "nome", ev.target.value)} autoComplete="off" /></Campo>
               <Campo rotulo="CPF" erro={e.cpf}>
@@ -129,10 +138,15 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
         );
       })}
       <div className="flex flex-wrap items-center gap-4">
-        <Botao type="button" variante="fantasma" onClick={() => setPessoas((ps) => [...ps, vazia()])} disabled={pessoas.length >= MAX_LINHAS}>+ Convidado</Botao>
+        <Botao type="button" variante="fantasma" onClick={() => setPessoas((ps) => [...ps, vazia()])} disabled={pessoas.length >= maxLinhas}>+ Convidado</Botao>
       </div>
       {excede && avisoExcede}
-      {excede && !avisoExcede && (
+      {excede && limitarAoSaldo && (
+        <Aviso tom="erro">
+          {saldo <= 0 ? "A cota da sua área acabou: não dá para adicionar mais convidados." : `Sua área tem ${saldo} ingresso(s) de saldo e a lista tem ${preenchidas.length}. Remova ${preenchidas.length - saldo} para enviar.`}
+        </Aviso>
+      )}
+      {excede && !avisoExcede && !limitarAoSaldo && (
         <Aviso tom="alerta">
           <p className="font-semibold">{saldo === 0 ? "A cota da sua área acabou." : `Sua área tem só ${saldo} ingresso(s) de saldo e este pedido tem ${preenchidas.length}.`}</p>
           <p className="mt-1">
@@ -144,8 +158,8 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
       )}
       {tocado && repetido && <Aviso tom="erro">O mesmo CPF aparece duas vezes neste pedido.</Aviso>}
       {retorno && <Aviso tom={retorno.ok ? "ok" : "erro"}>{retorno.msg}</Aviso>}
-      <Botao type="button" variante={excede ? "laranja" : "primario"} onClick={enviar} disabled={pendente}>
-        {pendente ? "Enviando…" : excede && excedeVaiParaEspera ? `Adicionar ${preenchidas.length} à lista de espera`
+      <Botao type="button" variante={excede && !limitarAoSaldo ? "laranja" : "primario"} onClick={enviar} disabled={pendente || (excede && limitarAoSaldo)}>
+        {pendente ? "Enviando…" : excede && excedeVaiParaEspera && !limitarAoSaldo ? `Adicionar ${preenchidas.length} à lista de espera`
           : enviarCom ? `Adicionar ${preenchidas.length} convidado(s)` : `Solicitar ${preenchidas.length} ingresso(s)`}
       </Botao>
       <p className="text-xs text-tinta/60">

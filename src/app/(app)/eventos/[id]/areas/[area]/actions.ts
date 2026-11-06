@@ -18,14 +18,14 @@ export interface PessoaForm {
 const caminho = (evento: string, area: string) => `/eventos/${evento}/areas/${area}`;
 
 /** Modo A: o responsável digita titular (+ convidados). */
-export async function solicitar(evento: string, setor: Setor, area: string, pessoas: PessoaForm[], listaEspera: boolean): Promise<Resultado<{ status: string }>> {
+export async function solicitar(evento: string, setor: Setor, area: string, pessoas: PessoaForm[], listaEspera: boolean, semTitular = false): Promise<Resultado<{ status: string }>> {
   const s = await exigirSessao();
   const supabase = await supabaseServidor();
   const { data, error } = await supabase.rpc("criar_pedido", {
     p_evento: evento, p_setor: setor, p_area: area,
     p_pessoas: pessoas.map((p) => ({ nome: p.nome, cpf: p.cpf, celular: p.celular, email: p.email || null })),
     // Marketing/Admin não passam por validação nem aprovação: já entra aprovado
-    p_opcoes: { lista_espera: listaEspera, origem: s.staff ? "marketing" : "responsavel" },
+    p_opcoes: { lista_espera: listaEspera, origem: s.staff ? "marketing" : "responsavel", sem_titular: semTitular },
   });
   if (error) return falha(error);
   revalidatePath(caminho(evento, area));
