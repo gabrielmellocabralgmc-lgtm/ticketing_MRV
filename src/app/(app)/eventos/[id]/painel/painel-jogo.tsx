@@ -1,5 +1,5 @@
 "use client";
-// Painel do jogo (Marketing): um setor por aba, lista com o status de cada ingresso,
+// Painel do evento (Marketing): um setor por aba, lista com o status de cada ingresso,
 // lista de espera e "+ Adicionar convidado" (os mesmos poderes do Admin).
 import { useState, useTransition } from "react";
 import clsx from "clsx";

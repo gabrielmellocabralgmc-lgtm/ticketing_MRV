@@ -9,6 +9,8 @@ export interface Mensagem {
   assunto: string;
   texto: string;
   html?: string;
+  /** Arquivos anexados (só no e-mail). */
+  anexos?: { nome: string; base64: string }[];
 }
 
 export interface CanalMensagem {

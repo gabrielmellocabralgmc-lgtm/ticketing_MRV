@@ -17,7 +17,7 @@ export default async function EditarEvento({ params }: { params: Promise<{ id: s
   const { data: cam } = await (await supabaseServidor()).from("evento_setores").select("setor").eq("evento_id", id).eq("setor", "camarote").maybeSingle();
   return (
     <>
-      <Titulo voltar={{ href: `/eventos/${id}`, rotulo: "Painel do jogo" }} sub="Cotas e capacidade se ajustam na página do evento (botão “Editar cotas”).">Editar {ev.titulo}</Titulo>
+      <Titulo voltar={{ href: `/eventos/${id}`, rotulo: "Painel do evento" }} sub="Cotas e capacidade se ajustam na página do evento (botão “Editar cotas”).">Editar {ev.titulo}</Titulo>
       <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
         <Cartao>
           <FormEvento acao={atualizarEvento.bind(null, id)} evento={ev} temCamarote={!!cam} />

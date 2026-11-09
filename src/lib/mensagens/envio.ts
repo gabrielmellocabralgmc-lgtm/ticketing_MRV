@@ -36,7 +36,7 @@ export const envioReal = () => !!process.env.RESEND_API_KEY;
 const PARA_GESTOR = new Set(["convocacao_area", "lembrete_area", "validacao_pendente"]);
 const PARA_CONVIDADO = new Set(["convite_convidado", "galo_id", "ingresso_enviado", "lembrete_facial", "ingresso_digital", "ingresso_resgate"]);
 
-export async function enviarModelo(itens: ItemEnvio[], opcoes: { autor?: string | null; modelo?: { assunto: string; corpo: string } } = {}): Promise<ResultadoEnvio> {
+export async function enviarModelo(itens: ItemEnvio[], opcoes: { autor?: string | null; modelo?: { assunto: string; corpo: string }; anexos?: { nome: string; base64: string }[] } = {}): Promise<ResultadoEnvio> {
   const res: ResultadoEnvio = { enviados: 0, simulados: 0, falhas: 0, erros: [] };
   if (!itens.length) return res;
   const sb = await supabaseServico();
@@ -69,7 +69,7 @@ export async function enviarModelo(itens: ItemEnvio[], opcoes: { autor?: string 
         logoUrl, botao: item.botao, siteUrl: siteUrl(),
         capaUrl: capa ? `${siteUrl()}${capa}` : undefined, mapaUrl: mapa ? `${siteUrl()}${mapa}` : undefined,
       });
-      const r = await canal.enviar({ para: { nome: item.para.nome ?? "", email: item.para.email }, assunto, texto, html });
+      const r = await canal.enviar({ para: { nome: item.para.nome ?? "", email: item.para.email }, assunto, texto, html, anexos: opcoes.anexos });
       status = r.ok ? "enviado" : "falhou";
       erro = r.ok ? null : r.erro ?? "erro";
     }
@@ -544,4 +544,23 @@ export async function enviarIngressosDigitais(evento: string, autor?: string | n
     else res.falhas.push(`${i.nome}: ${r.erros.join("; ")}`);
   }
   return res;
+}
+
+// ---------------------------------------------------------------- anexo da convocação (PDF)
+/** PDF que pode ir anexado na convocação das áreas (ex.: o passo a passo para os gestores). Um só para todos os eventos. */
+export interface AnexoConvocacao { nome: string; caminho: string; tamanho: number; atualizado_em: string }
+
+export async function anexoConvocacao(): Promise<AnexoConvocacao | null> {
+  const { data } = await (await supabaseServico()).from("config").select("valor").eq("chave", "anexo_convocacao").maybeSingle();
+  const v = data?.valor as AnexoConvocacao | null | undefined;
+  return v?.caminho ? v : null;
+}
+
+/** O PDF pronto para anexar (base64), ou null se não houver. */
+export async function arquivoAnexoConvocacao(): Promise<{ nome: string; base64: string } | null> {
+  const a = await anexoConvocacao();
+  if (!a) return null;
+  const { lerFoto } = await import("@/lib/fotos");
+  const dados = await lerFoto(a.caminho);
+  return dados ? { nome: a.nome, base64: Buffer.from(dados).toString("base64") } : null;
 }

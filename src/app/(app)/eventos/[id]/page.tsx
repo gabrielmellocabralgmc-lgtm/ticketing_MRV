@@ -15,7 +15,7 @@ import { AcoesConvidados } from "./adicionar-convidado";
 import { carregarAnfitrioes, opcoesAdicionar } from "./adicionar-opcoes";
 import { encerrarEvento } from "./painel/actions";
 import { Convocacao } from "./convocacao";
-import { areasParaConvocar, enviosCamarote, envioReal } from "@/lib/mensagens/envio";
+import { anexoConvocacao, areasParaConvocar, enviosCamarote, envioReal } from "@/lib/mensagens/envio";
 import { ConvocacaoCamarote } from "./convocacao-camarote";
 import { carregarEvento, carregarResumo, type LinhaResumo } from "./dados";
 
@@ -68,7 +68,7 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
       </CabecalhoJogo>
       {s.staff && (
         <div className="mb-6 flex flex-wrap gap-2">
-          <BotaoLink href={`/eventos/${id}/painel`} variante="primario">Painel do jogo</BotaoLink>
+          <BotaoLink href={`/eventos/${id}/painel`} variante="primario">Painel do evento</BotaoLink>
           <BotaoLink href={`/eventos/${id}/lista`}>Lista geral</BotaoLink>
           <BotaoLink href={`/eventos/${id}/aprovacao`}>Aprovação{pendenteAprovar > 0 && ` (${pendenteAprovar})`}</BotaoLink>
           {!ev.ingressos_digitais && <BotaoLink href={`/eventos/${id}/envio`}>A enviar{aEnviar > 0 && ` (${aEnviar})`}</BotaoLink>}
@@ -184,7 +184,7 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
         <Cartao className="mb-6">
           <h2 className="mb-1 text-lg font-bold">{temCamarote ? "E-mails para as áreas e o camarote" : "E-mails para as áreas"}</h2>
           <p className="mb-4 text-sm text-cinza">Convocação com a cota, os prazos e o link da lista de cada área. O texto se edita em E-mails › Modelos.</p>
-          <Convocacao evento={id} areas={await areasParaConvocar(id)} envioReal={envioReal()} facial={ev.exige_facial} />
+          <Convocacao evento={id} areas={await areasParaConvocar(id)} envioReal={envioReal()} facial={ev.exige_facial} anexo={await anexoConvocacao()} />
           {temCamarote && <>
           <h3 className="mt-8 mb-1 font-bold">Camarote</h3>
           <p className="mb-3 text-sm text-cinza">

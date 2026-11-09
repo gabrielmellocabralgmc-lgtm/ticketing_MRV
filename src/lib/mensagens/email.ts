@@ -38,6 +38,7 @@ export function canalEmail(opcoes: { apiKey?: string; remetente?: string; respon
           subject: m.assunto,
           text: m.texto,
           html: m.html ?? htmlDoTexto(m),
+          ...(m.anexos?.length ? { attachments: m.anexos.map((a) => ({ filename: a.nome, content: a.base64 })) } : {}),
           ...(responderPara ? { reply_to: responderPara } : {}),
         }),
       });

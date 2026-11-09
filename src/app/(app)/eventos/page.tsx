@@ -105,7 +105,7 @@ export default async function Eventos() {
         sub={s.staff ? "Jogos e shows na Arena MRV" : `Você responde por: ${s.areas.map((a) => a.nome).join(", ") || "nenhuma área"}`}
         acoes={s.papel === "admin" && <BotaoLink href="/eventos/novo" variante="primario">Novo evento</BotaoLink>}
       >
-        {s.papel === "marketing" ? "Jogos" : "Eventos"}
+        Eventos
       </Titulo>
       <h2 className="mb-3 font-display text-[13px] font-bold tracking-[0.08em] text-cinza">PRÓXIMOS</h2>
       <Cards itens={proximos} />

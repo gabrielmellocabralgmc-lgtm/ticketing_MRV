@@ -10,7 +10,7 @@ import { type Walkin } from "./camarote";
 import { PainelJogo, type ConvitePendente, type LinhaPainel } from "./painel-jogo";
 import { carregarAnfitrioes, opcoesAdicionar } from "../adicionar-opcoes";
 
-export const metadata = { title: "Painel do jogo" };
+export const metadata = { title: "Painel do evento" };
 
 export default async function Painel({ params }: { params: Promise<{ id: string }> }) {
   const s = await exigirStaff();

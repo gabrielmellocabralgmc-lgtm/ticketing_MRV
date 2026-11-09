@@ -81,7 +81,9 @@ export function PainelDigitais({ evento, setores, digitais, convidados, resgate 
         <h2 className="mb-1 text-lg font-bold">2. Distribuir e enviar</h2>
         <p className="mb-4 text-sm text-cinza">
           Distribuir dá um ingresso a cada convidado <b>pronto para envio</b> (nominais primeiro, pelo CPF ou nome; depois os genéricos).
-          Enviar manda o e-mail com <b>“Baixar meu ingresso”</b> e marca como <b>Enviado</b>.
+          {resgate
+            ? <>Enviar manda o e-mail com o passo a passo e o botão <b>“Ver passo a passo e resgatar”</b> (o link da Eventim não vai no e-mail) e marca como <b>Enviado</b>.</>
+            : <>Enviar manda o e-mail com <b>“Baixar meu ingresso”</b> e marca como <b>Enviado</b>.</>}
           {aguardando > 0 && <> Há <b>{aguardando}</b> convidado(s) ainda em validação/facial: eles entram quando ficarem prontos.</>}
         </p>
         <div className="flex flex-wrap items-center gap-2">

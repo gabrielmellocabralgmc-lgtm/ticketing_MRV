@@ -19,7 +19,8 @@ export function bancoDemo(): Promise<PGlite> {
   if (!g.__bancoDemo) {
     g.__bancoDemo = (async () => {
       // ".nosync": o iCloud não sincroniza (a pasta Desktop está no iCloud e corromperia o banco)
-      const dir = path.join(process.cwd(), ".demo.nosync");
+      // DEMO_DIR: banco descartável para testes (não mexe no demo do dia a dia)
+      const dir = process.env.DEMO_DIR || path.join(process.cwd(), ".demo.nosync");
       const novo = !existsSync(path.join(dir, "PG_VERSION"));
       mkdirSync(dir, { recursive: true });
       const db = new PGlite(dir);

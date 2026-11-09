@@ -18,7 +18,7 @@ export default async function IngressosDigitais({ params }: { params: Promise<{ 
   const s = await exigirStaff();
   const { id } = await params;
   const ev = await carregarEvento(id);
-  const voltar = { href: s.papel === "admin" ? `/eventos/${id}` : `/eventos/${id}/painel`, rotulo: "Painel do jogo" };
+  const voltar = { href: s.papel === "admin" ? `/eventos/${id}` : `/eventos/${id}/painel`, rotulo: "Painel do evento" };
   if (!ev.ingressos_digitais) {
     return (
       <>

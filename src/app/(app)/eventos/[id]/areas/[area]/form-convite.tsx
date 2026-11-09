@@ -30,7 +30,7 @@ export function FormConvite({ evento, setor, area, areaNome, eventoInfo, saldo, 
       >
         <Campo rotulo="Para quem (referência)"><Entrada name="nome_previsto" required placeholder="João – Comercial" /></Campo>
         <Campo rotulo="Lugares">
-          <Selecao name="qtd" defaultValue="2">
+          <Selecao name="qtd" defaultValue="1">
             {Array.from({ length: Math.min(10, Math.max(1, saldo)) }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}</option>)}
           </Selecao>
         </Campo>

@@ -26,7 +26,7 @@ export default async function PaginaLista({ params }: { params: Promise<{ id: st
   return (
     <>
       <AoVivo evento={id} />
-      <Titulo voltar={{ href: `/eventos/${id}`, rotulo: "Painel do jogo" }}
+      <Titulo voltar={{ href: `/eventos/${id}`, rotulo: "Painel do evento" }}
         sub="Todos os ingressos do evento numa tabela, como na planilha. Clique no CPF para copiar e marque “Enviado” na própria linha."
         acoes={<a href={`/eventos/${id}/exportar`} className="inline-flex items-center rounded-lg px-3.5 py-2 text-sm font-semibold text-mrv-700 ring-1 ring-mrv-700/30 hover:bg-mrv-50">Exportar XLSX</a>}
       >

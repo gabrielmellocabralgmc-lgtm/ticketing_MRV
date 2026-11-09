@@ -28,7 +28,7 @@ export default async function Aprovacao({ params }: { params: Promise<{ id: stri
   return (
     <>
       <AoVivo evento={id} />
-      <Titulo voltar={{ href: `/eventos/${id}`, rotulo: "Painel do jogo" }} sub={ev.exige_facial ? "Valide em nome da área se precisar, acompanhe quem está com a facial pendente e a lista de espera." : "Valide em nome da área se precisar e acompanhe a lista de espera."}>Aprovação · {ev.titulo}</Titulo>
+      <Titulo voltar={{ href: `/eventos/${id}`, rotulo: "Painel do evento" }} sub={ev.exige_facial ? "Valide em nome da área se precisar, acompanhe quem está com a facial pendente e a lista de espera." : "Valide em nome da área se precisar e acompanhe a lista de espera."}>Aprovação · {ev.titulo}</Titulo>
 
       {naoValidadas.length > 0 && (
         <Cartao className="mb-6">

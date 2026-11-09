@@ -59,7 +59,8 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
   const [retorno, setRetorno] = useState<{ ok: boolean; msg: string } | null>(null);
   const [pendente, iniciar] = useTransition();
 
-  const preenchidas = pessoas.filter((p, i) => i === 0 || p.nome || p.cpf || p.celular);
+  // sem titular, linha vazia não conta (o formulário já abre com uma linha por ingresso do saldo)
+  const preenchidas = pessoas.filter((p, i) => (i === 0 && !semTitular) || p.nome || p.cpf || p.celular || p.email);
   const erros = preenchidas.map((p) => problemas(p, avulsos, exigirEmail));
   const valido = erros.every((e) => Object.keys(e).length === 0);
   const cpfs = preenchidas.map((p) => somenteDigitos(p.cpf).padStart(11, "0"));
@@ -71,12 +72,14 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
 
   const enviar = () => {
     setTocado(true);
-    if (!valido || repetido || (excede && limitarAoSaldo)) return;
+    if (!valido || repetido || (excede && limitarAoSaldo) || !preenchidas.length) return;
     iniciar(async () => {
       const r = enviarCom ? await enviarCom(preenchidas, excede) : await solicitar(evento, setor, area, preenchidas, excede && !limitarAoSaldo, semTitular);
       if (r.ok) {
         setRetorno({ ok: true, msg: r.mensagem ?? "Pronto." });
-        setPessoas(Array.from({ length: qtdInicial() }, vazia));
+        // reabre com o que sobrou do saldo (sem esperar a página recarregar)
+        const sobra = linhasIniciais !== undefined ? saldo - preenchidas.length : undefined;
+        setPessoas(Array.from({ length: sobra !== undefined ? Math.min(MAX_LINHAS, Math.max(1, sobra)) : qtdInicial() }, vazia));
         setTocado(false);
       } else setRetorno({ ok: false, msg: r.erro });
     });
@@ -105,12 +108,15 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
       </div>
       {colar && (
         <div className="space-y-2 rounded-xl bg-mrv-50 p-3">
-          <AreaTexto rows={5} value={texto} onChange={(e) => setTexto(e.target.value)} placeholder={"Uma pessoa por linha: nome, CPF e celular\nMaria Souza; 123.456.789-09; (31) 99999-0000"} />
+          <AreaTexto rows={5} value={texto} onChange={(e) => setTexto(e.target.value)} placeholder={simples
+            ? `Uma pessoa por linha: nome e CPF${exigirEmail ? " e e-mail" : ""}\nMaria Souza; 123.456.789-09${exigirEmail ? "; maria@email.com" : ""}`
+            : `Uma pessoa por linha: nome, CPF, celular e e-mail${exigirEmail ? "" : " (opcional)"}\nMaria Souza; 123.456.789-09; (31) 99999-0000; maria@email.com`} />
+          <p className="text-xs text-tinta/60">Dá para colar do WhatsApp ou do Excel: o sistema separa nome, CPF, celular e e-mail sozinho. Depois confira cada linha antes de enviar.</p>
           <Botao type="button" variante="secundario" onClick={aplicarColagem}>Separar em linhas</Botao>
         </div>
       )}
       {pessoas.map((p, i) => {
-        const e = tocado && (i === 0 || p.nome || p.cpf || p.celular) ? problemas(p, avulsos, exigirEmail) : {};
+        const e = tocado && ((i === 0 && !semTitular) || p.nome || p.cpf || p.celular || p.email) ? problemas(p, avulsos, exigirEmail) : {};
         return (
           <fieldset key={i} className="rounded-xl p-3 ring-1 ring-black/10">
             <legend className="px-1 text-xs font-semibold tracking-wide text-tinta/60 uppercase">{avulsos || semTitular ? `Convidado ${i + 1}` : i === 0 ? "Titular" : `Convidado ${i}`}</legend>
@@ -128,10 +134,13 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
                   <Entrada value={p.email} type="email" onChange={(ev) => set(i, "email", ev.target.value)} />
                 </Campo>
               )}
-              {i > 0 && (
+              {i > 0 ? (
                 <button type="button" aria-label="Remover" onClick={() => setPessoas((ps) => ps.filter((_, j) => j !== i))} className="self-end pb-2 text-sm text-tinta/50 hover:text-red-700">
                   Remover
                 </button>
+              ) : (
+                // mantém as colunas alinhadas com as linhas que têm "Remover"
+                <span aria-hidden="true" className="invisible self-end pb-2 text-sm">Remover</span>
               )}
             </div>
           </fieldset>
@@ -158,12 +167,13 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
       )}
       {tocado && repetido && <Aviso tom="erro">O mesmo CPF aparece duas vezes neste pedido.</Aviso>}
       {retorno && <Aviso tom={retorno.ok ? "ok" : "erro"}>{retorno.msg}</Aviso>}
-      <Botao type="button" variante={excede && !limitarAoSaldo ? "laranja" : "primario"} onClick={enviar} disabled={pendente || (excede && limitarAoSaldo)}>
-        {pendente ? "Enviando…" : excede && excedeVaiParaEspera && !limitarAoSaldo ? `Adicionar ${preenchidas.length} à lista de espera`
-          : enviarCom ? `Adicionar ${preenchidas.length} convidado(s)` : `Solicitar ${preenchidas.length} ingresso(s)`}
+      <Botao type="button" variante={excede && !limitarAoSaldo ? "laranja" : "primario"} onClick={enviar} disabled={pendente || (excede && limitarAoSaldo) || !preenchidas.length}>
+        {pendente ? "Enviando…" : !preenchidas.length ? "Preencha pelo menos um convidado"
+          : excede && excedeVaiParaEspera && !limitarAoSaldo ? `Adicionar ${preenchidas.length} à lista de espera`
+          : enviarCom || semTitular ? `Salvar ${preenchidas.length} convidado${preenchidas.length > 1 ? "s" : ""}` : `Solicitar ${preenchidas.length} ingresso(s)`}
       </Botao>
       <p className="text-xs text-tinta/60">
-        Ao enviar, você confirma que as pessoas foram informadas de que a MRV usará {simples ? "nome e CPF" : "nome, CPF e celular"} só para emitir o ingresso{facial ? " e orientar o cadastro no Galo ID" : ""}.
+        Ao enviar, você confirma que as pessoas foram informadas de que a MRV usará {simples ? "nome e CPF" : "nome, CPF e celular"}{exigirEmail ? " e e-mail" : ""} só para emitir o ingresso{facial ? " e orientar o cadastro no Galo ID" : ""}.
       </p>
     </div>
   );

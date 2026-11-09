@@ -6,7 +6,7 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { MODO_DEMO } from "@/lib/demo/constantes";
 
-const PASTA_DEMO = path.join(process.cwd(), ".demo.nosync", "fotos");
+const PASTA_DEMO = path.join(process.env.DEMO_DIR || path.join(process.cwd(), ".demo.nosync"), "fotos");
 export const TIPOS_FOTO = ["image/jpeg", "image/png", "image/webp"] as const;
 export const MAX_FOTO = 5 * 1024 * 1024;
 

@@ -3,7 +3,7 @@ import clsx from "clsx";
 import { BotaoCopiar } from "@/components/copiar";
 import { Escudo, Listras } from "@/components/jogo";
 import { Marca } from "@/components/marca";
-import { CHAVE_ESCUDO_ATLETICO, chaveEscudoAdversario, imagensDisponiveis } from "@/lib/imagens";
+import { CHAVE_ESCUDO_ATLETICO, chaveCapaEvento, chaveEscudoAdversario, imagensDisponiveis } from "@/lib/imagens";
 import { Aviso, Cartao, SeloStatus } from "@/components/ui";
 import { dataHora, dataLonga } from "@/lib/formato";
 import { linkTorcedor } from "@/lib/mensagens";
@@ -58,11 +58,9 @@ async function consultar(token: string) {
 function Moldura({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-dvh">
-      <header className="bg-preto px-4 py-4 text-white">
-        <div className="mx-auto flex max-w-lg items-center gap-3">
-          <Marca claro />
-          <span className="h-5 w-px bg-white/40" />
-          <span className="font-display text-sm font-bold tracking-[0.06em]">ARENA MRV</span>
+      <header className="border-b border-borda bg-white px-4 py-4">
+        <div className="mx-auto flex max-w-lg justify-center">
+          <Marca tamanho="g" />
         </div>
       </header>
       <main className="mx-auto max-w-lg space-y-4 px-4 py-6">{children}</main>
@@ -72,22 +70,26 @@ function Moldura({ children }: { children: React.ReactNode }) {
 
 async function CabecalhoEvento({ evento, setor, area }: { evento: EventoPublico; setor: Setor; area: string }) {
   const [img, cfg] = await Promise.all([imagensDisponiveis(), configEvento(evento.id)]);
+  const capa = img[chaveCapaEvento(evento.id)];
+  const jogo = evento.tipo === "jogo";
   return (
-    <section className="overflow-hidden rounded-2xl bg-preto text-white">
+    <section className={clsx("overflow-hidden rounded-2xl text-white", jogo ? "bg-preto" : "bg-[linear-gradient(45deg,#006B3F,#079D56)]")}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {capa && <img src={capa} alt="" className="block aspect-[2/1] w-full object-cover" />}
       <div className="flex items-center gap-4 p-5">
         {evento.tipo === "jogo" && <Escudo url={img[CHAVE_ESCUDO_ATLETICO]} nome="do Atlético" />}
         <div className="min-w-0 flex-1">
-          <div className="font-display text-xs font-bold tracking-[0.1em] text-amarelo-500 uppercase">{evento.competicao ?? (evento.tipo === "jogo" ? "Jogo" : "Show")}</div>
-          <h1 className="font-display text-2xl leading-tight font-extrabold uppercase">{evento.titulo}</h1>
+          <div className="text-xs font-bold tracking-[0.1em] text-white/75 uppercase">{evento.competicao ?? (jogo ? "Jogo" : "Show")}</div>
+          <h1 className="text-2xl leading-tight font-extrabold text-balance">{evento.titulo}</h1>
           <p className="text-sm text-white/80 first-letter:uppercase">{dataLonga(evento.inicio)}</p>
         </div>
         {evento.tipo === "jogo" && <Escudo url={img[chaveEscudoAdversario(evento.id)]} nome="do adversário" />}
       </div>
-      <Listras />
+      {jogo && <Listras />}
       <dl className="grid grid-cols-2 gap-3 bg-white p-5 text-sm text-tinta">
         <div><dt className="text-xs text-cinza">Setor</dt><dd className="font-semibold">{rotuloSetor(setor, cfg.nomes)}</dd></div>
         <div><dt className="text-xs text-cinza">Convite da área</dt><dd className="font-semibold">{area}</dd></div>
-        {evento.abertura_portoes && <div><dt className="text-xs text-cinza">Portões</dt><dd className="font-semibold">{dataHora(evento.abertura_portoes)}</dd></div>}
+        {evento.abertura_portoes && <div><dt className="text-xs text-cinza">Abertura dos portões</dt><dd className="font-semibold">{dataHora(evento.abertura_portoes)}</dd></div>}
       </dl>
     </section>
   );
@@ -163,9 +165,10 @@ async function PaginaIngresso({ token, info, acompanhantes }: { token: string; i
 
       {!encerrado && info.status !== "presente" && !cfg.facial && (
         <Cartao>
-          <h2 className="mb-3 font-bold text-mrv-900">Como funciona</h2>
-          <ol className="list-decimal space-y-2 pl-5 text-sm">
-            {cfg.resgate ? (
+          <h2 className="mb-3 font-bold text-mrv-900">{baixar ? "No dia do evento" : "Como funciona"}</h2>
+          <ol className={clsx("space-y-2 text-sm", baixar ? "list-none" : "list-decimal pl-5")}>
+            {/* ingresso já liberado: o passo a passo está no quadro acima; aqui fica só o dia do evento */}
+            {baixar ? null : cfg.resgate ? (
               <>
                 <li>Depois da validação, você recebe um <b>e-mail</b> avisando que o ingresso foi liberado, e o resgate aparece <b>nesta página</b>.</li>
                 <li>O ingresso é um <b>link único da Eventim</b>: já deixe pronto no celular que vai levar ao evento o app <b>EVENTIM BRASIL</b>, com a <b>sua</b> conta (nome, CPF e e-mail) e logado. O resgate só pode ser feito uma vez, por você.</li>
@@ -174,7 +177,7 @@ async function PaginaIngresso({ token, info, acompanhantes }: { token: string; i
             ) : (
               <li>Depois da validação, {cfg.digital ? <>o ingresso chega no seu <b>e-mail</b> e fica disponível <b>nesta página</b>.</> : "a MRV envia o seu ingresso."}</li>
             )}
-            <li><b>No dia:</b> chegue com antecedência{info.evento.abertura_portoes ? ` (portões às ${dataHora(info.evento.abertura_portoes).split(" ")[1]})` : ""} e vá ao setor {rotuloSetor(info.setor, cfg.nomes)}. O ingresso é pessoal e intransferível.</li>
+            <li><b>No dia:</b> chegue com antecedência{info.evento.abertura_portoes ? ` (abertura dos portões às ${dataHora(info.evento.abertura_portoes).split(" ")[1]})` : ""} e vá ao setor {rotuloSetor(info.setor, cfg.nomes)}. O ingresso é pessoal e intransferível.</li>
           </ol>
           {camarote && (
             <div className="mt-4"><Aviso tom="alerta">O camarote MRV é corporativo: quem convidou você precisa estar presente durante o evento. O ingresso não pode ser repassado.</Aviso></div>
@@ -196,7 +199,7 @@ async function PaginaIngresso({ token, info, acompanhantes }: { token: string; i
             <li>Faça o <b>cadastro facial</b> em <a className="font-semibold text-mrv-700 underline" href="https://ingressos.galonaveia.com.br/" target="_blank" rel="noopener noreferrer">ingressos.galonaveia.com.br</a>.</li>
             <li>Volte aqui e confirme. Só enviamos o ingresso depois disso.</li>
             <li>O ingresso chega no <b>Super App do Galo</b>, até 4h antes do jogo. Toque em “Recebi meu ingresso”.</li>
-            <li><b>No dia:</b> chegue com antecedência{info.evento.abertura_portoes ? ` (portões às ${dataHora(info.evento.abertura_portoes).split(" ")[1]})` : ""} e vá ao setor {rotuloSetor(info.setor, cfg.nomes)}. 1 CPF = 1 ingresso, pessoal e intransferível.</li>
+            <li><b>No dia:</b> chegue com antecedência{info.evento.abertura_portoes ? ` (abertura dos portões às ${dataHora(info.evento.abertura_portoes).split(" ")[1]})` : ""} e vá ao setor {rotuloSetor(info.setor, cfg.nomes)}. 1 CPF = 1 ingresso, pessoal e intransferível.</li>
           </ol>
           {camarote && (
             <div className="mt-4"><Aviso tom="alerta">O camarote MRV é corporativo: quem convidou você precisa estar presente durante o evento. O ingresso não pode ser repassado.</Aviso></div>

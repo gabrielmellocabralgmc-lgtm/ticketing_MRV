@@ -19,10 +19,10 @@ export async function Marca({ className, claro, tamanho = "m" }: { className?: s
     // logo normal sobre fundo escuro: selo branco por trás para manter as cores da marca
     return claro && !escuro ? <span className="inline-flex rounded-lg bg-white px-2 py-1">{img_}</span> : img_;
   }
-  return (
-    <span className={clsx("rounded-md px-2 py-0.5 font-display font-extrabold", tamanho === "g" ? "text-lg" : "text-[15px]",
-      claro ? "bg-white text-mrv-600" : "bg-mrv-600 text-white", className)}>
-      MRV
-    </span>
+  // sem logo enviado: o logo oficial da MRV (manual da marca); em fundo escuro, num selo branco
+  const padrao = (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src="/logo-mrv.png" alt="MRV" className={clsx(altura, "w-auto object-contain", className)} />
   );
+  return claro ? <span className="inline-flex rounded-lg bg-white px-2 py-1">{padrao}</span> : padrao;
 }

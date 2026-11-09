@@ -18,7 +18,7 @@ export default async function LayoutInterno({ children }: { children: React.Reac
             { href: "/operacao-camarote", rotulo: "Operação camarote" },
             { href: "/admin", rotulo: "Configurações" },
           ]
-        : [{ href: "/eventos", rotulo: "Jogos" }];
+        : [{ href: "/eventos", rotulo: "Eventos" }];
   return (
     <div className="min-h-dvh overflow-x-clip">
       <header className="border-b border-borda bg-white">

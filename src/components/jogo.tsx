@@ -68,7 +68,7 @@ export function CabecalhoJogo({
           </div>
           <h1 className={clsx("font-display leading-none font-extrabold uppercase", grande ? "text-3xl sm:text-5xl" : "text-2xl sm:text-3xl")}>{ev.titulo}</h1>
           <div className="text-[15px] text-white/80 first-letter:uppercase">
-            {dataLonga(ev.inicio)}{ev.abertura_portoes ? ` · portões ${dataLonga(ev.abertura_portoes).split(" às ")[1] ?? ""}` : ""}
+            {dataLonga(ev.inicio)}{ev.abertura_portoes ? ` · abertura dos portões ${dataLonga(ev.abertura_portoes).split(" às ")[1] ?? ""}` : ""}
           </div>
           {children}
         </div>

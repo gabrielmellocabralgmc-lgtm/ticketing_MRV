@@ -58,8 +58,8 @@ export default async function PainelArea({ params, searchParams }: { params: Pro
       <AoVivo evento={id} />
       <CabecalhoJogo ev={ev} tamanho="m" escudoAtletico={img[CHAVE_ESCUDO_ATLETICO]} escudoAdversario={img[chaveEscudoAdversario(id)]}
         rotulo={`${areaRow.nome} · ${rotuloSetor(setor, ev.nomes_setores)}`}
-        voltar={s.papel === "admin" ? { href: `/eventos/${id}`, rotulo: "Painel do jogo" }
-          : s.papel === "marketing" ? { href: `/eventos/${id}/painel`, rotulo: "Painel do jogo" }
+        voltar={s.papel === "admin" ? { href: `/eventos/${id}`, rotulo: "Painel do evento" }
+          : s.papel === "marketing" ? { href: `/eventos/${id}/painel`, rotulo: "Painel do evento" }
           : { href: "/eventos", rotulo: "Meus eventos" }}>
         <div className="text-sm text-white/70">Prazo para solicitar, alterar e validar: {dataHora(ev.prazo_solicitacao)}</div>
       </CabecalhoJogo>
