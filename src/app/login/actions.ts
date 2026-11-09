@@ -37,37 +37,47 @@ export async function enviarLink(_: unknown, form: FormData): Promise<Resultado>
   return resposta();
 }
 
-/**
- * Acesso de emergência do Admin geral (enquanto o e-mail não está configurado): e-mail = ADMIN_EMAIL
- * e senha = ADMIN_SENHA, definidos no servidor. Sem ADMIN_SENHA, essa opção não existe.
- */
-export async function entrarComSenha(_: unknown, form: FormData): Promise<Resultado> {
-  const senhaServidor = process.env.ADMIN_SENHA ?? "";
-  const emailServidor = (process.env.ADMIN_EMAIL ?? "").trim().toLowerCase();
-  if (senhaServidor.length < 12 || !emailServidor) return { ok: false, erro: "Acesso por senha desativado." };
-  const email = String(form.get("email") ?? "").trim().toLowerCase();
-  const senha = String(form.get("senha") ?? "");
-  const { createHash, timingSafeEqual } = await import("node:crypto");
-  const h = (x: string) => createHash("sha256").update(x).digest();
-  const ok = timingSafeEqual(h(email), h(emailServidor)) && timingSafeEqual(h(senha), h(senhaServidor));
-  if (!ok) {
-    await new Promise((r) => setTimeout(r, 1500)); // atrasa tentativas
-    console.log(`[login] senha: tentativa recusada para ${email || "(vazio)"}`);
-    return { ok: false, erro: "E-mail ou senha incorretos." };
-  }
-  const { pool } = await import("@/lib/db/pg");
-  const { rows } = await pool().query<{ user_id: string }>(
-    `select p.user_id from perfis p where lower(p.email) = $1 and p.papel = 'admin' and p.ativo limit 1`, [emailServidor]);
-  if (!rows[0]) return { ok: false, erro: "Admin não encontrado. Confira o ADMIN_EMAIL e faça um novo deploy." };
+/** Abre a sessão (cookie assinado, 30 dias) e vai para o destino. */
+async function abrirSessao(uid: string, destino: string): Promise<never> {
   const { assinarSessao, COOKIE_SESSAO, DURACAO_SESSAO_S } = await import("@/lib/auth/sessao-cookie");
   const { cookies } = await import("next/headers");
-  const { redirect } = await import("next/navigation");
-  (await cookies()).set(COOKIE_SESSAO, await assinarSessao(rows[0].user_id), {
+  (await cookies()).set(COOKIE_SESSAO, await assinarSessao(uid), {
     httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: DURACAO_SESSAO_S,
   });
-  console.log(`[login] senha: Admin entrou`);
+  redirect(destino.startsWith("/") && !destino.startsWith("//") ? destino : "/eventos");
+}
+
+/**
+ * Login com e-mail + senha (gestores, Marketing, Admin). A senha é criada no primeiro acesso pelo link.
+ * Emergência: ADMIN_EMAIL + ADMIN_SENHA definidos no servidor também entram como Admin.
+ */
+export async function entrarComSenha(_: unknown, form: FormData): Promise<Resultado> {
+  const email = String(form.get("email") ?? "").trim().toLowerCase();
+  const senha = String(form.get("senha") ?? "");
   const next = String(form.get("next") ?? "/eventos");
-  return redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/eventos");
+  if (!email || !senha) return { ok: false, erro: "Informe o e-mail e a senha." };
+
+  // emergência do Admin geral (variáveis do servidor)
+  const senhaServidor = process.env.ADMIN_SENHA ?? "";
+  const emailServidor = (process.env.ADMIN_EMAIL ?? "").trim().toLowerCase();
+  if (senhaServidor.length >= 12 && emailServidor && email === emailServidor) {
+    const { createHash, timingSafeEqual } = await import("node:crypto");
+    const h = (x: string) => createHash("sha256").update(x).digest();
+    if (timingSafeEqual(h(senha), h(senhaServidor))) {
+      const { pool } = await import("@/lib/db/pg");
+      const { rows } = await pool().query<{ user_id: string }>(
+        `select p.user_id from perfis p where lower(p.email) = $1 and p.papel = 'admin' and p.ativo limit 1`, [emailServidor]);
+      if (rows[0]) {
+        console.log(`[login] senha de emergência: Admin entrou`);
+        return abrirSessao(rows[0].user_id, next);
+      }
+    }
+  }
+
+  const { entrarComSenhaDoUsuario } = await import("@/lib/auth/senha");
+  const r = await entrarComSenhaDoUsuario(email, senha);
+  if ("erro" in r) return { ok: false, erro: r.erro };
+  return abrirSessao(r.uid, next);
 }
 
 /** Página do link: ao confirmar, "queima" o link e abre a sessão. */
@@ -81,7 +91,11 @@ export async function confirmarLink(token: string) {
   (await cookies()).set(COOKIE_SESSAO, await assinarSessao(r.uid), {
     httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: DURACAO_SESSAO_S,
   });
-  redirect(r.destino.startsWith("/") && !r.destino.startsWith("//") ? r.destino : "/eventos");
+  const destino = r.destino.startsWith("/") && !r.destino.startsWith("//") ? r.destino : "/eventos";
+  // primeiro acesso (ainda sem senha): cria a senha antes de seguir
+  const { temSenha } = await import("@/lib/auth/senha");
+  if (!destino.startsWith("/conta/senha") && !(await temSenha(r.uid))) redirect(`/conta/senha?primeiro=1&next=${encodeURIComponent(destino)}`);
+  redirect(destino);
 }
 
 /** Modo demonstração: entra como um usuário do seed, sem e-mail. */

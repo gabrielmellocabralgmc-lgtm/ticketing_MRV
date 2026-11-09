@@ -3,43 +3,52 @@ import { useActionState, useState } from "react";
 import { Aviso, Botao, Campo, Entrada } from "@/components/ui";
 import { enviarLink, entrarComSenha } from "./actions";
 
-export function FormLogin({ next, erroInicial, comSenha }: { next: string; erroInicial: string | null; comSenha: boolean }) {
-  const [estado, acao, pendente] = useActionState(enviarLink, erroInicial ? { ok: false as const, erro: erroInicial } : null);
-  const [modoSenha, setModoSenha] = useState(false);
-  if (modoSenha) return <FormSenha next={next} voltar={() => setModoSenha(false)} />;
+/**
+ * Login: e-mail + senha (o normal). "Primeiro acesso ou esqueci a senha" manda o link por e-mail;
+ * quem entra por ele cria (ou troca) a senha em seguida.
+ */
+export function FormLogin({ next, erroInicial }: { next: string; erroInicial: string | null }) {
+  const [modoLink, setModoLink] = useState(!!erroInicial);
+  return modoLink
+    ? <FormLink next={next} erroInicial={erroInicial} voltar={() => setModoLink(false)} />
+    : <FormSenha next={next} pedirLink={() => setModoLink(true)} />;
+}
+
+function FormSenha({ next, pedirLink }: { next: string; pedirLink: () => void }) {
+  const [estado, acao, pendente] = useActionState(entrarComSenha, null);
+  // controlado: errar a senha não apaga o e-mail digitado
+  const [email, setEmail] = useState("");
   return (
     <>
       <form action={acao} className="space-y-4">
         <input type="hidden" name="next" value={next} />
-        <Campo rotulo="E-mail corporativo">
-          <Entrada name="email" type="email" required autoComplete="email" placeholder="nome@mrv.com.br" autoFocus />
-        </Campo>
-        {estado && (estado.ok ? <Aviso tom="ok">{estado.mensagem}</Aviso> : <Aviso tom="erro">{estado.erro}</Aviso>)}
-        <Botao type="submit" className="min-h-12 w-full text-base" disabled={pendente}>{pendente ? "Enviando…" : "Receber link de acesso"}</Botao>
+        <Campo rotulo="E-mail"><Entrada id="login-email" name="email" type="email" required autoComplete="username" placeholder="nome@mrv.com.br" autoFocus value={email} onChange={(e) => setEmail(e.target.value)} /></Campo>
+        <Campo rotulo="Senha"><Entrada id="login-senha" name="senha" type="password" required autoComplete="current-password" /></Campo>
+        {estado && !estado.ok && <Aviso tom="erro">{estado.erro}</Aviso>}
+        <Botao type="submit" className="min-h-12 w-full text-base" disabled={pendente}>{pendente ? "Entrando…" : "Entrar"}</Botao>
       </form>
-      <div className="flex items-start gap-3 rounded-xl bg-mrv-50 p-4 text-sm leading-snug text-[#434645]">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00843D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="mt-px shrink-0"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></svg>
-        <span>O acesso é liberado pelo Marketing MRV. Não recebeu? Confira o spam ou fale com quem convidou você.</span>
-      </div>
-      {comSenha && (
-        <button type="button" onClick={() => setModoSenha(true)} className="self-start text-sm font-semibold text-mrv-700 hover:underline">
-          Entrar com senha (Admin)
-        </button>
-      )}
+      <button type="button" onClick={pedirLink} className="self-start text-sm font-semibold text-mrv-700 hover:underline">
+        Primeiro acesso ou esqueci a senha
+      </button>
     </>
   );
 }
 
-function FormSenha({ next, voltar }: { next: string; voltar: () => void }) {
-  const [estado, acao, pendente] = useActionState(entrarComSenha, null);
+function FormLink({ next, erroInicial, voltar }: { next: string; erroInicial: string | null; voltar: () => void }) {
+  const [estado, acao, pendente] = useActionState(enviarLink, erroInicial ? { ok: false as const, erro: erroInicial } : null);
   return (
-    <form action={acao} className="space-y-4">
-      <input type="hidden" name="next" value={next} />
-      <Campo rotulo="E-mail do Admin"><Entrada name="email" type="email" required autoComplete="username" autoFocus /></Campo>
-      <Campo rotulo="Senha"><Entrada name="senha" type="password" required autoComplete="current-password" /></Campo>
-      {estado && !estado.ok && <Aviso tom="erro">{estado.erro}</Aviso>}
-      <Botao type="submit" className="min-h-12 w-full text-base" disabled={pendente}>{pendente ? "Entrando…" : "Entrar"}</Botao>
-      <button type="button" onClick={voltar} className="text-sm font-semibold text-mrv-700 hover:underline">← Receber link por e-mail</button>
-    </form>
+    <>
+      <div className="rounded-xl bg-mrv-50 p-4 text-sm leading-snug text-[#434645]">
+        Enviamos um <b>link de acesso</b> para o seu e-mail. Ao entrar por ele, você cria (ou troca) a sua senha. Depois, é só usar e-mail e senha.
+      </div>
+      <form action={acao} className="space-y-4">
+        {/* depois do link, vai para criar/trocar a senha e então para onde a pessoa ia */}
+        <input type="hidden" name="next" value={`/conta/senha?next=${encodeURIComponent(next)}`} />
+        <Campo rotulo="E-mail"><Entrada id="link-email" name="email" type="email" required autoComplete="email" placeholder="nome@mrv.com.br" autoFocus /></Campo>
+        {estado && (estado.ok ? <Aviso tom="ok">{estado.mensagem}</Aviso> : <Aviso tom="erro">{estado.erro}</Aviso>)}
+        <Botao type="submit" className="min-h-12 w-full text-base" disabled={pendente}>{pendente ? "Enviando…" : "Receber link de acesso"}</Botao>
+      </form>
+      <button type="button" onClick={voltar} className="self-start text-sm font-semibold text-mrv-700 hover:underline">← Entrar com e-mail e senha</button>
+    </>
   );
 }

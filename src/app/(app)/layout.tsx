@@ -5,6 +5,7 @@ import { ROTULO_PAPEL } from "@/lib/tipos";
 import { Marca } from "@/components/marca";
 import { Nav } from "@/components/nav";
 import { sair } from "./actions";
+import { MODO_DEMO } from "@/lib/demo/constantes";
 
 export default async function LayoutInterno({ children }: { children: React.ReactNode }) {
   const s = await exigirSessao();
@@ -35,6 +36,7 @@ export default async function LayoutInterno({ children }: { children: React.Reac
             <span>
               {s.nome} · <span className="font-semibold text-mrv-700">{ROTULO_PAPEL[s.papel]}</span>
             </span>
+            {!MODO_DEMO && <Link href="/conta/senha" className="rounded-lg px-2 py-2 font-semibold text-mrv-700 hover:bg-mrv-50">Minha senha</Link>}
             <form action={sair}>
               <button className="rounded-lg px-2 py-2 font-semibold text-mrv-700 hover:bg-mrv-50">Sair</button>
             </form>
