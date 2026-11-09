@@ -239,8 +239,7 @@ export async function areasParaConvocar(evento: string): Promise<AreaConvocacao[
   ]);
   const mapa = new Map<string, AreaConvocacao & { ordem: number }>();
   for (const c of (cotas ?? []) as unknown as { setor: Setor; area_id: string; quantidade: number; sob_demanda: boolean; areas: { nome: string; ordem: number; slug: string } }[]) {
-    // a área Marketing é do próprio perfil Marketing: não recebe convocação
-    if (c.sob_demanda || c.areas.slug === "marketing") continue;
+    if (c.sob_demanda) continue;
     const a = mapa.get(c.area_id) ?? { area_id: c.area_id, area_nome: c.areas.nome, ordem: c.areas.ordem, cotas: [], responsaveis: [], ultima_convocacao: null, ultimo_lembrete: null };
     const doSetor = ((ocup ?? []) as { area_id: string; setor: string; status: string }[]).filter((i) => i.area_id === c.area_id && i.setor === c.setor);
     a.cotas.push({
@@ -255,6 +254,17 @@ export async function areasParaConvocar(evento: string): Promise<AreaConvocacao[
   for (const r of (resp ?? []) as unknown as { area_id: string; perfis: { nome: string; email: string; ativo: boolean } | null }[]) {
     const a = mapa.get(r.area_id);
     if (a && r.perfis?.ativo) a.responsaveis.push({ nome: r.perfis.nome, email: r.perfis.email, recebeu: convocados.has(`${r.area_id}|${r.perfis.email.toLowerCase()}`) });
+  }
+  // área Marketing: quem tem o perfil Marketing MRV responde por ela (mesmo sem estar vinculado na área)
+  const mkt = [...mapa.values()].find((a) => (cotas ?? []).some((c) => (c as unknown as { area_id: string; areas: { slug: string } }).area_id === a.area_id
+    && (c as unknown as { areas: { slug: string } }).areas.slug === "marketing"));
+  if (mkt) {
+    const { data: perfisMkt } = await sb.from("perfis").select("nome, email").eq("papel", "marketing").eq("ativo", true);
+    for (const p of (perfisMkt ?? []) as { nome: string; email: string }[]) {
+      if (!mkt.responsaveis.some((r) => r.email.toLowerCase() === p.email.toLowerCase())) {
+        mkt.responsaveis.push({ nome: p.nome, email: p.email, recebeu: convocados.has(`${mkt.area_id}|${p.email.toLowerCase()}`) });
+      }
+    }
   }
   for (const e of (envs ?? []) as { tipo: string; area_id: string; criado_em: string }[]) {
     const a = mapa.get(e.area_id);
@@ -315,6 +325,16 @@ export async function avisarValidacaoPendente(evento?: string, area?: string): P
       const x = areasResp.get(r.area_id) ?? { area_nome: r.areas?.nome ?? "", responsaveis: [] };
       if (r.perfis?.ativo) x.responsaveis.push({ nome: r.perfis.nome, email: r.perfis.email });
       areasResp.set(r.area_id, x);
+    }
+    // área Marketing: avisa quem tem o perfil Marketing MRV
+    const { data: areaMkt } = await sb.from("areas").select("id, nome").eq("slug", "marketing").maybeSingle();
+    if (areaMkt && porArea.has(areaMkt.id as string)) {
+      const x = areasResp.get(areaMkt.id as string) ?? { area_nome: areaMkt.nome as string, responsaveis: [] };
+      const { data: perfisMkt } = await sb.from("perfis").select("nome, email").eq("papel", "marketing").eq("ativo", true);
+      for (const p of (perfisMkt ?? []) as { nome: string; email: string }[]) {
+        if (!x.responsaveis.some((r) => r.email.toLowerCase() === p.email.toLowerCase())) x.responsaveis.push(p);
+      }
+      areasResp.set(areaMkt.id as string, x);
     }
     for (const [areaId, a] of areasResp) {
       const pend = porArea.get(areaId);
