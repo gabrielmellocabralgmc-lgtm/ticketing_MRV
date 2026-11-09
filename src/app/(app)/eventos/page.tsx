@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -44,15 +45,15 @@ export default async function Eventos() {
   // Próximos: card com faixa preta e escudos; anteriores: linha compacta
   const Cards = ({ itens }: { itens: Evento[] }) =>
     itens.length === 0 ? (
-      <Vazio>Nenhum jogo programado.</Vazio>
+      <Vazio>Nenhum evento programado.</Vazio>
     ) : (
       <div className="grid gap-5 md:grid-cols-2">
         {itens.map((e) => (
           <div key={e.id} className="flex flex-col overflow-hidden rounded-2xl border border-borda bg-white transition hover:border-mrv-600">
           <Link href={`/eventos/${e.id}`} className="group flex flex-1 flex-col focus-visible:outline-2 focus-visible:outline-mrv-600">
-            <div className="flex items-center gap-4 bg-preto p-5">
+            <div className={clsx("flex items-center gap-4 p-5", e.tipo === "show" ? "bg-[linear-gradient(45deg,#006B3F,#079D56)]" : "bg-preto")}>
               {e.tipo === "jogo" && <Escudo url={img[CHAVE_ESCUDO_ATLETICO]} nome="do Atlético" />}
-              <div className="min-w-0 flex-1 font-display text-[22px] leading-tight font-extrabold text-white uppercase">{e.titulo}</div>
+              <div className={clsx("min-w-0 flex-1 text-[22px] leading-tight font-extrabold text-white", e.tipo !== "show" && "font-display uppercase")}>{e.titulo}</div>
               {e.tipo === "jogo" && <Escudo url={img[chaveEscudoAdversario(e.id)]} nome={e.adversario ? `do ${e.adversario}` : "do adversário"} />}
             </div>
             <div className="flex flex-1 flex-col gap-3.5 p-5">
@@ -88,7 +89,7 @@ export default async function Eventos() {
         <Link href={`/eventos/${e.id}`} className="flex items-center gap-4 px-5 py-4">
           {e.tipo === "jogo" && <Escudo url={img[chaveEscudoAdversario(e.id)]} nome={e.adversario ? `do ${e.adversario}` : "do adversário"} tamanho="p" escuro={false} />}
           <div className="min-w-0">
-            <div className="font-display text-[17px] font-bold uppercase">{e.titulo}</div>
+            <div className={clsx("text-[17px] font-bold", e.tipo !== "show" && "font-display uppercase")}>{e.titulo}</div>
             <div className="text-[13px] text-cinza first-letter:uppercase">{dataLonga(e.inicio)}{e.competicao && ` · ${e.competicao}`}</div>
           </div>
           <span className="ml-auto"><Selo tom={statusTom(e)}>{ROTULO_STATUS_EVENTO[e.status]}</Selo></span>

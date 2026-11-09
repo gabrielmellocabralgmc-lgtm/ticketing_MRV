@@ -173,7 +173,7 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
           : enviarCom || semTitular ? `Salvar ${preenchidas.length} convidado${preenchidas.length > 1 ? "s" : ""}` : `Solicitar ${preenchidas.length} ingresso(s)`}
       </Botao>
       <p className="text-xs text-tinta/60">
-        Ao enviar, você confirma que as pessoas foram informadas de que a MRV usará {simples ? "nome e CPF" : "nome, CPF e celular"}{exigirEmail ? " e e-mail" : ""} só para emitir o ingresso{facial ? " e orientar o cadastro no Galo ID" : ""}.
+        Ao enviar, você confirma que as pessoas foram informadas de que a MRV usará {simples ? (exigirEmail ? "nome, CPF e e-mail" : "nome e CPF") : exigirEmail ? "nome, CPF, celular e e-mail" : "nome, CPF e celular"} só para emitir o ingresso{facial ? " e orientar o cadastro no Galo ID" : ""}.
       </p>
     </div>
   );

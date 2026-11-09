@@ -31,7 +31,8 @@ export function FormEvento({ acao, evento, anteriores, padrao, areas = [], temCa
   const [nome, setNome] = useState((evento?.tipo === "show" ? evento?.atracao : evento?.adversario) ?? "");
   const [inicio, setInicio] = useState(paraInputLocal(evento?.inicio));
   const novo = !evento;
-  const [camarote, setCamarote] = useState(temCamarote);
+  // show novo vem sem camarote; jogo novo, com
+  const [camarote, setCamarote] = useState(evento ? temCamarote : true);
   const [duplicar, setDuplicar] = useState("");
   const [personalizar, setPersonalizar] = useState(false);
   const [digital, setDigital] = useState(evento?.ingressos_digitais ?? (evento?.tipo ?? "jogo") === "show");
@@ -44,7 +45,7 @@ export function FormEvento({ acao, evento, anteriores, padrao, areas = [], temCa
     <form action={enviar} className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2">
         <Campo rotulo="Tipo">
-          <Selecao name="tipo" value={tipo} onChange={(e) => { setTipo(e.target.value as "jogo" | "show"); setNome(""); setDigital(e.target.value === "show"); }} disabled={!novo}>
+          <Selecao name="tipo" value={tipo} onChange={(e) => { setTipo(e.target.value as "jogo" | "show"); setNome(""); setDigital(e.target.value === "show"); if (novo) setCamarote(e.target.value === "jogo"); }} disabled={!novo}>
             <option value="jogo">Jogo do Galo (mando)</option>
             <option value="show">Show</option>
           </Selecao>
@@ -86,6 +87,10 @@ export function FormEvento({ acao, evento, anteriores, padrao, areas = [], temCa
         <label key={`dig-${tipo}`} className="flex items-center gap-2">
           <input type="checkbox" name="ingressos_digitais" checked={digital} onChange={(e) => setDigital(e.target.checked)} className="size-4 accent-mrv-700" />
           Ingressos digitais enviados pelo sistema <span className="text-tinta/60">(PDF ou link, por e-mail)</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" name="permite_link" defaultChecked={evento?.permite_link ?? true} className="size-4 accent-mrv-700" />
+          Gestor pode gerar link para o convidado preencher <span className="text-tinta/60">(desmarcado: o gestor preenche os dados ele mesmo)</span>
         </label>
         <label key={`fac-${tipo}`} className="flex items-center gap-2">
           <input type="checkbox" name="exige_facial" defaultChecked={evento?.exige_facial ?? tipo === "jogo"} className="size-4 accent-mrv-700" />

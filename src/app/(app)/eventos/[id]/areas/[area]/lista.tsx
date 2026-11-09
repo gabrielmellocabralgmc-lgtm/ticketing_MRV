@@ -35,12 +35,15 @@ const POS_APROVACAO: StatusIngresso[] = ["aprovado", "facial_pendente", "facial_
 
 const ALTERAVEIS: StatusIngresso[] = ["solicitado", "validado_area", "aprovado", "facial_ok", "facial_pendente", "lista_espera"];
 
-export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, podeAlterar, prazo, facial = true }: {
+export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, podeAlterar, prazo, facial = true, resgate = false, resgates = {} }: {
   evento: string; setor: Setor; area: string; areaNome: string; linhas: LinhaLista[];
   eventoInfo: { titulo: string; inicio: string; abertura_portoes: string | null };
   podeAlterar: boolean; prazo: string;
   /** Evento exige facial: mostra o passo a passo do Galo ID. */
   facial?: boolean;
+  /** Evento com link de resgate único e quem já abriu o resgate (por ingresso). */
+  resgate?: boolean;
+  resgates?: Record<string, boolean>;
 }) {
   const [mostrarInativos, setMostrarInativos] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
@@ -85,7 +88,7 @@ export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, p
                   <tr key={c.convite_id}>
                     <td className="font-medium">{c.convite_nome_previsto ?? "—"}{c.convite_contato && <div className="text-xs font-normal text-tinta/60">{celular(c.convite_contato)}</div>}</td>
                     <td className="tabular">{ls.length}</td>
-                    <td><SeloStatus status={c.status} /></td>
+                    <td><SeloStatus status={c.status} para="gestor" /></td>
                     <td className={expiraLogo ? "font-semibold text-orange-700" : ""}>{dataHora(c.convite_expira_em)}</td>
                     <td>
                       <div className="flex flex-wrap justify-end gap-1.5">
@@ -142,7 +145,7 @@ export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, p
                       {setor !== "camarote" ? "Convidado" : l.titular ? "Titular" : `Convidado de ${l.convidado_de_nome ?? "?"}`}
                       {l.preenchido_por === "convidado" && <div><Selo tom="azul">Preenchido pelo convidado</Selo></div>}
                     </td>
-                    <td><SeloStatus status={l.status} /></td>
+                    <td><SeloStatus status={l.status} para="gestor" resgate={resgate} resgateAberto={resgates[l.ingresso_id]} /></td>
                     <td>
                       <div className="flex flex-wrap justify-end gap-1.5">
                         {l.status === "solicitado" && podeAlterar && (

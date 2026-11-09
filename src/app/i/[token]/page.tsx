@@ -121,7 +121,7 @@ async function PaginaIngresso({ token, info, acompanhantes }: { token: string; i
             <p className="text-lg font-bold">{info.pessoa?.nome}</p>
             <p className="font-mono text-xs text-tinta/60">CPF {info.pessoa?.cpf}{info.convidado_de && ` · convidado de ${info.convidado_de}`}</p>
           </div>
-          <SeloStatus status={info.status} />
+          <SeloStatus status={info.status} para="convidado" resgate={cfg.resgate} resgateAberto={!!resgate?.aberto_em} />
         </div>
         {!encerrado && (
           <ol className="mt-5 space-y-2">
@@ -185,7 +185,7 @@ async function PaginaIngresso({ token, info, acompanhantes }: { token: string; i
           {cfg.orientacoes.length > 0 && (
             <ul className="mt-4 list-disc space-y-1 pl-5 text-sm">{cfg.orientacoes.map((o) => <li key={o}>{o}</li>)}</ul>
           )}
-          <div className="mt-5"><BotoesTorcedor token={token} status={info.status} resgate={cfg.resgate} travarCancelar={!!resgate?.aberto_em} /></div>
+          <div className="mt-5"><BotoesTorcedor token={token} status={info.status} resgate={cfg.resgate} /></div>
         </Cartao>
       )}
 

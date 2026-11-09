@@ -2,7 +2,7 @@
 import clsx from "clsx";
 import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
-import { STATUS_INGRESSO, type StatusIngresso } from "@/lib/tipos";
+import { STATUS_INGRESSO, statusAmigavel, type StatusIngresso } from "@/lib/tipos";
 
 type Variante = "primario" | "secundario" | "fantasma" | "perigo" | "laranja";
 const VARIANTES: Record<Variante, string> = {
@@ -91,8 +91,11 @@ export function Selo({ tom = "cinza", children }: { tom?: keyof typeof TONS; chi
   return <span className={clsx("inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap", TONS[tom])}>{children}</span>;
 }
 
-export function SeloStatus({ status }: { status: StatusIngresso }) {
-  const s = STATUS_INGRESSO[status];
+/** para: gestor/convidado veem o status em linguagem simples; sem "para", o status técnico (equipe). */
+export function SeloStatus({ status, para, resgate, resgateAberto }: {
+  status: StatusIngresso; para?: "gestor" | "convidado"; resgate?: boolean; resgateAberto?: boolean;
+}) {
+  const s = para ? statusAmigavel(status, para, { resgate, resgateAberto }) : STATUS_INGRESSO[status];
   return <Selo tom={s.tom}>{s.rotulo}</Selo>;
 }
 

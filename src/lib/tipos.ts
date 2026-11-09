@@ -29,6 +29,8 @@ export interface Evento {
   orientacoes_convidado: string | null;
   /** Nome exibido de cada setor neste evento (ex.: { pista: "Cadeira Inferior" }). */
   nomes_setores: Partial<Record<Setor, string>>;
+  /** O gestor pode gerar links para o convidado preencher (senão, só ele mesmo preenche). */
+  permite_link: boolean;
   status: StatusEvento;
   observacoes: string | null;
 }
@@ -94,6 +96,31 @@ export const STATUS_INGRESSO: Record<StatusIngresso, { rotulo: string; tom: "cin
   cancelado: { rotulo: "Cancelado", tom: "cinza" },
   no_show: { rotulo: "No-show", tom: "vermelho" },
 };
+
+type Tom = (typeof STATUS_INGRESSO)[StatusIngresso]["tom"];
+
+/**
+ * Status em linguagem simples, para o gestor da área e para o convidado (a equipe vê o status técnico).
+ * resgate: evento com link de resgate único; resgateAberto: o convidado já abriu o link.
+ */
+export function statusAmigavel(status: StatusIngresso, para: "gestor" | "convidado", o: { resgate?: boolean; resgateAberto?: boolean } = {}): { rotulo: string; tom: Tom } {
+  const g = para === "gestor";
+  switch (status) {
+    case "convite_enviado":
+    case "aguardando_preenchimento": return { rotulo: g ? "Aguardando o convidado preencher" : "Aguardando seus dados", tom: "amarelo" };
+    case "solicitado": return g ? { rotulo: "Preenchido · falta validar", tom: "azul" } : { rotulo: "Dados recebidos", tom: "azul" };
+    case "validado_area": return { rotulo: "Validado", tom: "azul" };
+    case "aprovado":
+    case "facial_pendente": return { rotulo: "Falta a facial", tom: "vermelho" };
+    case "facial_ok": return { rotulo: "Confirmado · aguardando o ingresso", tom: "verde" };
+    case "enviado":
+      if (!o.resgate) return { rotulo: "Ingresso enviado", tom: "verde" };
+      if (o.resgateAberto) return { rotulo: g ? "Abriu o resgate · falta confirmar" : "Resgate iniciado", tom: "amarelo" };
+      return { rotulo: g ? "Ingresso enviado · falta resgatar" : "Ingresso liberado · falta resgatar", tom: "amarelo" };
+    case "confirmado": return { rotulo: o.resgate ? "Resgatado no app ✓" : "Ingresso recebido ✓", tom: "verde" };
+    default: return STATUS_INGRESSO[status];
+  }
+}
 
 /** Status que ainda ocupam lugar (espelha status_consome no banco). */
 export const STATUS_ATIVOS: StatusIngresso[] = [

@@ -87,6 +87,6 @@ export function textoIngressoEnviado(o: { nome: string; evento: DadosEvento; set
     `Ele está no Super App do Galo. Confirme aqui que recebeu: ${linkTorcedor(o.token)}`,
     o.evento.abertura_portoes ? `Portões abrem ${dataLonga(o.evento.abertura_portoes)}.` : ``,
     `Setor: ${rotuloSetor(o.setor, o.evento.nomes_setores)}. Leve um documento com foto.`,
-    `Se não puder ir, cancele pelo link para o ingresso ir para outra pessoa.`,
+    `Se não puder ir, avise quem convidou você.`,
   ].filter(Boolean).join("\n");
 }

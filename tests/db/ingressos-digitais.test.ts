@@ -150,7 +150,7 @@ describe("link de resgate de uso único (Eventim)", () => {
     const [{ dig_resgatar: url }] = await b.sql<{ dig_resgatar: string }>(`select dig_resgatar($1)`, [token]);
     expect(url).toBe("https://www.eventim.com.br/transfer/abc123");
     // depois de aberto, não dá mais para cancelar pelo link
-    await expect(b.sql(`select acao_torcedor($1, 'cancelar')`, [token])).rejects.toThrow(/JA_RESGATADO/);
+    await expect(b.sql(`select acao_torcedor($1, 'cancelar')`, [token])).rejects.toThrow(/SEM_CANCELAMENTO/);
     // segunda tentativa dentro da janela: ok
     await b.sql(`select dig_resgatar($1)`, [token]);
     const [d] = await b.sql<{ id: string; resgate_vezes: number }>(`select id, resgate_vezes from ingressos_digitais where ingresso_id = $1`, [i1]);

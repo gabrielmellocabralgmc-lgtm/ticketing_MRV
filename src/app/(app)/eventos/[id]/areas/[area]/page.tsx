@@ -7,7 +7,7 @@ import { Aviso, Cartao, Numero } from "@/components/ui";
 import { CHAVE_ESCUDO_ATLETICO, chaveEscudoAdversario, imagensDisponiveis } from "@/lib/imagens";
 import { dataHora, paraInputLocal } from "@/lib/formato";
 import { exigirSessao } from "@/lib/sessao";
-import { supabaseServidor } from "@/lib/supabase/server";
+import { supabaseServico, supabaseServidor } from "@/lib/supabase/server";
 import { rotuloSetor, type Saldo, type Setor } from "@/lib/tipos";
 import { carregarEvento } from "../../dados";
 import { validarLista } from "./actions";
@@ -47,6 +47,13 @@ export default async function PainelArea({ params, searchParams }: { params: Pro
   }
   const saldo = (saldoRows as Saldo[] | null)?.[0];
   const lista = (linhas ?? []) as LinhaLista[];
+  // resgate do link único: quem já abriu (a lista acima já passou pelo controle de acesso da área)
+  const resgates: Record<string, boolean> = {};
+  if (ev.resgate_unico && lista.length) {
+    const { data: digs } = await (await supabaseServico()).from("ingressos_digitais").select("ingresso_id, resgate_aberto_em")
+      .in("ingresso_id", lista.map((l) => l.ingresso_id));
+    for (const d of (digs ?? []) as { ingresso_id: string; resgate_aberto_em: string | null }[]) resgates[d.ingresso_id] = !!d.resgate_aberto_em;
+  }
   const aValidar = lista.filter((l) => l.status === "solicitado").length;
   const prazoPassou = !!ev.prazo_solicitacao && new Date(ev.prazo_solicitacao) < new Date();
   const camarote = setor === "camarote";
@@ -75,12 +82,12 @@ export default async function PainelArea({ params, searchParams }: { params: Pro
       )}
 
       {saldo && (
-        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className={`mb-6 grid grid-cols-2 gap-3 ${s.staff ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
           {/* responsável vê só a cota da área; o total do setor é só para Admin/Marketing */}
           <Numero rotulo={saldo.cota !== null || !s.staff ? "Cota da área" : "Vagas do setor"} valor={saldo.cota ?? (s.staff ? saldo.capacidade : 0)} />
           <Numero rotulo="Usados" valor={saldo.cota !== null || !s.staff ? saldo.ocupados_area : saldo.ocupados_setor} tom="cinza" />
           <Numero rotulo="Saldo" valor={saldo.saldo} tom={saldo.saldo === 0 ? "laranja" : "mrv"} />
-          <Numero rotulo="Lista de espera" valor={saldo.em_espera} tom={saldo.em_espera ? "laranja" : "cinza"} />
+          {s.staff && <Numero rotulo="Lista de espera" valor={saldo.em_espera} tom={saldo.em_espera ? "laranja" : "cinza"} />}
         </div>
       )}
 
@@ -97,7 +104,20 @@ export default async function PainelArea({ params, searchParams }: { params: Pro
         <div className="mb-6"><Aviso tom="info">{ev.status !== "aberto" ? "O evento não está aberto para solicitações." : "O prazo de solicitação terminou."} Fale com o Marketing MRV para ajustes.</Aviso></div>
       )}
 
-      {podeSolicitar && (
+      {podeSolicitar && !ev.permite_link && !s.staff && (
+        // evento sem link para convidados: o gestor só preenche ele mesmo
+        <div className="mb-6">
+          <Cartao>
+            <h2 className="mb-1 font-bold text-mrv-900">Cadastre os seus convidados</h2>
+            <p className="mb-4 text-sm text-tinta/70">
+              Os dados que você preencher já ficam <b>validados</b>. Dá para alterar ou cancelar convidados até <b>{dataHora(ev.prazo_solicitacao)}</b>.
+            </p>
+            <FormSolicitacao evento={id} setor={setor} area={area} saldo={saldo?.saldo ?? 0} padraoConvidados={camarote ? 0 : 1} linhasIniciais={camarote ? undefined : saldo?.saldo} semTitular={!camarote} limitarAoSaldo={!camarote} exigirEmail={ev.ingressos_digitais} facial={ev.exige_facial} />
+          </Cartao>
+        </div>
+      )}
+
+      {podeSolicitar && (ev.permite_link || s.staff) && (
         <div className="mb-6">
           <ModoPreenchimento prazo={dataHora(ev.prazo_solicitacao)}
             gestor={<FormSolicitacao evento={id} setor={setor} area={area} saldo={saldo?.saldo ?? 0} padraoConvidados={camarote ? 0 : 1} linhasIniciais={camarote ? undefined : saldo?.saldo} semTitular={!camarote} limitarAoSaldo={!camarote} exigirEmail={ev.ingressos_digitais} facial={ev.exige_facial} />}
@@ -129,7 +149,7 @@ export default async function PainelArea({ params, searchParams }: { params: Pro
               confirmar={`Validar os ${aValidar} convidado(s) que preencheram pelo link? Eles ficam prontos para envio.`} />
           )}
         </div>
-        <ListaArea evento={id} setor={setor} area={area} areaNome={areaRow.nome} linhas={lista} eventoInfo={eventoInfo}
+        <ListaArea evento={id} resgate={ev.resgate_unico} resgates={resgates} setor={setor} area={area} areaNome={areaRow.nome} linhas={lista} eventoInfo={eventoInfo}
           podeAlterar={s.staff || !prazoPassou} prazo={dataHora(ev.prazo_solicitacao)} facial={ev.exige_facial} />
       </Cartao>
     </>
