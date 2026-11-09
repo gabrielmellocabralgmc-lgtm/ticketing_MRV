@@ -633,3 +633,18 @@ describe("gestor sem titular e sem passar da cota", () => {
     await expect(pedir(respDH, ev, dh, demais, { sem_titular: true, lista_espera: false })).rejects.toThrow(/COTA_EXCEDIDA/);
   });
 });
+
+describe("excluir usuário", () => {
+  it("só o Admin exclui; não exclui a si mesmo; histórico fica sem o nome", async () => {
+    const ev = await novoEvento();
+    const gestor = await b.criarUsuario("Gestor Sai", "responsavel", ["dh"]);
+    await pedir(gestor, ev, dh, [nova("Convidado Fica")], { sem_titular: true, lista_espera: false });
+    await expect(b.como(mkt, `select excluir_usuario($1)`, [gestor])).rejects.toThrow();
+    await expect(b.como(adm, `select excluir_usuario($1)`, [adm])).rejects.toThrow(/próprio cadastro/);
+    await b.como(adm, `select excluir_usuario($1)`, [gestor]);
+    const [{ n }] = await b.sql<{ n: number }>(`select count(*)::int n from perfis where user_id = $1`, [gestor]);
+    expect(n).toBe(0);
+    const [{ q }] = await b.sql<{ q: number }>(`select count(*)::int q from ingressos where evento_id = $1`, [ev]);
+    expect(q).toBe(1); // o convidado lançado por ele continua
+  });
+});

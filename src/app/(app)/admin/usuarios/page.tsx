@@ -3,7 +3,7 @@ import { Campo, Cartao, Entrada, Selecao, Selo, Tabela, Titulo } from "@/compone
 import { exigirAdmin } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
 import { ROTULO_PAPEL, type Papel } from "@/lib/tipos";
-import { alternarAtivo, entrarComo, salvarUsuario } from "./actions";
+import { alternarAtivo, entrarComo, excluirUsuario, salvarUsuario } from "./actions";
 import { MODO_DEMO } from "@/lib/demo/constantes";
 
 export const metadata = { title: "Usuários" };
@@ -40,6 +40,12 @@ export default async function Usuarios() {
                       </form>
                     )}
                     <BotaoAcao acao={alternarAtivo.bind(null, p.user_id, !p.ativo)} rotulo={p.ativo ? "Desativar" : "Reativar"} variante={p.ativo ? "perigo" : "secundario"} />
+                    {p.user_id !== s.userId && (
+                      <span className="ml-2 inline-block">
+                        <BotaoAcao acao={excluirUsuario.bind(null, p.user_id)} rotulo="Excluir" variante="perigo"
+                          confirmar={`Excluir o cadastro de ${p.nome} (${p.email}) de vez? Não dá para desfazer: a pessoa perde o acesso e sai das áreas. O histórico dos eventos continua, sem o nome dela. Se for só por um tempo, use “Desativar”.`} />
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}

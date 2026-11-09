@@ -61,3 +61,14 @@ export async function entrarComo(userId: string) {
   });
   redirect(alvo.papel === "operacao" ? "/operacao" : "/eventos");
 }
+
+/** Exclui o cadastro de vez (o histórico dos eventos continua, sem o nome de quem foi excluído). */
+export async function excluirUsuario(userId: string): Promise<Resultado> {
+  await exigirAdmin();
+  const supabase = await supabaseServidor();
+  const { data, error } = await supabase.rpc("excluir_usuario", { p_user: userId });
+  if (error) return falha(error);
+  revalidatePath("/admin/usuarios");
+  revalidatePath("/admin/areas");
+  return { ok: true, mensagem: `${data ?? "Cadastro"} excluído.` };
+}

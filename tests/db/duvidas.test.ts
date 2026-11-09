@@ -17,5 +17,5 @@ describe("dúvidas", () => {
     const visiveis = await b.como(resp, `select * from duvidas`).catch(() => []);
     expect(visiveis).toEqual([]);
     await expect(b.sql(`insert into duvida_mensagens (duvida_id, de, texto) values ($1, 'gestor', '   ')`, [id])).rejects.toThrow();
-  });
+  }, 120_000); // cria um banco inteiro: sob carga, passa do tempo padrão
 });
