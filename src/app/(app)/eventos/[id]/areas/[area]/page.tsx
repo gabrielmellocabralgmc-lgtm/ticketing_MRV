@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { AoVivo } from "@/components/ao-vivo";
 import { BotaoAcao } from "@/components/form-acao";
 import { CabecalhoJogo } from "@/components/jogo";
@@ -15,12 +15,15 @@ import { FormConvite } from "./form-convite";
 import { FormSolicitacao } from "./form-solicitacao";
 import { ListaArea, type LinhaLista } from "./lista";
 import { ModoPreenchimento } from "./modo-preenchimento";
+import { AbasMarketing } from "../../abas-marketing";
 
 export const metadata = { title: "Lista da área" };
 
 export default async function PainelArea({ params, searchParams }: { params: Promise<{ id: string; area: string }>; searchParams: Promise<{ setor?: string }> }) {
   const [{ id, area }, { setor: setorParam }] = await Promise.all([params, searchParams]);
   const s = await exigirSessao();
+  // Marketing MRV só mexe na área Marketing; as outras ele vê em "Todas as áreas"
+  if (s.papel === "marketing" && !s.areas.some((a) => a.id === area)) redirect(`/eventos/${id}/todas`);
   const ev = await carregarEvento(id);
   const supabase = await supabaseServidor();
   const img = await imagensDisponiveis();
@@ -66,10 +69,10 @@ export default async function PainelArea({ params, searchParams }: { params: Pro
       <CabecalhoJogo ev={ev} tamanho="m" escudoAtletico={img[CHAVE_ESCUDO_ATLETICO]} escudoAdversario={img[chaveEscudoAdversario(id)]}
         rotulo={`${areaRow.nome} · ${rotuloSetor(setor, ev.nomes_setores)}`}
         voltar={s.papel === "admin" ? { href: `/eventos/${id}`, rotulo: "Painel do evento" }
-          : s.papel === "marketing" ? { href: `/eventos/${id}/painel`, rotulo: "Painel do evento" }
           : { href: "/eventos", rotulo: "Meus eventos" }}>
         <div className="text-sm text-white/70">Prazo para solicitar, alterar e validar: {dataHora(ev.prazo_solicitacao)}</div>
       </CabecalhoJogo>
+      {s.papel === "marketing" && <AbasMarketing evento={id} atual="marketing" area={area} />}
 
       {setores.length > 1 && (
         <div className="mb-4 flex gap-2">

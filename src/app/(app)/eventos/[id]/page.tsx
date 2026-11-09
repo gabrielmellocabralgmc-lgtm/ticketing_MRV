@@ -27,10 +27,14 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function PaginaEvento({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const s = await exigirSessao();
-  if (s.papel === "marketing") redirect(`/eventos/${id}/painel`);
   if (s.papel === "operacao") redirect(`/operacao?evento=${id}`);
   const ev = await carregarEvento(id);
   const { linhas, setores } = await carregarResumo(id);
+  // Marketing MRV: começa pelos ingressos da área Marketing (a outra aba é "Todas as áreas", só consulta)
+  if (s.papel === "marketing") {
+    const mkt = linhas.find((l) => l.cota !== null && s.areas.some((a) => a.id === l.area_id));
+    redirect(mkt ? `/eventos/${id}/areas/${mkt.area_id}?setor=${mkt.setor}` : `/eventos/${id}/todas`);
+  }
   const img = await imagensDisponiveis();
   const { data: areasAtivas } = await (await supabaseServidor()).from("areas").select("id, nome").eq("ativo", true).order("ordem");
   if (s.papel === "responsavel") {

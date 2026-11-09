@@ -2,6 +2,7 @@
 import { useState, useTransition } from "react";
 import { BotaoCopiar, BotaoWhatsApp } from "@/components/copiar";
 import { Aviso, Botao, Entrada, Selo, SeloStatus, Tabela, Vazio } from "@/components/ui";
+import { formatarCpf } from "@/lib/cpf";
 import { celular, dataHora } from "@/lib/formato";
 import { linkTorcedor, linkWhatsApp, textoConvite, textoGaloId } from "@/lib/mensagens";
 import type { Setor, StatusIngresso } from "@/lib/tipos";
@@ -139,7 +140,7 @@ export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, p
                       {l.nome}
                       {l.indicacao_de && l.titular && <div className="text-xs font-normal text-tinta/60">Indicação: {l.indicacao_de}</div>}
                     </td>
-                    <td className="font-mono text-xs">{l.cpf}</td>
+                    <td className="font-mono text-xs whitespace-nowrap">{l.cpf && /^\d{11}$/.test(l.cpf) ? formatarCpf(l.cpf) : l.cpf}</td>
                     <td className="whitespace-nowrap">{celular(l.celular)}</td>
                     <td className="text-xs">
                       {setor !== "camarote" ? "Convidado" : l.titular ? "Titular" : `Convidado de ${l.convidado_de_nome ?? "?"}`}

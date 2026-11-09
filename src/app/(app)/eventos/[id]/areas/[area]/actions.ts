@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { falha, type Resultado } from "@/lib/erros";
-import { exigirSessao } from "@/lib/sessao";
+import { exigirArea, exigirSessao } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
 import { rotuloSetor, type Setor } from "@/lib/tipos";
 import { dataHora, deInputLocal } from "@/lib/formato";
@@ -19,7 +19,7 @@ const caminho = (evento: string, area: string) => `/eventos/${evento}/areas/${ar
 
 /** Modo A: o responsável digita titular (+ convidados). */
 export async function solicitar(evento: string, setor: Setor, area: string, pessoas: PessoaForm[], listaEspera: boolean, semTitular = false): Promise<Resultado<{ status: string }>> {
-  const s = await exigirSessao();
+  const s = await exigirArea(area);
   const supabase = await supabaseServidor();
   const { data, error } = await supabase.rpc("criar_pedido", {
     p_evento: evento, p_setor: setor, p_area: area,
@@ -36,13 +36,13 @@ export async function solicitar(evento: string, setor: Setor, area: string, pess
     ok: true, dados: { status },
     mensagem: status === "lista_espera"
       ? "A cota da área está esgotada: o pedido entrou na lista de espera e sobe sozinho se abrir vaga."
-      : `${qtd} e já validado(s): pronto(s) para envio. Dá para trocar ou cancelar até o fim do prazo de solicitação.`,
+      : `${qtd} e já confirmado(s). O ingresso chega a cada convidado quando for liberado. Dá para trocar ou cancelar até o fim do prazo de solicitação.`,
   };
 }
 
 /** Modo B: reserva vagas e gera o link para o convidado preencher. */
 export async function criarConvite(evento: string, setor: Setor, area: string, _: unknown, form: FormData): Promise<Resultado<{ token: string }>> {
-  await exigirSessao();
+  await exigirArea(area);
   const supabase = await supabaseServidor();
   const { data, error } = await supabase.rpc("criar_convite", {
     p_evento: evento, p_setor: setor, p_area: area,
@@ -76,7 +76,7 @@ export async function criarConvite(evento: string, setor: Setor, area: string, _
 }
 
 export async function cancelarConvite(evento: string, area: string, convite: string): Promise<Resultado> {
-  await exigirSessao();
+  await exigirArea(area);
   const supabase = await supabaseServidor();
   const { error } = await supabase.rpc("cancelar_convite", { p_convite: convite });
   if (error) return falha(error);
@@ -85,7 +85,7 @@ export async function cancelarConvite(evento: string, area: string, convite: str
 }
 
 export async function cancelarIngresso(evento: string, area: string, ingresso: string, motivo: string): Promise<Resultado> {
-  await exigirSessao();
+  await exigirArea(area);
   const supabase = await supabaseServidor();
   const { data, error } = await supabase.rpc("cancelar_ingressos", { p_ids: [ingresso], p_motivo: motivo || "cancelado pela área" });
   if (error) return falha(error);
@@ -95,7 +95,7 @@ export async function cancelarIngresso(evento: string, area: string, ingresso: s
 }
 
 export async function editarPessoa(evento: string, area: string, ingresso: string, p: PessoaForm): Promise<Resultado> {
-  await exigirSessao();
+  await exigirArea(area);
   const supabase = await supabaseServidor();
   const { error } = await supabase.rpc("editar_pessoa_ingresso", {
     p_ingresso: ingresso, p: { nome: p.nome, cpf: p.cpf, celular: p.celular, email: p.email || null },
@@ -106,7 +106,7 @@ export async function editarPessoa(evento: string, area: string, ingresso: strin
 }
 
 export async function validarLista(evento: string, setor: Setor, area: string): Promise<Resultado> {
-  await exigirSessao();
+  await exigirArea(area);
   const supabase = await supabaseServidor();
   const { data, error } = await supabase.rpc("validar_lista", { p_evento: evento, p_setor: setor, p_area: area });
   if (error) return falha(error);
@@ -116,7 +116,7 @@ export async function validarLista(evento: string, setor: Setor, area: string): 
 
 /** Validação nome a nome (só quem está como "Preenchido"). */
 export async function validarIngresso(evento: string, area: string, ingresso: string): Promise<Resultado> {
-  await exigirSessao();
+  await exigirArea(area);
   const supabase = await supabaseServidor();
   const { error } = await supabase.rpc("validar_ingressos", { p_ids: [ingresso] });
   if (error) return falha(error);
