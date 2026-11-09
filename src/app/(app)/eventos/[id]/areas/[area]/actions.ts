@@ -123,3 +123,31 @@ export async function validarIngresso(evento: string, area: string, ingresso: st
   revalidatePath(caminho(evento, area));
   return { ok: true, mensagem: "Convidado validado: pronto para envio." };
 }
+
+/** Gestor abre uma dúvida (o evento, a área e quem pergunta vão junto). */
+export async function perguntarArea(evento: string, area: string, texto: string): Promise<Resultado> {
+  const s = await exigirArea(area);
+  const { novaDuvida } = await import("@/lib/duvidas");
+  try {
+    await novaDuvida({ evento_id: evento, area_id: area, ingresso_id: null, autor_tipo: "gestor", autor_user: s.userId, autor_nome: s.nome, autor_email: s.email }, texto);
+  } catch (e) {
+    return falha(e);
+  }
+  revalidatePath(caminho(evento, area));
+  return { ok: true, mensagem: "Enviado. A equipe de ingressos responde por aqui e avisa no seu e-mail." };
+}
+
+/** Gestor continua uma conversa da própria área. */
+export async function responderNaArea(evento: string, area: string, duvida: string, texto: string): Promise<Resultado> {
+  const s = await exigirArea(area);
+  const { buscarDuvida, registrarMensagem } = await import("@/lib/duvidas");
+  const d = await buscarDuvida(duvida);
+  if (!d || d.evento_id !== evento || d.area_id !== area) return { ok: false, erro: "Conversa não encontrada." };
+  try {
+    await registrarMensagem(duvida, "gestor", s.userId, s.nome, texto);
+  } catch (e) {
+    return falha(e);
+  }
+  revalidatePath(caminho(evento, area));
+  return { ok: true, mensagem: "Enviado." };
+}

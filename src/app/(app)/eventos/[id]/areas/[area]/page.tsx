@@ -16,6 +16,8 @@ import { FormSolicitacao } from "./form-solicitacao";
 import { ListaArea, type LinhaLista } from "./lista";
 import { ModoPreenchimento } from "./modo-preenchimento";
 import { AbasMarketing } from "../../abas-marketing";
+import { DuvidasArea } from "./duvidas";
+import { duvidasDaArea } from "@/lib/duvidas";
 
 export const metadata = { title: "Lista da área" };
 
@@ -155,6 +157,7 @@ export default async function PainelArea({ params, searchParams }: { params: Pro
         <ListaArea evento={id} resgate={ev.resgate_unico} resgates={resgates} setor={setor} area={area} areaNome={areaRow.nome} linhas={lista} eventoInfo={eventoInfo}
           podeAlterar={s.staff || !prazoPassou} prazo={dataHora(ev.prazo_solicitacao)} facial={ev.exige_facial} />
       </Cartao>
+      {!s.staff && <DuvidasArea evento={id} area={area} duvidas={(await duvidasDaArea(id, area)).map((d) => ({ id: d.id, status: d.status, autor_nome: d.autor_nome, mensagens: d.mensagens }))} />}
     </>
   );
 }

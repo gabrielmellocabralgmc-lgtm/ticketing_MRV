@@ -65,9 +65,14 @@ export async function enviarModelo(itens: ItemEnvio[], opcoes: { autor?: string 
     if (canal && !ficticio) {
       const capa = item.evento_id && PARA_CONVIDADO.has(item.tipo) ? img[chaveCapaEvento(item.evento_id)] : undefined;
       const mapa = item.evento_id && PARA_GESTOR.has(item.tipo) ? img[chaveMapaEvento(item.evento_id)] : undefined;
+      // "Tenho uma dúvida": gestor vai para a conversa da área; convidado, para a página do ingresso
+      const linkPessoal = typeof item.vars.link === "string" && item.vars.link.includes("/i/") ? item.vars.link : null;
+      const duvidaUrl = item.evento_id && item.area_id && PARA_GESTOR.has(item.tipo) ? `${siteUrl()}/eventos/${item.evento_id}/areas/${item.area_id}#duvidas`
+        : PARA_CONVIDADO.has(item.tipo) && linkPessoal ? `${linkPessoal}#ajuda` : undefined;
       const html = htmlEmail(texto, {
         logoUrl, botao: item.botao, siteUrl: siteUrl(),
         capaUrl: capa ? `${siteUrl()}${capa}` : undefined, mapaUrl: mapa ? `${siteUrl()}${mapa}` : undefined,
+        duvida: { url: duvidaUrl },
       });
       const r = await canal.enviar({ para: { nome: item.para.nome ?? "", email: item.para.email }, assunto, texto, html, anexos: opcoes.anexos });
       status = r.ok ? "enviado" : "falhou";

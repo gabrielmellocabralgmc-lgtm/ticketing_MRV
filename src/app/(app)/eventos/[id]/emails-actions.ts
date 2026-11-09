@@ -34,6 +34,7 @@ export async function previaConvocacao(evento: string, area: string): Promise<{ 
     html: htmlEmail(preencher(m!.corpo, item.vars), {
       logoUrl: img[CHAVE_LOGO] ? `${siteUrl()}${img[CHAVE_LOGO]}` : undefined, botao: item.botao,
       mapaUrl: img[chaveMapaEvento(evento)] ? `${siteUrl()}${img[chaveMapaEvento(evento)]}` : undefined,
+      duvida: { url: `${siteUrl()}/eventos/${evento}/areas/${area}#duvidas` },
     }),
     para: a.responsaveis.map((r) => r.email).join(", ") || "(área sem responsável)",
   };

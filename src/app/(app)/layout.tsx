@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { contarAguardando } from "@/lib/duvidas";
 import { exigirSessao } from "@/lib/sessao";
 import { ROTULO_PAPEL } from "@/lib/tipos";
 import { Marca } from "@/components/marca";
@@ -7,6 +8,7 @@ import { sair } from "./actions";
 
 export default async function LayoutInterno({ children }: { children: React.ReactNode }) {
   const s = await exigirSessao();
+  const duvidasAbertas = s.papel === "admin" ? await contarAguardando() : 0;
   // Cada perfil vê só o que usa
   const links =
     s.papel === "operacao"
@@ -15,6 +17,7 @@ export default async function LayoutInterno({ children }: { children: React.Reac
         ? [
             { href: "/dashboard", rotulo: "Dashboard" },
             { href: "/eventos", rotulo: "Eventos" },
+            { href: "/duvidas", rotulo: duvidasAbertas ? `Dúvidas (${duvidasAbertas})` : "Dúvidas" },
             { href: "/operacao-camarote", rotulo: "Operação camarote" },
             { href: "/admin", rotulo: "Configurações" },
           ]

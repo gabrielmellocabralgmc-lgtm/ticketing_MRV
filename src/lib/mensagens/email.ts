@@ -22,7 +22,8 @@ export function htmlDoTexto(m: Mensagem) {
 export function canalEmail(opcoes: { apiKey?: string; remetente?: string; responderPara?: string; fetch?: typeof fetch } = {}): CanalMensagem {
   const apiKey = opcoes.apiKey ?? process.env.RESEND_API_KEY;
   const remetente = opcoes.remetente ?? process.env.EMAIL_REMETENTE ?? REMETENTE_PADRAO;
-  const responderPara = opcoes.responderPara ?? process.env.EMAIL_RESPONDER_PARA;
+  // quem responder ao e-mail cai na caixa operacional de ingressos (não no "naoresponda")
+  const responderPara = opcoes.responderPara ?? (process.env.EMAIL_RESPONDER_PARA || process.env.EMAIL_OPERACIONAL || "ingresso.mrv@weareact3.com");
   const f = opcoes.fetch ?? fetch;
   return {
     id: "email",

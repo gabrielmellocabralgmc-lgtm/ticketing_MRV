@@ -12,6 +12,8 @@ import { rotuloSetor, type NomesSetores, type Setor, type StatusIngresso } from 
 import { BotoesTorcedor } from "./botoes-torcedor";
 import { FormConvidado } from "./form-convidado";
 import { ResgateIngresso } from "./resgate";
+import { AjudaConvidado } from "./ajuda";
+import { duvidaDoIngresso } from "@/lib/duvidas";
 
 export const metadata: Metadata = { title: "Seu ingresso MRV", robots: { index: false, follow: false }, referrer: "no-referrer" };
 export const dynamic = "force-dynamic";
@@ -109,6 +111,8 @@ async function PaginaIngresso({ token, info, acompanhantes }: { token: string; i
   const cfg = await configEvento(info.evento.id);
   const baixar = !encerrado && (await temIngressoDigital(token));
   const resgate = cfg.resgate && baixar ? await estadoResgate(token) : null;
+  const { data: ingId } = await (await supabaseServico()).from("ingressos").select("id").eq("token", token).maybeSingle();
+  const ajuda = ingId ? await duvidaDoIngresso(ingId.id as string) : null;
   const etapas = ETAPAS.filter((e) => cfg.facial || e.rotulo !== "Facial confirmada").map((e) => !cfg.resgate ? e
     : { ...e, rotulo: e.rotulo === "Ingresso enviado" ? "Ingresso liberado" : e.rotulo === "Ingresso recebido" ? "Ingresso resgatado no app" : e.rotulo });
   return (
@@ -222,7 +226,11 @@ async function PaginaIngresso({ token, info, acompanhantes }: { token: string; i
           </ul>
         </Cartao>
       )}
-      <p className="text-center text-xs text-tinta/50">Dúvidas? Fale com quem enviou o convite ou com o Marketing MRV.</p>
+      <Cartao id="ajuda" className="scroll-mt-6">
+        <h2 className="mb-1 font-bold text-mrv-900">Precisa de ajuda?</h2>
+        <p className="mb-3 text-sm text-tinta/70">Escreva aqui. A equipe de ingressos MRV já sabe qual é o seu evento e o seu ingresso.</p>
+        <AjudaConvidado token={token} mensagens={ajuda?.mensagens ?? []} />
+      </Cartao>
     </>
   );
 }

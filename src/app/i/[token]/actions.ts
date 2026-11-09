@@ -45,3 +45,23 @@ export async function resgatarIngresso(token: string): Promise<Resultado<string>
   revalidatePath(`/i/${token}`);
   return { ok: true, dados: data as string };
 }
+
+/** Convidado manda uma dúvida pela página do ingresso (evento, área e o ingresso dele vão junto). */
+export async function perguntarConvidado(token: string, texto: string): Promise<Resultado> {
+  if (!tokenValido(token)) return { ok: false, erro: "Link inválido." };
+  const sb = await supabaseServico();
+  const { data: ing } = await sb.from("ingressos").select("id, evento_id, area_id, pessoa_id").eq("token", token).maybeSingle();
+  if (!ing?.pessoa_id) return { ok: false, erro: "Link inválido." };
+  const { data: p } = await sb.from("pessoas").select("nome, email").eq("id", ing.pessoa_id as string).maybeSingle();
+  const { novaDuvida } = await import("@/lib/duvidas");
+  try {
+    await novaDuvida({
+      evento_id: ing.evento_id as string, area_id: (ing.area_id as string | null) ?? null, ingresso_id: ing.id as string,
+      autor_tipo: "convidado", autor_user: null, autor_nome: (p?.nome as string | null) ?? "Convidado", autor_email: (p?.email as string | null) ?? null,
+    }, texto);
+  } catch (e) {
+    return falha(e);
+  }
+  revalidatePath(`/i/${token}`);
+  return { ok: true, mensagem: p?.email ? "Enviado. A resposta aparece aqui e chega no seu e-mail." : "Enviado. A resposta aparece aqui nesta página." };
+}
