@@ -100,7 +100,7 @@ export default async function PaginaEvento({ params }: { params: Promise<{ id: s
             {ev.status === "rascunho" && <BotaoAcao acao={mudarStatusEvento.bind(null, id, "aberto")} rotulo="Abrir para solicitações" variante="primario" />}
             {ev.status === "aberto" && (
               <BotaoAcao acao={mudarStatusEvento.bind(null, id, "fechado")} rotulo="Encerrar prazo" variante="laranja"
-                confirmar="Encerrar o prazo? Áreas não poderão mais solicitar e o saldo não usado volta para o pool." />
+                confirmar="Encerrar o prazo? Áreas não poderão mais solicitar e o saldo não usado volta para o pool (Marketing, Rel. Institucional e Presidência mantêm o saldo)." />
             )}
             {ev.status === "fechado" && <BotaoAcao acao={mudarStatusEvento.bind(null, id, "aberto")} rotulo="Reabrir" />}
             {["aberto", "fechado"].includes(ev.status) && new Date(ev.inicio).getTime() < Date.now() && (

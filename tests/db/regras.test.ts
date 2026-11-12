@@ -134,12 +134,18 @@ describe("cota estourando e lista de espera", () => {
     expect(r.status).toBe("lista_espera");
   });
 
-  it("fechar o prazo devolve o saldo não usado ao pool", async () => {
+  it("fechar o prazo devolve o saldo não usado ao pool (menos Marketing, Rel. Institucional e Presidência)", async () => {
     const ev = await novoEvento();
     await pedir(respLuggo, ev, luggo, [nova(), nova()]);
+    const presidAntes = (await saldo(ev, presid)).cota;
     const [{ fechar_prazo }] = await b.como<{ fechar_prazo: number }>(mkt, `select fechar_prazo($1)`, [ev]);
-    expect(fechar_prazo).toBe(98); // arquibancada: 100 - 2 (camarote não tem cota por área)
+    const [{ fixas }] = await b.sql<{ fixas: number }>(
+      `select coalesce(sum(c.quantidade), 0)::int fixas from cotas c join areas a on a.id = c.area_id
+       where c.evento_id = $1 and not c.sob_demanda and a.slug in ('marketing', 'rel-institucional', 'presidencia')`, [ev]);
+    expect(fixas).toBeGreaterThan(0);
+    expect(fechar_prazo).toBe(98 - fixas); // arquibancada: 100 - 2 usados - saldo que fica com as 3 áreas
     expect((await saldo(ev, luggo)).cota).toBe(2);
+    expect((await saldo(ev, presid)).cota).toBe(presidAntes);
   });
 });
 
