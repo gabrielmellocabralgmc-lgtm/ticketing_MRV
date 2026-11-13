@@ -15,10 +15,12 @@ export default async function PaginaLista({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const ev = await carregarEvento(id);
   const { data: digs } = ev.ingressos_digitais
-    ? await (await supabaseServidor()).from("ingressos_digitais").select("ingresso_id, enviado_em").eq("evento_id", id)
+    ? await (await supabaseServidor()).from("ingressos_digitais").select("ingresso_id, enviado_em, resgate_aberto_em").eq("evento_id", id)
     : { data: [] };
-  const digitais = Object.fromEntries(((digs ?? []) as { ingresso_id: string | null; enviado_em: string | null }[])
-    .filter((d) => d.ingresso_id).map((d) => [d.ingresso_id!, !!d.enviado_em]));
+  const comIngresso = ((digs ?? []) as { ingresso_id: string | null; enviado_em: string | null; resgate_aberto_em: string | null }[]).filter((d) => d.ingresso_id);
+  const digitais = Object.fromEntries(comIngresso.map((d) => [d.ingresso_id!, !!d.enviado_em]));
+  // link de resgate único: quem já abriu o resgate (mesmo status da lista de cada área)
+  const resgates = Object.fromEntries(comIngresso.map((d) => [d.ingresso_id!, !!d.resgate_aberto_em]));
   const linhas = (await carregarIngressos(id, [
     "solicitado", "validado_area", "aprovado", "facial_pendente", "facial_ok", "enviado", "confirmado", "presente",
     "lista_espera", "cancelado", "recusado", "no_show",
@@ -39,6 +41,8 @@ export default async function PaginaLista({ params }: { params: Promise<{ id: st
           facial: ev.exige_facial,
           digital: ev.ingressos_digitais,
           digitais,
+          resgate: ev.resgate_unico,
+          resgates,
           pendenteFacial: pendenteFacial.bind(null, id),
           facialOk: facialOk.bind(null, id),
           validar: validarIngressos.bind(null, id),

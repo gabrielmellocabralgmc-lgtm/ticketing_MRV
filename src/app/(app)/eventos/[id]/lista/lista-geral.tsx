@@ -4,31 +4,24 @@
 import { useMemo, useState, useTransition } from "react";
 import clsx from "clsx";
 import { BotaoCopiar } from "@/components/copiar";
-import { Aviso, Entrada, Selecao, Selo, SeloStatus } from "@/components/ui";
+import { Aviso, Entrada, Selecao, SeloStatus } from "@/components/ui";
 import { formatarCpf, somenteDigitos } from "@/lib/cpf";
 import { celular, dataHora } from "@/lib/formato";
 import { linkTorcedor, linkWhatsApp, textoGaloId } from "@/lib/mensagens";
 import type { Resultado } from "@/lib/erros";
 import { normalizarTexto } from "@/lib/texto";
-import { type Setor, type StatusIngresso } from "@/lib/tipos";
+import { statusAmigavel, type Setor, type StatusIngresso } from "@/lib/tipos";
 import type { LinhaIngresso } from "../tabela-selecao";
 import { NomeEditavel, semNome } from "../nome-editavel";
 import { NomeSetor } from "@/components/setores";
 
 export type LinhaGeral = LinhaIngresso & { pedido_id: string };
 
-type Filtro = "ativos" | "a_enviar" | "pendente_facial" | "enviados" | "sem_nome" | "na_area" | "espera" | "inativos" | "todos";
-const FILTROS: { id: Filtro; rotulo: string; status: StatusIngresso[] | null }[] = [
-  { id: "ativos", rotulo: "Todos ativos", status: ["solicitado", "validado_area", "aprovado", "facial_pendente", "facial_ok", "enviado", "confirmado", "presente"] },
-  { id: "a_enviar", rotulo: "Prontos para envio", status: ["facial_ok"] },
-  { id: "pendente_facial", rotulo: "Pendente facial", status: ["aprovado", "facial_pendente"] },
-  { id: "enviados", rotulo: "Enviados", status: ["enviado", "confirmado", "presente"] },
-  { id: "sem_nome", rotulo: "Nome a informar", status: null },
-  { id: "na_area", rotulo: "Preenchidos (aguardando aprovação)", status: ["solicitado", "validado_area"] },
-  { id: "espera", rotulo: "Lista de espera", status: ["lista_espera"] },
-  { id: "inativos", rotulo: "Cancelados/recusados", status: ["cancelado", "recusado", "no_show"] },
-  { id: "todos", rotulo: "Tudo", status: null },
-];
+// Filtros: "Todos ativos", um por status (com o mesmo nome da lista de cada área) e "Tudo"
+type Filtro = "ativos" | "sem_nome" | "todos" | `status:${string}`;
+const ATIVOS: StatusIngresso[] = ["solicitado", "validado_area", "aprovado", "facial_pendente", "facial_ok", "enviado", "confirmado", "presente"];
+// ordem do funil, para os filtros de status aparecerem na sequência do processo
+const ORDEM_STATUS: StatusIngresso[] = [...ATIVOS, "lista_espera", "no_show", "recusado", "cancelado"];
 const ENVIADO: StatusIngresso[] = ["enviado", "confirmado", "presente"];
 
 type Ordem = "area" | "nome" | "status";
@@ -41,6 +34,10 @@ interface Acoes {
   digital: boolean;
   /** Ingressos digitais já distribuídos: id do ingresso → já enviado? */
   digitais: Record<string, boolean>;
+  /** Link de resgate único: o status mostra se a pessoa já abriu o resgate. */
+  resgate: boolean;
+  /** id do ingresso → já abriu o resgate? */
+  resgates: Record<string, boolean>;
   pendenteFacial: (ids: string[]) => Promise<Resultado>;
   facialOk: (ids: string[]) => Promise<Resultado>;
   validar: (ids: string[]) => Promise<Resultado>;
@@ -51,11 +48,18 @@ interface Acoes {
   atualizarDados: (id: string, p: { nome: string; celular: string; email: string }) => Promise<Resultado>;
 }
 
-const passaFiltro = (f: (typeof FILTROS)[number], l: LinhaGeral) =>
-  f.id === "sem_nome" ? semNome(l.nome) && !["cancelado", "recusado"].includes(l.status) : !f.status || f.status.includes(l.status);
+/** O mesmo status da lista de cada área (ex.: "Ingresso enviado · falta resgatar"). */
+const statusDe = (l: LinhaGeral, acoes: Acoes) =>
+  statusAmigavel(l.status, "gestor", { resgate: acoes.resgate, resgateAberto: acoes.resgates[l.id] });
+
+const passaFiltro = (f: Filtro, l: LinhaGeral, acoes: Acoes) =>
+  f === "todos" ? true
+    : f === "ativos" ? ATIVOS.includes(l.status)
+      : f === "sem_nome" ? semNome(l.nome) && !["cancelado", "recusado"].includes(l.status)
+        : statusDe(l, acoes).rotulo === f.slice("status:".length);
 
 export function ListaGeral({ linhas, acoes }: { linhas: LinhaGeral[]; acoes: Acoes }) {
-  const [filtro, setFiltro] = useState<Filtro>("ativos");
+  const [filtroEscolhido, setFiltro] = useState<Filtro>("ativos");
   const [area, setArea] = useState("");
   const [busca, setBusca] = useState("");
   const [ordem, setOrdem] = useState<Ordem>("area");
@@ -74,9 +78,24 @@ export function ListaGeral({ linhas, acoes }: { linhas: LinhaGeral[]; acoes: Aco
     }
     return true;
   });
-  const conta = (f: (typeof FILTROS)[number]) => base.filter((l) => passaFiltro(f, l)).length;
-  const atual = FILTROS.find((f) => f.id === filtro)!;
-  const visiveis = base.filter((l) => passaFiltro(atual, l));
+  const conta = (f: Filtro) => base.filter((l) => passaFiltro(f, l, acoes)).length;
+  // um filtro por status que aparece no evento (todas as áreas), na ordem do processo
+  const porStatus = new Map<string, number>();
+  for (const l of linhas) {
+    const rotulo = statusDe(l, acoes).rotulo;
+    const ordem = ORDEM_STATUS.includes(l.status) ? ORDEM_STATUS.indexOf(l.status) : 99;
+    porStatus.set(rotulo, Math.min(ordem, porStatus.get(rotulo) ?? 99));
+  }
+  const filtrosStatus = [...porStatus.entries()].sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0], "pt-BR"));
+  const chips: { id: Filtro; rotulo: string }[] = [
+    { id: "ativos", rotulo: "Todos ativos" },
+    ...filtrosStatus.map(([rotulo]) => ({ id: `status:${rotulo}` as Filtro, rotulo })),
+    ...(conta("sem_nome") > 0 ? [{ id: "sem_nome" as Filtro, rotulo: "Nome a informar" }] : []),
+    { id: "todos", rotulo: "Tudo" },
+  ];
+  // o status escolhido sumiu (ex.: todos foram enviados): volta para "Todos ativos"
+  const filtro: Filtro = chips.some((c) => c.id === filtroEscolhido) ? filtroEscolhido : "ativos";
+  const visiveis = base.filter((l) => passaFiltro(filtro, l, acoes));
 
   const rodar = (l: LinhaGeral, f: (ids: string[]) => Promise<Resultado>, confirmar?: string) => {
     if (confirmar && !confirm(confirmar)) return;
@@ -111,11 +130,11 @@ export function ListaGeral({ linhas, acoes }: { linhas: LinhaGeral[]; acoes: Aco
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
-        {FILTROS.filter((f) => (f.id !== "sem_nome" || conta(f) > 0) && (acoes.facial || f.id !== "pendente_facial")).map((f) => (
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar por status">
+        {chips.map((f) => (
           <button key={f.id} onClick={() => setFiltro(f.id)} aria-pressed={f.id === filtro}
             className={clsx("rounded-full px-3 py-1 text-sm font-medium", f.id === filtro ? "bg-mrv-700 text-white" : "bg-white text-mrv-700 ring-1 ring-borda hover:bg-mrv-50")}>
-            {f.rotulo} <span className="tabular opacity-70">{conta(f)}</span>
+            {f.rotulo} <span className="tabular opacity-70">{conta(f.id)}</span>
           </button>
         ))}
       </div>
@@ -172,6 +191,7 @@ function TabelaSetor({ setor, todas, linhas, ordem, nomesPorId, pendente, acoes,
             {ordenadas.length === 0 && <tr><td colSpan={6} className="py-8 text-center text-cinza">Nenhum ingresso neste filtro.</td></tr>}
             {ordenadas.map((l, i) => {
               const anfitriao = l.convidado_de ? nomesPorId.get(l.convidado_de) ?? l.convidado_de_nome : null;
+              const selo = <SeloStatus status={l.status} para="gestor" resgate={acoes.resgate} resgateAberto={acoes.resgates[l.id]} />;
               const detalhes = [
                 anfitriao ? `${setor === "camarote" ? "Convidado do anfitrião" : "Acompanhante de"} ${anfitriao}` : setor === "camarote" ? "Anfitrião" : "Convidado",
                 l.indicacao_de && `Indicação: ${l.indicacao_de}`,
@@ -214,7 +234,7 @@ function TabelaSetor({ setor, todas, linhas, ordem, nomesPorId, pendente, acoes,
                             className="rounded-lg px-2.5 py-1.5 text-xs font-bold text-red-700 ring-1 ring-red-300 hover:bg-red-50 disabled:opacity-50">Pendente facial</button>
                         )}
                         {acoes.digital ? (
-                          <Selo tom="verde">Pronto · envio digital</Selo>
+                          selo
                         ) : (
                           <button disabled={pendente} onClick={() => rodar(l, acoes.enviados)}
                             className="rounded-lg bg-mrv-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-mrv-700 disabled:opacity-50">Enviar ingresso</button>
@@ -222,7 +242,7 @@ function TabelaSetor({ setor, todas, linhas, ordem, nomesPorId, pendente, acoes,
                       </span>
                     ) : l.status === "facial_pendente" || l.status === "aprovado" ? (
                       <span className="inline-flex items-center gap-1.5">
-                        <Selo tom="vermelho">Pendente facial</Selo>
+                        {selo}
                         {l.celular && (
                           <a href={linkWhatsApp(l.celular, textoGaloId({ nome: l.nome ?? "", evento: acoes.evento, setor: l.setor, token: l.token }))} target="_blank" rel="noopener noreferrer"
                             className="rounded-md bg-[#25D366]/15 px-2 py-1 text-xs font-semibold text-[#0d7a3a] hover:bg-[#25D366]/25">WhatsApp</a>
@@ -232,17 +252,17 @@ function TabelaSetor({ setor, todas, linhas, ordem, nomesPorId, pendente, acoes,
                       </span>
                     ) : l.status === "enviado" ? (
                       <span className="inline-flex items-center gap-2">
-                        <Selo tom="verde">Enviado</Selo>
+                        {selo}
                         <button disabled={pendente} onClick={() => rodar(l, acoes.desfazerEnvio, `Desfazer o envio de ${l.nome}?`)}
                           className="text-xs text-cinza hover:text-tinta hover:underline">desfazer</button>
                       </span>
                     ) : l.status === "solicitado" ? (
                       <span className="inline-flex items-center gap-1.5">
-                        <SeloStatus status={l.status} />
+                        {selo}
                         <button disabled={pendente} onClick={() => rodar(l, acoes.validar, `Validar ${l.nome} em nome da área ${l.area_nome}?`)}
                           className="rounded-lg bg-mrv-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-mrv-700 disabled:opacity-50">Validar</button>
                       </span>
-                    ) : <SeloStatus status={l.status} />}
+                    ) : selo}
                   </td>
                 </tr>
               );
