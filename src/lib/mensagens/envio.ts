@@ -552,23 +552,44 @@ export async function enviarIngressosDigitais(evento: string, autor?: string | n
     .filter((d) => d.ingresso_id && !d.enviado_em).map((d) => d.ingresso_id!);
   const res = { enviados: [] as string[], semEmail: [] as string[], falhas: [] as string[], simulado: !envioReal() };
   if (!pendentes.length) return res;
-  const resgate = !!(ev as EventoVars | null)?.resgate_unico;
   const { data: ings } = await sb.from("v_ingressos").select("id, nome, email, setor, token, status").in("id", pendentes);
   for (const i of (ings ?? []) as { id: string; nome: string | null; email: string | null; setor: Setor; token: string; status: string }[]) {
     if (i.status !== "facial_ok") continue; // só quem está pronto para envio
     if (!i.email) { res.semEmail.push(i.nome ?? i.id); continue; }
-    const r = await enviarModelo([{
-      tipo: resgate ? "ingresso_resgate" : "ingresso_digital", para: { nome: i.nome, email: i.email }, evento_id: evento, ingresso_id: i.id,
-      vars: { ...varsEvento(ev as EventoVars), nome: primeiroNome(i.nome), setor: rotuloSetor(i.setor, (ev as EventoVars).nomes_setores), link: linkTorcedor(i.token) },
-      // resgate único: o link da Eventim nunca vai no e-mail; o botão leva ao passo a passo
-      botao: resgate
-        ? { rotulo: "Ver passo a passo e resgatar", url: linkTorcedor(i.token) }
-        : { rotulo: "Baixar meu ingresso", url: `${siteUrl()}/i/${i.token}/ingresso` },
-    }], { autor });
+    const r = await enviarModelo([itemIngressoDigital(ev as EventoVars, { ...i, email: i.email })], { autor });
     if (r.enviados || r.simulados) res.enviados.push(i.id);
     else res.falhas.push(`${i.nome}: ${r.erros.join("; ")}`);
   }
   return res;
+}
+
+function itemIngressoDigital(ev: EventoVars, i: { id: string; nome: string | null; email: string; setor: Setor; token: string }): ItemEnvio {
+  const resgate = !!ev.resgate_unico;
+  return {
+    tipo: resgate ? "ingresso_resgate" : "ingresso_digital", para: { nome: i.nome, email: i.email }, evento_id: ev.id, ingresso_id: i.id,
+    vars: { ...varsEvento(ev), nome: primeiroNome(i.nome), setor: rotuloSetor(i.setor, ev.nomes_setores), link: linkTorcedor(i.token) },
+    // resgate único: o link da Eventim nunca vai no e-mail; o botão leva ao passo a passo
+    botao: resgate
+      ? { rotulo: "Ver passo a passo e resgatar", url: linkTorcedor(i.token) }
+      : { rotulo: "Baixar meu ingresso", url: `${siteUrl()}/i/${i.token}/ingresso` },
+  };
+}
+
+/**
+ * Reenvia o e-mail do ingresso (ex.: depois de corrigir o e-mail do convidado). Manda o mesmo ingresso e o
+ * mesmo link de antes para o e-mail atual; não mexe na distribuição, no "Enviado" nem no resgate.
+ */
+export async function reenviarIngressoDigital(ingresso: string, autor?: string | null): Promise<ResultadoEnvio> {
+  const sb = await supabaseServico();
+  const { data: dig } = await sb.from("ingressos_digitais").select("evento_id, enviado_em").eq("ingresso_id", ingresso).maybeSingle();
+  if (!dig?.enviado_em) throw new Error("Este ingresso ainda não foi enviado. Use “Enviar ingressos”.");
+  const [{ data: ev }, { data: i }] = await Promise.all([
+    sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, resgate_unico, orientacoes_convidado, nomes_setores").eq("id", dig.evento_id).single(),
+    sb.from("v_ingressos").select("id, nome, email, setor, token, status").eq("id", ingresso).maybeSingle(),
+  ]);
+  if (!i || i.status === "cancelado") throw new Error("Convidado não encontrado ou cancelado.");
+  if (!i.email) throw new Error("Este convidado está sem e-mail. Cadastre o e-mail antes de reenviar.");
+  return enviarModelo([itemIngressoDigital(ev as EventoVars, i as { id: string; nome: string | null; email: string; setor: Setor; token: string })], { autor });
 }
 
 // ---------------------------------------------------------------- anexo da convocação (PDF)

@@ -3,8 +3,8 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { falha, type Resultado } from "@/lib/erros";
 import { apagarFoto, salvarFoto } from "@/lib/fotos";
-import { enviarIngressosDigitais } from "@/lib/mensagens/envio";
-import { exigirStaff } from "@/lib/sessao";
+import { enviarIngressosDigitais, reenviarIngressoDigital } from "@/lib/mensagens/envio";
+import { exigirAdmin, exigirStaff } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
 import type { Setor } from "@/lib/tipos";
 import { lerLinks, lerNominal } from "./ler-nominal";
@@ -115,4 +115,26 @@ export async function liberarResgate(evento: string, id: string): Promise<Result
   if (error) return falha(error);
   revalidatePath(caminho(evento));
   return { ok: true, mensagem: "Novo resgate liberado. O convidado já pode tentar de novo pela página pessoal." };
+}
+
+/** Corrige o e-mail do convidado (mesmo já enviado). O ingresso e o link continuam os mesmos. */
+export async function alterarEmail(evento: string, ingresso: string, email: string): Promise<Resultado> {
+  await exigirAdmin();
+  const { data, error } = await (await supabaseServidor()).rpc("alterar_email_ingresso", { p_ingresso: ingresso, p_email: email });
+  if (error) return falha(error);
+  revalidatePath(caminho(evento));
+  return { ok: true, mensagem: `E-mail alterado para ${data}. Se o ingresso já tinha sido enviado, clique em “reenviar” para mandar para o e-mail novo.` };
+}
+
+/** Manda de novo o e-mail do ingresso já enviado (mesmo ingresso, mesmo link) para o e-mail atual. */
+export async function reenviar(evento: string, ingresso: string): Promise<Resultado> {
+  const s = await exigirAdmin();
+  try {
+    const r = await reenviarIngressoDigital(ingresso, s.userId);
+    revalidatePath(caminho(evento));
+    if (r.falhas) return { ok: false, erro: `Não foi possível reenviar: ${r.erros.join("; ")}` };
+    return { ok: true, mensagem: r.simulados ? "Reenviado (modo sem e-mail real: ficou na caixa de saída)." : "Ingresso reenviado para o e-mail atual." };
+  } catch (e) {
+    return falha(e);
+  }
 }

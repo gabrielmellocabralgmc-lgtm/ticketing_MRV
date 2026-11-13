@@ -7,7 +7,7 @@ import { formatarCpf } from "@/lib/cpf";
 import { dataHora } from "@/lib/formato";
 import { linkTorcedor } from "@/lib/mensagens";
 import { type Setor, type StatusIngresso } from "@/lib/tipos";
-import { colarLinks, desatribuir, distribuir, enviar, liberarResgate, liberarSemEmail, remover, subirPdf } from "./actions";
+import { alterarEmail, colarLinks, desatribuir, distribuir, enviar, liberarResgate, liberarSemEmail, reenviar, remover, subirPdf } from "./actions";
 import { NomeSetor } from "@/components/setores";
 
 export interface Digital {
@@ -124,7 +124,16 @@ export function PainelDigitais({ evento, setores, digitais, convidados, resgate 
                     </td>
                     <td className="px-3 py-2 text-xs">{d.titular_nome || d.titular_cpf ? <>{d.titular_nome}{d.titular_cpf && <div className="font-mono">{formatarCpf(d.titular_cpf)}</div>}</> : <span className="text-cinza">genérico</span>}</td>
                     <td className="px-3 py-2">
-                      {c ? <><div className="font-medium">{c.nome}</div><div className="text-xs text-cinza">{c.area_nome}{c.email ? ` · ${c.email}` : " · sem e-mail"}</div></> : <span className="text-cinza">—</span>}
+                      {c ? <>
+                        <div className="font-medium">{c.nome}</div>
+                        <div className="text-xs text-cinza">{c.area_nome}{c.email ? ` · ${c.email}` : " · sem e-mail"}{" "}
+                          <button disabled={pendente} className="font-semibold text-mrv-700 hover:underline"
+                            onClick={() => {
+                              const novo = prompt(`E-mail de ${c.nome ?? "convidado"}:${d.enviado_em ? "\n(O ingresso continua o mesmo. Depois, clique em “reenviar” para mandar para o e-mail novo.)" : ""}`, c.email ?? "");
+                              if (novo !== null && novo.trim() && novo.trim().toLowerCase() !== (c.email ?? "").toLowerCase()) rodar(() => alterarEmail(evento, c.id, novo));
+                            }}>{c.email ? "alterar e-mail" : "incluir e-mail"}</button>
+                        </div>
+                      </> : <span className="text-cinza">—</span>}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       {resgate && d.resgate_aberto_em ? <Selo tom={c?.status === "confirmado" ? "verde" : "amarelo"}>{c?.status === "confirmado" ? "✓ No app · " : "Resgatado "}{dataHora(d.resgate_aberto_em)}</Selo>
@@ -139,6 +148,10 @@ export function PainelDigitais({ evento, setores, digitais, convidados, resgate 
                         {resgate && d.resgate_aberto_em && c?.status !== "confirmado" && (
                           <button disabled={pendente} onClick={() => rodar(() => liberarResgate(evento, d.id), `Liberar um novo resgate para ${c?.nome ?? "este convidado"}? Faça isso só se o ingresso NÃO apareceu no app dele (confira com a pessoa).`)}
                             className="text-xs font-semibold text-mrv-700 hover:underline">liberar novo resgate</button>
+                        )}
+                        {c && d.enviado_em && c.email && (
+                          <button disabled={pendente} onClick={() => rodar(() => reenviar(evento, c.id), `Reenviar o ingresso de ${c.nome} para ${c.email}? Vai o mesmo ingresso${resgate ? " e o mesmo link de resgate" : ""} de antes.`)}
+                            className="rounded-md px-2 py-1 text-xs font-semibold text-mrv-700 ring-1 ring-mrv-600/30 hover:bg-mrv-50">Reenviar</button>
                         )}
                         {c && <BotaoCopiar texto={`${linkTorcedor(c.token)}/ingresso`} rotulo="Link do ingresso" />}
                         {c && !d.enviado_em && c.status === "facial_ok" && (

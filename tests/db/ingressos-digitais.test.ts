@@ -90,6 +90,26 @@ describe("ingressos digitais (shows)", () => {
     const [{ id: dig }] = await b.sql<{ id: string }>(`select id from ingressos_digitais where ingresso_id = $1`, [i1]);
     await expect(b.como(adm, `select dig_remover($1)`, [dig])).rejects.toThrow(/JA_ENVIADO/);
   });
+
+  it("Admin corrige o e-mail de quem já recebeu: só o contato muda (ingresso, link, envio e status iguais)", async () => {
+    const ev = await show();
+    const [i1] = await pedir(ev, [nova("Gina Alves")]);
+    await b.como(adm, `select dig_adicionar($1, 'pista', '[{"tipo":"link","url":"https://ingressos.exemplo/g"}]')`, [ev]);
+    await b.como(adm, `select dig_atribuir($1)`, [ev]);
+    await b.como(adm, `select dig_marcar_enviados($1)`, [[i1]]);
+    const antes = await b.sql(`select d.id, d.url, d.enviado_em, i.status, i.token from ingressos_digitais d join ingressos i on i.id = d.ingresso_id where i.id = $1`, [i1]);
+
+    await expect(b.como(respDH, `select alterar_email_ingresso($1, 'x@novo.com')`, [i1])).rejects.toThrow(/SEM_PERMISSAO/);
+    await expect(b.como(mkt, `select alterar_email_ingresso($1, 'x@novo.com')`, [i1])).rejects.toThrow(/SEM_PERMISSAO/);
+    await expect(b.como(adm, `select alterar_email_ingresso($1, 'sem-arroba')`, [i1])).rejects.toThrow(/VALOR_INVALIDO/);
+    await b.como(adm, `select alterar_email_ingresso($1, '  Gina.Nova@Exemplo.com ')`, [i1]);
+
+    const [{ email }] = await b.sql<{ email: string }>(`select p.email from ingressos i join pessoas p on p.id = i.pessoa_id where i.id = $1`, [i1]);
+    expect(email).toBe("gina.nova@exemplo.com");
+    expect(await b.sql(`select d.id, d.url, d.enviado_em, i.status, i.token from ingressos_digitais d join ingressos i on i.id = d.ingresso_id where i.id = $1`, [i1])).toEqual(antes);
+    const [{ n }] = await b.sql<{ n: number }>(`select count(*)::int n from auditoria where entidade_id = $1 and detalhes->>'campo' = 'email'`, [i1]);
+    expect(n).toBe(1);
+  });
 });
 
 describe("criação do evento: camarote opcional e cotas personalizadas", () => {
