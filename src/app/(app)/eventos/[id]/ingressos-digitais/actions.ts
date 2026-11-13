@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { falha, type Resultado } from "@/lib/erros";
 import { apagarFoto, salvarFoto } from "@/lib/fotos";
-import { enviarIngressosDigitais, reenviarIngressoDigital } from "@/lib/mensagens/envio";
+import { enviarIngressosDigitais, lembrarResgate, reenviarIngressoDigital, resumoEnvio } from "@/lib/mensagens/envio";
 import { exigirAdmin, exigirStaff } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
 import type { Setor } from "@/lib/tipos";
@@ -134,6 +134,23 @@ export async function reenviar(evento: string, ingresso: string): Promise<Result
     revalidatePath(caminho(evento));
     if (r.falhas) return { ok: false, erro: `Não foi possível reenviar: ${r.erros.join("; ")}` };
     return { ok: true, mensagem: r.simulados ? "Reenviado (modo sem e-mail real: ficou na caixa de saída)." : "Ingresso reenviado para o e-mail atual." };
+  } catch (e) {
+    return falha(e);
+  }
+}
+
+/** Link de resgate único: lembra por e-mail quem já recebeu e ainda não resgatou. */
+export async function lembrarQuemNaoResgatou(evento: string): Promise<Resultado> {
+  const s = await exigirAdmin();
+  try {
+    const r = await lembrarResgate(evento, s.userId);
+    revalidatePath(caminho(evento));
+    const total = r.enviados + r.simulados + r.falhas;
+    if (!total && !r.semEmail.length) return { ok: false, erro: "Ninguém para lembrar: todos que receberam já resgataram." };
+    const partes = [`Lembrete de resgate: ${resumoEnvio(r)}`];
+    if (r.semEmail.length) partes.push(`${r.semEmail.length} sem e-mail (lembre pelo WhatsApp): ${r.semEmail.slice(0, 5).join(", ")}${r.semEmail.length > 5 ? "…" : ""}`);
+    if (r.falhas) partes.push(r.erros.slice(0, 2).join(" | "));
+    return r.falhas ? { ok: false, erro: partes.join(". ") + "." } : { ok: true, mensagem: partes.join(". ") + "." };
   } catch (e) {
     return falha(e);
   }

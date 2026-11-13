@@ -34,7 +34,7 @@ export const envioReal = () => !!process.env.RESEND_API_KEY;
 /** E-mails que o convidado recebe: levam a capa do evento, quando houver. */
 /** E-mails dos gestores das áreas: levam o mapa do evento, quando houver. */
 const PARA_GESTOR = new Set(["convocacao_area", "lembrete_area", "validacao_pendente"]);
-const PARA_CONVIDADO = new Set(["convite_convidado", "galo_id", "ingresso_enviado", "lembrete_facial", "ingresso_digital", "ingresso_resgate"]);
+const PARA_CONVIDADO = new Set(["convite_convidado", "galo_id", "ingresso_enviado", "lembrete_facial", "ingresso_digital", "ingresso_resgate", "lembrete_resgate"]);
 
 export async function enviarModelo(itens: ItemEnvio[], opcoes: { autor?: string | null; modelo?: { assunto: string; corpo: string }; anexos?: { nome: string; base64: string }[] } = {}): Promise<ResultadoEnvio> {
   const res: ResultadoEnvio = { enviados: 0, simulados: 0, falhas: 0, erros: [] };
@@ -590,6 +590,32 @@ export async function reenviarIngressoDigital(ingresso: string, autor?: string |
   if (!i || i.status === "cancelado") throw new Error("Convidado não encontrado ou cancelado.");
   if (!i.email) throw new Error("Este convidado está sem e-mail. Cadastre o e-mail antes de reenviar.");
   return enviarModelo([itemIngressoDigital(ev as EventoVars, i as { id: string; nome: string | null; email: string; setor: Setor; token: string })], { autor });
+}
+
+/** Quem recebeu o link de resgate único e ainda não resgatou (e tem e-mail). */
+export async function pendentesDeResgate(evento: string) {
+  const sb = await supabaseServico();
+  const { data: digs } = await sb.from("ingressos_digitais").select("ingresso_id, enviado_em, resgate_aberto_em").eq("evento_id", evento);
+  const ids = ((digs ?? []) as { ingresso_id: string | null; enviado_em: string | null; resgate_aberto_em: string | null }[])
+    .filter((d) => d.ingresso_id && d.enviado_em && !d.resgate_aberto_em).map((d) => d.ingresso_id!);
+  if (!ids.length) return [];
+  const { data: ings } = await sb.from("v_ingressos").select("id, nome, email, setor, token, status").in("id", ids);
+  return ((ings ?? []) as { id: string; nome: string | null; email: string | null; setor: Setor; token: string; status: string }[])
+    .filter((i) => i.status !== "cancelado");
+}
+
+/** Lembrete de resgate (botão manual): mesmo link de antes, só para quem ainda não resgatou. */
+export async function lembrarResgate(evento: string, autor?: string | null) {
+  const sb = await supabaseServico();
+  const { data: ev } = await sb.from("eventos").select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, resgate_unico, orientacoes_convidado, nomes_setores").eq("id", evento).single();
+  if (!(ev as EventoVars | null)?.resgate_unico) throw new Error("Este evento não usa link de resgate de uso único.");
+  const pendentes = await pendentesDeResgate(evento);
+  const semEmail = pendentes.filter((i) => !i.email).map((i) => i.nome ?? i.id);
+  const r = await enviarModelo(pendentes.filter((i) => i.email).map((i) => ({
+    ...itemIngressoDigital(ev as EventoVars, { ...i, email: i.email! }),
+    tipo: "lembrete_resgate",
+  })), { autor });
+  return { ...r, semEmail };
 }
 
 // ---------------------------------------------------------------- anexo da convocação (PDF)

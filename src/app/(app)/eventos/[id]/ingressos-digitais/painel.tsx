@@ -7,7 +7,7 @@ import { formatarCpf } from "@/lib/cpf";
 import { dataHora } from "@/lib/formato";
 import { linkTorcedor } from "@/lib/mensagens";
 import { type Setor, type StatusIngresso } from "@/lib/tipos";
-import { alterarEmail, colarLinks, desatribuir, distribuir, enviar, liberarResgate, liberarSemEmail, reenviar, remover, subirPdf } from "./actions";
+import { alterarEmail, colarLinks, desatribuir, distribuir, enviar, lembrarQuemNaoResgatou, liberarResgate, liberarSemEmail, reenviar, remover, subirPdf } from "./actions";
 import { NomeSetor } from "@/components/setores";
 
 export interface Digital {
@@ -42,6 +42,8 @@ export function PainelDigitais({ evento, setores, digitais, convidados, resgate 
   const paraEnviar = doSetor.filter((d) => d.ingresso_id && !d.enviado_em && porConvidado.get(d.ingresso_id)?.status === "facial_ok");
   const semEmail = paraEnviar.filter((d) => !porConvidado.get(d.ingresso_id!)?.email);
   const aguardando = convSetor.filter((c) => !PRONTOS.includes(c.status) && c.status !== "presente").length;
+  // resgate único: receberam e ainda não resgataram (todos os setores; o lembrete vai para todos de uma vez)
+  const naoResgatados = resgate ? digitais.filter((d) => d.ingresso_id && d.enviado_em && !d.resgate_aberto_em && porConvidado.has(d.ingresso_id)).length : 0;
 
   return (
     <div className="space-y-5">
@@ -85,6 +87,7 @@ export function PainelDigitais({ evento, setores, digitais, convidados, resgate 
             ? <>Enviar manda o e-mail com o passo a passo e o botão <b>“Ver passo a passo e resgatar”</b> (o link da Eventim não vai no e-mail) e marca como <b>Enviado</b>.</>
             : <>Enviar manda o e-mail com <b>“Baixar meu ingresso”</b> e marca como <b>Enviado</b>.</>}
           {aguardando > 0 && <> Há <b>{aguardando}</b> convidado(s) ainda em validação/facial: eles entram quando ficarem prontos.</>}
+          {resgate && <> <b>Lembrar quem não resgatou</b> manda o e-mail “Lembrete para resgatar o ingresso” (texto em Configurações › E-mails) só para quem recebeu e ainda não resgatou, com o mesmo link de antes.</>}
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <Botao variante="secundario" disabled={pendente} onClick={() => rodar(() => distribuir(evento))}>Distribuir ingressos</Botao>
@@ -92,6 +95,12 @@ export function PainelDigitais({ evento, setores, digitais, convidados, resgate 
             onClick={() => rodar(() => enviar(evento), `Enviar ${paraEnviar.length} ingresso(s) por e-mail agora?`)}>
             {pendente ? "Processando…" : `Enviar ingressos (${paraEnviar.length})`}
           </Botao>
+          {resgate && (
+            <Botao variante="secundario" disabled={pendente || !naoResgatados}
+              onClick={() => rodar(() => lembrarQuemNaoResgatou(evento), `Mandar o lembrete de resgate por e-mail para ${naoResgatados} convidado(s) que receberam e ainda não resgataram?`)}>
+              {`Lembrar quem não resgatou (${naoResgatados})`}
+            </Botao>
+          )}
         </div>
         {semEmail.length > 0 && (
           <div className="mt-3"><Aviso tom="alerta">{semEmail.length} convidado(s) sem e-mail: não recebem pelo e-mail. Na tabela abaixo, copie o <b>Link do ingresso</b>, mande pelo WhatsApp e clique em <b>Marcar como enviado</b>.</Aviso></div>
