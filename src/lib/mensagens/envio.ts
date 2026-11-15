@@ -3,6 +3,7 @@ import "server-only";
 // (domínio ingressos.weareact3.com); sem ela (modo demo/local), fica registrado como "simulado".
 // Tudo vai para a tabela `envios` (caixa de saída).
 import { dataHora, dataLonga } from "@/lib/formato";
+import { formatarCpf } from "@/lib/cpf";
 import { CHAVE_LOGO, chaveCapaEvento, chaveMapaEvento, imagensDisponiveis } from "@/lib/imagens";
 import { linkTorcedor, siteUrl } from "@/lib/mensagens";
 import { canalEmail } from "@/lib/mensagens/email";
@@ -174,13 +175,14 @@ interface IngressoContato {
   status: string;
   nome: string | null;
   email: string | null;
+  cpf: string | null;
   token: string;
 }
 
 async function carregarContatos(ids: string[]) {
   if (!ids.length) return { ingressos: [] as IngressoContato[], eventos: new Map<string, EventoVars>() };
   const sb = await supabaseServico();
-  const { data } = await sb.from("v_ingressos").select("id, evento_id, setor, status, nome, email, token").in("id", ids);
+  const { data } = await sb.from("v_ingressos").select("id, evento_id, setor, status, nome, email, cpf, token").in("id", ids);
   const ingressos = (data ?? []) as IngressoContato[];
   const evIds = [...new Set(ingressos.map((i) => i.evento_id))];
   const { data: evs } = evIds.length
@@ -212,7 +214,13 @@ export async function avisarEnviados(ids: string[], autor?: string | null): Prom
   const alvo = ingressos.filter((i) => i.status === "enviado" && i.email);
   return enviarModelo(alvo.map((i) => ({
     tipo: "ingresso_enviado", para: { nome: i.nome, email: i.email! }, evento_id: i.evento_id, ingresso_id: i.id,
-    vars: { ...varsEvento(eventos.get(i.evento_id)!), nome: primeiroNome(i.nome), setor: rotuloSetor(i.setor, eventos.get(i.evento_id)?.nomes_setores), link: linkTorcedor(i.token) },
+    vars: {
+      ...varsEvento(eventos.get(i.evento_id)!),
+      nome: primeiroNome(i.nome),
+      setor: rotuloSetor(i.setor, eventos.get(i.evento_id)?.nomes_setores),
+      cpf: i.cpf ? formatarCpf(i.cpf) : "",
+      link: linkTorcedor(i.token)
+    },
     botao: { rotulo: "Recebi meu ingresso", url: linkTorcedor(i.token) },
   })), { autor });
 }
