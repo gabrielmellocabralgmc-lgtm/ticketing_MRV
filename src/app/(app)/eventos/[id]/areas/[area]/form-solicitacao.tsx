@@ -6,6 +6,7 @@ import { separarLista } from "@/lib/parse-lista";
 import type { Setor } from "@/lib/tipos";
 import type { Resultado } from "@/lib/erros";
 import { solicitar, type PessoaForm } from "./actions";
+import { buscarHistoricoCPF } from "../galo-actions";
 
 const vazia = (): PessoaForm => ({ nome: "", cpf: "", celular: "", email: "" });
 
@@ -58,6 +59,8 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
   const [texto, setTexto] = useState("");
   const [retorno, setRetorno] = useState<{ ok: boolean; msg: string } | null>(null);
   const [pendente, iniciar] = useTransition();
+  const [buscandoCPF, setBuscandoCPF] = useState<{ [key: number]: boolean }>({});
+  const [historicoCPF, setHistoricoCPF] = useState<{ [key: string]: any }>({});
 
   // sem titular, linha vazia não conta (o formulário já abre com uma linha por ingresso do saldo)
   const preenchidas = pessoas.filter((p, i) => (i === 0 && !semTitular) || p.nome || p.cpf || p.celular || p.email);
@@ -68,7 +71,32 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
   // Sem saldo para o pedido inteiro: só dá para entrar na lista de espera (sem garantia)
   const excede = preenchidas.length > saldo;
 
-  const set = (i: number, campo: keyof PessoaForm, v: string) => setPessoas((ps) => ps.map((p, j) => (j === i ? { ...p, [campo]: v } : p)));
+  const set = (i: number, campo: keyof PessoaForm, v: string) => {
+    setPessoas((ps) => ps.map((p, j) => (j === i ? { ...p, [campo]: v } : p)));
+
+    // Se é CPF e tem 11 dígitos, buscar histórico para Admin com avulsos
+    if (campo === "cpf" && avulsos && somenteDigitos(v).length === 11) {
+      setBuscandoCPF((s) => ({ ...s, [i]: true }));
+      // Debounce de 300ms para não fazer muitas requisições
+      const timer = setTimeout(async () => {
+        const r = await buscarHistoricoCPF(v);
+        if (r.ok && r.data) {
+          setHistoricoCPF((h) => ({ ...h, [somenteDigitos(v)]: r.data }));
+          // Pré-preencher os dados
+          setPessoas((ps) => ps.map((p, j) =>
+            j === i ? {
+              ...p,
+              nome: p.nome || r.data.nome || "",
+              email: p.email || r.data.email || "",
+              celular: p.celular || r.data.celular || ""
+            } : p
+          ));
+        }
+        setBuscandoCPF((s) => ({ ...s, [i]: false }));
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  };
 
   const enviar = () => {
     setTocado(true);
@@ -121,11 +149,17 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
           <fieldset key={i} className="rounded-xl p-3 ring-1 ring-black/10">
             <legend className="px-1 text-xs font-semibold tracking-wide text-tinta/60 uppercase">{avulsos || semTitular ? `Convidado ${i + 1}` : i === 0 ? "Titular" : `Convidado ${i}`}</legend>
             <div className={simples ? (exigirEmail ? "grid gap-3 sm:grid-cols-[2fr_1fr_1.4fr_auto]" : "grid gap-3 sm:grid-cols-[2fr_1fr_auto]") : "grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1.4fr_auto]"}>
-              <Campo rotulo={simples ? "Nome" : avulsos ? "Nome (pode informar depois)" : "Nome completo"} erro={e.nome}><Entrada value={p.nome} onChange={(ev) => set(i, "nome", ev.target.value)} autoComplete="off" /></Campo>
-              <Campo rotulo="CPF" erro={e.cpf}>
-                <Entrada value={p.cpf} inputMode="numeric" onChange={(ev) => set(i, "cpf", ev.target.value)}
-                  onBlur={(ev) => somenteDigitos(ev.target.value).length >= 9 && set(i, "cpf", formatarCpf(ev.target.value))} />
-              </Campo>
+              <div className="relative">
+                <Campo rotulo={simples ? "Nome" : avulsos ? "Nome (pode informar depois)" : "Nome completo"} erro={e.nome}><Entrada value={p.nome} onChange={(ev) => set(i, "nome", ev.target.value)} autoComplete="off" /></Campo>
+                {avulsos && p.nome && p.nome.trim().split(/\s+/).length < 2 && <span title="Nome incompleto (menos de 2 palavras)" className="absolute right-2 top-2 text-lg">🔔</span>}
+              </div>
+              <div className="relative">
+                <Campo rotulo="CPF" erro={e.cpf}>
+                  <Entrada value={p.cpf} inputMode="numeric" onChange={(ev) => set(i, "cpf", ev.target.value)}
+                    onBlur={(ev) => somenteDigitos(ev.target.value).length >= 9 && set(i, "cpf", formatarCpf(ev.target.value))} />
+                </Campo>
+                {buscandoCPF[i] && <span className="absolute right-2 top-2 text-sm text-tinta/50">buscando…</span>}
+              </div>
               {!simples && <>
               <Campo rotulo={avulsos ? "Celular (opcional)" : "Celular (WhatsApp)"} erro={e.celular}><Entrada value={p.celular} inputMode="tel" onChange={(ev) => set(i, "celular", ev.target.value)} placeholder="(31) 9…" /></Campo>
               </>}

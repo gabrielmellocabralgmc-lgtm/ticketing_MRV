@@ -20,6 +20,7 @@ import type { OpcaoSetor } from "../adicionar-opcoes";
 import { NomeEditavel } from "../nome-editavel";
 import { EditorCotas, type AreaCota } from "../editor-cotas";
 import { NomeSetor } from "@/components/setores";
+import { cancelarIngresso } from "../galo-actions";
 
 export interface LinhaPainel {
   id: string;
@@ -107,6 +108,11 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
           </button>
         ))}
       </div>
+
+      {/* Reservar ingressos (apenas para Admin no Galo) */}
+      {opcoes.some((o) => o.setor === "camarote" || o.setor === "arquibancada") && (
+        <ReservarIngressos evento={evento} setor={setor} areas={areas} areaPadrao={areaPadrao} />
+      )}
 
       {/* as mesmas ações do Admin: abatem da cota e entram aprovadas */}
       <AcoesConvidados key={setor} evento={evento} areas={areas} setores={opcoes} setorInicial={setor} areaInicial={areaPadrao}
@@ -202,6 +208,50 @@ function Grande({ rotulo, valor, laranja }: { rotulo: string; valor: number | st
   );
 }
 
+function ReservarIngressos({ evento, setor, areas, areaPadrao }: { evento: string; setor: Setor; areas: { id: string; nome: string }[]; areaPadrao: string }) {
+  const [pendente, iniciar] = useTransition();
+  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  const [area, setArea] = useState(areaPadrao);
+  const [qtd, setQtd] = useState("5");
+
+  const reservar = () => {
+    const q = parseInt(qtd) || 0;
+    if (q <= 0 || q > 100) {
+      setMsg({ ok: false, texto: "Digite um número entre 1 e 100." });
+      return;
+    }
+    iniciar(async () => {
+      const r = await reservarIngressos(evento, setor, area, q, `Reserva para ${setor}`);
+      setMsg({ ok: r.ok, texto: r.ok ? r.mensagem ?? "Pronto." : r.erro });
+      if (r.ok) {
+        setQtd("5");
+      }
+    });
+  };
+
+  return (
+    <div className="rounded-2xl border border-borda bg-white p-5">
+      <h3 className="mb-3 font-bold text-mrv-700">Reservar ingressos</h3>
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex-1 min-w-[200px]">
+          <label className="block text-xs font-semibold text-tinta/60 uppercase">Área</label>
+          <select value={area} onChange={(e) => setArea(e.target.value)} className="mt-1 w-full rounded-lg border border-borda px-3 py-2 text-sm">
+            {areas.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
+          </select>
+        </div>
+        <div className="flex-1 min-w-[100px]">
+          <label className="block text-xs font-semibold text-tinta/60 uppercase">Qtd.</label>
+          <Entrada type="number" value={qtd} onChange={(e) => setQtd(e.target.value)} inputMode="numeric" min="1" max="100" />
+        </div>
+        <Botao type="button" onClick={reservar} disabled={pendente} variante="secundario">
+          {pendente ? "Reservando…" : "Reservar"}
+        </Botao>
+      </div>
+      {msg && <div className="mt-2"><Aviso tom={msg.ok ? "ok" : "erro"}>{msg.texto}</Aviso></div>}
+    </div>
+  );
+}
+
 function TabelaSimples({ linhas, vazio, posicao, evento, facial = true, digitais = {} }: {
   linhas: LinhaPainel[]; vazio: string; posicao?: boolean; evento?: string; facial?: boolean; digitais?: Record<string, boolean>;
 }) {
@@ -250,6 +300,10 @@ function TabelaSimples({ linhas, vazio, posicao, evento, facial = true, digitais
                   {evento && (l.status === "facial_pendente" || l.status === "aprovado") && (
                     <button disabled={ocupado} onClick={() => rodar(() => facialOk(evento, [l.id]), `Confirmar que ${l.nome} já tem a facial cadastrada?`)}
                       className="ml-2 rounded-md px-2 py-0.5 text-xs font-semibold text-mrv-700 ring-1 ring-mrv-600 hover:bg-mrv-50">Facial OK</button>
+                  )}
+                  {evento && l.status !== "cancelado" && l.status !== "presente" && l.status !== "no_show" && (
+                    <button disabled={ocupado} onClick={() => rodar(() => cancelarIngresso(evento, l.id, `Cancelado pelo Admin`), `Cancelar ingresso de ${l.nome}? O saldo será devolvido.`)}
+                      className="ml-2 rounded-md px-2 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-red-300 hover:bg-red-50">Cancelar</button>
                   )}
                 </td>
               </tr>
