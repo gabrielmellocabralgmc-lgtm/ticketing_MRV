@@ -2,9 +2,11 @@
 
 -- 1. Adicionar "reservado" ao enum (antes de "solicitado")
 -- PostgreSQL não permite adicionar no meio, então recriamos o enum
--- Primeiro, drop de triggers que usam a coluna status
+-- Primeiro, dropar TODAS as constraints e triggers que usam status_ingresso
 drop trigger if exists _trg_status on ingressos;
 drop function if exists _trg_status();
+drop constraint if exists transicoes_pkey on transicoes;
+drop constraint if exists ingressos_status_fk on ingressos;
 
 alter type status_ingresso rename to status_ingresso_old;
 
