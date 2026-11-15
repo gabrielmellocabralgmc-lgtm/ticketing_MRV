@@ -17,7 +17,7 @@ export async function cancelarIngresso(evento: string, ingresso: string, motivo?
 
   if (error) return falha(error);
   atualizar(evento);
-  return { ok: true, mensagem: "Ingresso cancelado. O saldo foi devolvido à área.", data: { status: data as string } };
+  return { ok: true, mensagem: "Ingresso cancelado. O saldo foi devolvido à área." };
 }
 
 // Buscar histórico por CPF (para pré-preenchimento)
@@ -34,13 +34,13 @@ export async function buscarHistoricoCPF(cpf: string): Promise<Resultado<{
   const { data, error } = await sb.rpc("buscar_historico_cpf", { p_cpf: cpf });
 
   if (error) return falha(error);
-  if (!data || data.length === 0) return { ok: true, data: null };
+  if (!data || data.length === 0) return { ok: true, dados: null };
 
   const row = data[0];
   return {
     ok: true,
     mensagem: `Encontrado: ${row.nome} (${row.ultimo_evento})`,
-    data: {
+    dados: {
       pessoa_id: row.pessoa_id,
       nome: row.nome,
       email: row.email,
@@ -75,6 +75,6 @@ export async function reservarIngressos(
   return {
     ok: true,
     mensagem: `${qtd} ingresso(s) reservado(s). Clique em uma linha e selecione "Alocar" para atribuir à pessoa.`,
-    data: { criados: rows.length }
+    dados: { criados: rows.length }
   };
 }

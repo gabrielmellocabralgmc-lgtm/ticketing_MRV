@@ -20,7 +20,7 @@ import type { OpcaoSetor } from "../adicionar-opcoes";
 import { NomeEditavel } from "../nome-editavel";
 import { EditorCotas, type AreaCota } from "../editor-cotas";
 import { NomeSetor } from "@/components/setores";
-import { cancelarIngresso } from "../galo-actions";
+import { cancelarIngresso, reservarIngressos } from "../galo-actions";
 
 export interface LinhaPainel {
   id: string;

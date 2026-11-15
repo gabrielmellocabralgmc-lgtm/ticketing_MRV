@@ -60,7 +60,6 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
   const [retorno, setRetorno] = useState<{ ok: boolean; msg: string } | null>(null);
   const [pendente, iniciar] = useTransition();
   const [buscandoCPF, setBuscandoCPF] = useState<{ [key: number]: boolean }>({});
-  const [historicoCPF, setHistoricoCPF] = useState<{ [key: string]: { nome: string; email: string; celular: string } }>({});
 
   // sem titular, linha vazia não conta (o formulário já abre com uma linha por ingresso do saldo)
   const preenchidas = pessoas.filter((p, i) => (i === 0 && !semTitular) || p.nome || p.cpf || p.celular || p.email);
@@ -80,15 +79,14 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
       // Debounce de 300ms para não fazer muitas requisições
       const timer = setTimeout(async () => {
         const r = await buscarHistoricoCPF(v);
-        if (r.ok && r.data) {
-          setHistoricoCPF((h) => ({ ...h, [somenteDigitos(v)]: r.data }));
+        if (r.ok && r.dados) {
           // Pré-preencher os dados
           setPessoas((ps) => ps.map((p, j) =>
             j === i ? {
               ...p,
-              nome: p.nome || r.data.nome || "",
-              email: p.email || r.data.email || "",
-              celular: p.celular || r.data.celular || ""
+              nome: p.nome || r.dados?.nome || "",
+              email: p.email || r.dados?.email || "",
+              celular: p.celular || r.dados?.celular || ""
             } : p
           ));
         }
