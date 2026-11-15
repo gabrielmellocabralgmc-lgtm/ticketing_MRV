@@ -6,7 +6,7 @@ import { separarLista } from "@/lib/parse-lista";
 import type { Setor } from "@/lib/tipos";
 import type { Resultado } from "@/lib/erros";
 import { solicitar, type PessoaForm } from "./actions";
-import { buscarHistoricoCPF } from "../galo-actions";
+import { buscarHistoricoCPF } from "../../galo-actions";
 
 const vazia = (): PessoaForm => ({ nome: "", cpf: "", celular: "", email: "" });
 
