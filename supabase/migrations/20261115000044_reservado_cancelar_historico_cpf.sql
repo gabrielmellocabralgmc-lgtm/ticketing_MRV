@@ -1,26 +1,22 @@
 -- Novos status e funções para jogos do Galo: reservado, cancelar, histórico por CPF.
+-- NOTA: PostgreSQL não permite adicionar enum values no meio. Este script recria o tipo.
 
--- 1. Adicionar "reservado" ao enum (antes de "solicitado")
--- PostgreSQL não permite adicionar no meio, então recriamos o enum
--- Primeiro, dropar TODAS as constraints e triggers que usam status_ingresso
-drop trigger if exists _trg_status on ingressos;
-drop function if exists _trg_status();
-drop constraint if exists transicoes_pkey on transicoes;
-drop constraint if exists ingressos_status_fk on ingressos;
+begin;
 
-alter type status_ingresso rename to status_ingresso_old;
+-- Recria o enum com o novo "reservado" no início
+alter type status_ingresso rename to _status_ingresso_old;
 
 create type status_ingresso as enum (
-  'reservado',                -- novo: apenas Admin pode criar (antes de solicitado)
-  'convite_enviado',          -- vaga do Modo B criada, link gerado
-  'aguardando_preenchimento', -- convidado abriu o link
+  'reservado',
+  'convite_enviado',
+  'aguardando_preenchimento',
   'solicitado',
   'validado_area',
   'aprovado',
-  'facial_pendente',          -- passo a passo do Galo ID enviado
-  'facial_ok',                -- torcedor confirmou a biometria
-  'enviado',                  -- ingresso enviado no sistema do Atlético
-  'confirmado',               -- torcedor recebeu/aceitou o ingresso
+  'facial_pendente',
+  'facial_ok',
+  'enviado',
+  'confirmado',
   'presente',
   'convite_expirado',
   'lista_espera',
@@ -29,21 +25,23 @@ create type status_ingresso as enum (
   'no_show'
 );
 
--- Migrar as colunas de status para o novo enum
+-- Cast das colunas para o novo tipo
 alter table ingressos alter column status type status_ingresso using status::text::status_ingresso;
 alter table status_historico alter column de type status_ingresso using de::text::status_ingresso;
 alter table status_historico alter column para type status_ingresso using para::text::status_ingresso;
 alter table transicoes alter column de type status_ingresso using de::text::status_ingresso;
 alter table transicoes alter column para type status_ingresso using para::text::status_ingresso;
 
--- Atualizar a função status_consome para incluir "reservado"
+drop type _status_ingresso_old;
+
+-- Atualizar função status_consome
 drop function if exists status_consome(status_ingresso);
 create or replace function status_consome(s status_ingresso) returns boolean
 language sql immutable as $$
   select s not in ('reservado', 'convite_expirado', 'lista_espera', 'recusado', 'cancelado')
 $$;
 
-drop type status_ingresso_old;
+commit;
 
 -- 2. Função para cancelar ingresso (remove da lista e devolve a cota)
 create or replace function cancelar_ingresso(p_ingresso uuid, p_motivo text default '') returns text
