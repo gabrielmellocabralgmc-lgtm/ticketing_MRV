@@ -4,7 +4,7 @@
 import { useState, useTransition } from "react";
 import clsx from "clsx";
 import { BotaoCopiar } from "@/components/copiar";
-import { Aviso, Entrada, Selo } from "@/components/ui";
+import { Aviso, Botao, Entrada, Selo } from "@/components/ui";
 import { formatarCpf } from "@/lib/cpf";
 import { dataHora } from "@/lib/formato";
 import { normalizarTexto } from "@/lib/texto";
