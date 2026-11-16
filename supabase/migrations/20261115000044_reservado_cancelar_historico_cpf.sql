@@ -1,5 +1,40 @@
 -- Funções para jogos do Galo: cancelar, histórico por CPF, reservar
--- NOTA: O status "reservado" será adicionado ao enum depois via script separado.
+
+-- 1. Adicionar "reservado" ao enum status_ingresso
+alter type status_ingresso rename to status_ingresso_old;
+
+create type status_ingresso as enum (
+  'reservado',
+  'convite_enviado',
+  'aguardando_preenchimento',
+  'solicitado',
+  'validado_area',
+  'aprovado',
+  'facial_pendente',
+  'facial_ok',
+  'enviado',
+  'confirmado',
+  'presente',
+  'convite_expirado',
+  'lista_espera',
+  'recusado',
+  'cancelado',
+  'no_show'
+);
+
+alter table ingressos alter column status type status_ingresso using status::text::status_ingresso;
+alter table status_historico alter column de type status_ingresso using de::text::status_ingresso;
+alter table status_historico alter column para type status_ingresso using para::text::status_ingresso;
+alter table transicoes alter column de type status_ingresso using de::text::status_ingresso;
+alter table transicoes alter column para type status_ingresso using para::text::status_ingresso;
+
+drop function if exists status_consome(status_ingresso);
+create or replace function status_consome(s status_ingresso) returns boolean
+language sql immutable as $$
+  select s not in ('reservado', 'convite_expirado', 'lista_espera', 'recusado', 'cancelado')
+$$;
+
+drop type status_ingresso_old;
 
 -- 2. Função para cancelar ingresso (remove da lista e devolve a cota)
 create or replace function cancelar_ingresso(p_ingresso uuid, p_motivo text default '') returns text
