@@ -264,7 +264,7 @@ function ReservarIngressosForm(p: Comum) {
     <div>
       <h2 className="text-lg font-bold text-mrv-900">Reservar ingressos</h2>
       <p className="mb-3 text-sm text-tinta/60">
-        Cria ingressos com status "Reservado" para alocar depois. Sem preencher dados de pessoas ainda — você preenche quando quiser.
+        Cria ingressos com status &apos;Reservado&apos; para alocar depois. Sem preencher dados de pessoas ainda - você preenche quando quiser.
       </p>
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         {campos}
@@ -275,7 +275,7 @@ function ReservarIngressosForm(p: Comum) {
       {msg && <div className="mb-3"><Aviso tom={msg.ok ? "ok" : "erro"}>{msg.texto}</Aviso></div>}
       <Botao disabled={pendente || !area} onClick={() => iniciar(async () => {
         setMsg(null);
-        const r = await reservarIngressos(p.evento, setor, area, qtd, `Reserva via formulário`);
+        const r = await reservarIngressos(p.evento, setor, area, qtd, 'Reserva via formulário');
         if (!r.ok) return setMsg({ ok: false, texto: r.erro });
         setMsg({ ok: true, texto: `${qtd} ingresso(s) reservado(s)! Clique em "Abrir lista" para preencher os dados depois.` });
         setQtd(5);
