@@ -14,8 +14,9 @@ import { adicionarConvidadoAdmin, gerarLinkConvidados, type Anfitriao } from "./
 import type { OpcaoSetor } from "./adicionar-opcoes";
 import { FormSolicitacao } from "./areas/[area]/form-solicitacao";
 import { NomeSetor, useSetores } from "@/components/setores";
+import { reservarIngressos } from "./galo-actions";
 
-type Painel = "um" | "massa" | "link";
+type Painel = "um" | "massa" | "link" | "reservar";
 export interface PessoaDaLista { id: string; nome: string; setor: Setor }
 interface Comum {
   evento: string; areas: { id: string; nome: string }[]; setores: OpcaoSetor[]; anfitrioes: PessoaDaLista[];
@@ -34,6 +35,7 @@ export function AcoesConvidados(p: Comum) {
     { id: "um", rotulo: "+ Adicionar convidado" },
     { id: "massa", rotulo: "Adicionar convidados em massa" },
     { id: "link", rotulo: "Link para convidados" },
+    { id: "reservar", rotulo: "🔖 Reservar ingressos" },
   ];
   return (
     <div className="w-full space-y-3">
@@ -48,7 +50,7 @@ export function AcoesConvidados(p: Comum) {
           <div className="mb-1 flex justify-end">
             <button type="button" onClick={() => setAberto(null)} className="text-sm font-semibold text-tinta/60 hover:text-tinta">Fechar ✕</button>
           </div>
-          {aberto === "link" ? <GerarLink {...p} /> : <AdicionarConvidado key={aberto} {...p} massa={aberto === "massa"} />}
+          {aberto === "link" ? <GerarLink {...p} /> : aberto === "reservar" ? <ReservarIngressosForm {...p} /> : <AdicionarConvidado key={aberto} {...p} massa={aberto === "massa"} />}
         </Cartao>
       )}
     </div>
@@ -247,6 +249,38 @@ function GerarLink(p: Comum) {
           setGerado({ token: r.dados!.token, qtd, para, area: r.dados!.area, setor: r.dados!.setor });
         })}>
         {pendente ? "Gerando…" : `Gerar link (${qtd} lugar${qtd > 1 ? "es" : ""})`}
+      </Botao>
+    </div>
+  );
+}
+
+function ReservarIngressosForm(p: Comum) {
+  const { setor, area, saldo, campos } = useSetorArea(p);
+  const [qtd, setQtd] = useState(5);
+  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
+  const [pendente, iniciar] = useTransition();
+
+  return (
+    <div>
+      <h2 className="text-lg font-bold text-mrv-900">Reservar ingressos</h2>
+      <p className="mb-3 text-sm text-tinta/60">
+        Cria ingressos com status "Reservado" para alocar depois. Sem preencher dados de pessoas ainda — você preenche quando quiser.
+      </p>
+      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+        {campos}
+        <Campo rotulo="Quantos ingressos" dica={area ? `Disponível: ${saldo}` : undefined}>
+          <Entrada type="number" min={1} max={100} value={qtd} onChange={(e) => setQtd(Math.max(1, Math.min(100, Number(e.target.value) || 1)))} />
+        </Campo>
+      </div>
+      {msg && <div className="mb-3"><Aviso tom={msg.ok ? "ok" : "erro"}>{msg.texto}</Aviso></div>}
+      <Botao disabled={pendente || !area} onClick={() => iniciar(async () => {
+        setMsg(null);
+        const r = await reservarIngressos(p.evento, setor, area, qtd, `Reserva via formulário`);
+        if (!r.ok) return setMsg({ ok: false, texto: r.erro });
+        setMsg({ ok: true, texto: `${qtd} ingresso(s) reservado(s)! Clique em "Abrir lista" para preencher os dados depois.` });
+        setQtd(5);
+      })}>
+        {pendente ? "Reservando…" : `Reservar ${qtd} ingresso${qtd > 1 ? "s" : ""}`}
       </Botao>
     </div>
   );
