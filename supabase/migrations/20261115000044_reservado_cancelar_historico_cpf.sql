@@ -102,12 +102,14 @@ $$;
 
 -- 4. Função para reservar ingresso (cria um ingresso com status "reservado")
 -- Uso: Admin clica em "Reservar X ingressos" → calcula cota, cria ingressos reservados
+-- p_sem_validar_cota: true para camarote (sem cota por área), false para outros setores
 create or replace function reservar_ingressos(
   p_evento uuid,
   p_setor setor,
   p_area_id uuid,
   p_qtd int,
-  p_motivo text default 'Reserva do Admin'
+  p_motivo text default 'Reserva do Admin',
+  p_sem_validar_cota boolean default false
 ) returns table (ingresso_id uuid, status text) language plpgsql security definer set search_path = public as $$
 declare
   v_cota int;
@@ -117,9 +119,13 @@ declare
 begin
   perform _exigir(eh_admin(), 'SEM_PERMISSAO: apenas Admin pode reservar ingressos');
 
-  -- Verificar cota disponível
-  select quantidade into v_cota from cotas where evento_id = p_evento and setor = p_setor and area_id = p_area_id;
-  perform _exigir(v_cota >= p_qtd, 'COTA_INSUFICIENTE: não há cota suficiente para reservar');
+  -- Verificar cota disponível (exceto para camarote)
+  if not p_sem_validar_cota then
+    select quantidade into v_cota from cotas where evento_id = p_evento and setor = p_setor and area_id = p_area_id;
+    perform _exigir(v_cota >= p_qtd, 'COTA_INSUFICIENTE: não há cota suficiente para reservar');
+  else
+    v_cota := 0; -- camarote não usa cota
+  end if;
 
   -- Criar pedido para alocar esses ingressos
   insert into pedidos (evento_id, setor, area_id, origem, solicitante)
@@ -134,10 +140,11 @@ begin
     return next;
   end loop;
 
-  -- Decrementar cota
-  v_nova_cota := v_cota - p_qtd;
-  update cotas set quantidade = v_nova_cota where evento_id = p_evento and setor = p_setor and area_id = p_area_id;
-
-  insert into cotas_historico (evento_id, setor, area_id, de, para, autor, motivo)
-  values (p_evento, p_setor, p_area_id, v_cota, v_nova_cota, auth.uid(), p_motivo);
+  -- Decrementar cota (apenas se não for camarote)
+  if not p_sem_validar_cota then
+    v_nova_cota := v_cota - p_qtd;
+    update cotas set quantidade = v_nova_cota where evento_id = p_evento and setor = p_setor and area_id = p_area_id;
+    insert into cotas_historico (evento_id, setor, area_id, de, para, autor, motivo)
+    values (p_evento, p_setor, p_area_id, v_cota, v_nova_cota, auth.uid(), p_motivo);
+  end if;
 end $$;
