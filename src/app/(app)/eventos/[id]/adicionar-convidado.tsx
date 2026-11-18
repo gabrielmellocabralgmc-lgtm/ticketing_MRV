@@ -263,10 +263,6 @@ function ReservarIngressosForm(p: Comum) {
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   const [pendente, iniciar] = useTransition();
 
-  // Camarote não tem área: área sempre vazia
-  const areaParaUsar = setor === "camarote" ? "" : area;
-  const podeReservar = setor === "camarote" || area; // Camarote não precisa de área, outros precisam
-
   return (
     <div>
       <h2 className="text-lg font-bold text-mrv-900">Reservar ingressos</h2>
@@ -275,28 +271,26 @@ function ReservarIngressosForm(p: Comum) {
       </p>
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <Campo rotulo="Setor">
-          <select value={setor} onChange={(e) => { setSetor(e.target.value as Setor); setArea(""); }}
+          <select value={setor} onChange={(e) => setSetor(e.target.value as Setor)}
             className="w-full rounded-lg border border-borda px-3 py-2 text-sm">
             {p.setores.map((s) => <option key={s.setor} value={s.setor}>{nomeSetor(s.setor)}</option>)}
           </select>
         </Campo>
-        {setor !== "camarote" && (
-          <Campo rotulo="Área">
-            <select value={area} onChange={(e) => setArea(e.target.value)}
-              className="w-full rounded-lg border border-borda px-3 py-2 text-sm">
-              <option value="">Escolha a área…</option>
-              {p.areas.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
-            </select>
-          </Campo>
-        )}
+        <Campo rotulo="Área" dica={setor === "camarote" ? "Sem validação de cota" : undefined}>
+          <select value={area} onChange={(e) => setArea(e.target.value)}
+            className="w-full rounded-lg border border-borda px-3 py-2 text-sm">
+            <option value="">Escolha a área…</option>
+            {p.areas.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
+          </select>
+        </Campo>
         <Campo rotulo="Quantos ingressos">
           <Entrada type="number" min={1} max={100} value={qtd} onChange={(e) => setQtd(Math.max(1, Math.min(100, Number(e.target.value) || 1)))} />
         </Campo>
       </div>
       {msg && <div className="mb-3"><Aviso tom={msg.ok ? "ok" : "erro"}>{msg.texto}</Aviso></div>}
-      <Botao disabled={pendente || !podeReservar} onClick={() => iniciar(async () => {
+      <Botao disabled={pendente || !area} onClick={() => iniciar(async () => {
         setMsg(null);
-        const r = await reservarIngressos(p.evento, setor, areaParaUsar, qtd, 'Reserva via formulário');
+        const r = await reservarIngressos(p.evento, setor, area, qtd, 'Reserva via formulário');
         if (!r.ok) return setMsg({ ok: false, texto: r.erro });
         setMsg({ ok: true, texto: `${qtd} ingresso(s) reservado(s)! Clique em "Abrir lista" para preencher os dados depois.` });
         setQtd(5);
