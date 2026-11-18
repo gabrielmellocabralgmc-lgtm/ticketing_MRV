@@ -51,6 +51,7 @@ export async function buscarHistoricoCPF(cpf: string): Promise<Resultado<{
 }
 
 // Reservar N ingressos (cria com status "reservado")
+// Camarote: sem cota e sem área; outros setores: com cota por área
 export async function reservarIngressos(
   evento: string,
   setor: "camarote" | "arquibancada" | "pista",
@@ -64,9 +65,10 @@ export async function reservarIngressos(
   const { data, error } = await sb.rpc("reservar_ingressos", {
     p_evento: evento,
     p_setor: setor,
-    p_area_id: area,
+    p_area_id: area || null,
     p_qtd: qtd,
     p_motivo: motivo ?? "Reserva do Admin",
+    p_sem_validar_cota: !area // Camarote (sem área): sem validação de cota
   });
 
   if (error) return falha(error);
