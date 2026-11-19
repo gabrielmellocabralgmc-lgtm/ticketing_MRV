@@ -33,6 +33,13 @@ export default async function Painel({ params }: { params: Promise<{ id: string 
   const digitais = Object.fromEntries(((digs ?? []) as { ingresso_id: string | null; enviado_em: string | null }[])
     .filter((d) => d.ingresso_id).map((d) => [d.ingresso_id!, !!d.enviado_em]));
   const areaPadrao = (areas ?? []).find((a) => a.slug === "marketing")?.id ?? areas?.[0]?.id ?? "";
+  // Marketing precisa ver TODOS os setores, incluindo camarote (se existir no evento)
+  const { data: todosSetores } = await supabase.from("evento_setores").select("setor, capacidade").eq("evento_id", id);
+  const setoresCompletos = [...(setores ?? []), ...(todosSetores ?? []).filter((es) => !setores.some((s) => s.setor === es.setor))].map((s) => ({
+    setor: s.setor as Setor,
+    capacidade: s.capacidade,
+    ocupados: setores.find((st) => st.setor === s.setor)?.ocupados ?? 0,
+  }));
 
   return (
     <>
@@ -43,21 +50,24 @@ export default async function Painel({ params }: { params: Promise<{ id: string 
       <PainelJogo
         evento={id}
         linhas={linhas as unknown as LinhaPainel[]}
-        setores={setores.map((x) => ({ setor: x.setor, capacidade: x.capacidade, ocupados: x.ocupados }))}
+        setores={setoresCompletos}
         areas={(areas ?? []).map(({ id, nome }) => ({ id, nome }))}
         areaPadrao={areaPadrao}
         walkins={(walkins ?? []) as Walkin[]}
-        opcoes={opcoesAdicionar(setores, resumo, areas ?? [])}
+        opcoes={opcoesAdicionar(setoresCompletos, resumo, areas ?? [])}
         anfitrioes={anfitrioes}
         simples={s.papel === "marketing"}
         digital={ev.ingressos_digitais}
-        cotas={Object.fromEntries(setores.map((st) => [st.setor, {
-          capacidade: st.capacidade, cotaPorArea: st.cota_por_area,
-          areas: (areas ?? []).map((a) => {
-            const l = resumo.find((x) => x.setor === st.setor && x.area_id === a.id);
-            return { area_id: a.id, area_nome: a.nome, cota: l?.cota ?? 0, usados: l?.ocupados ?? 0 };
-          }),
-        }]))}
+        cotas={Object.fromEntries(setoresCompletos.map((st) => {
+          const fullSt = setores.find((s) => s.setor === st.setor);
+          return [st.setor, {
+            capacidade: st.capacidade, cotaPorArea: fullSt?.cota_por_area ?? false,
+            areas: (areas ?? []).map((a) => {
+              const l = resumo.find((x) => x.setor === st.setor && x.area_id === a.id);
+              return { area_id: a.id, area_nome: a.nome, cota: l?.cota ?? 0, usados: l?.ocupados ?? 0 };
+            }),
+          }];
+        }))}
         digitais={digitais}
         facial={ev.exige_facial}
         eventoInfo={{ titulo: ev.titulo, inicio: ev.inicio, abertura_portoes: ev.abertura_portoes }}
