@@ -4,6 +4,7 @@ import { CabecalhoJogo } from "@/components/jogo";
 import { CHAVE_ESCUDO_ATLETICO, chaveEscudoAdversario, imagensDisponiveis } from "@/lib/imagens";
 import { exigirStaff } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
+import { type Setor } from "@/lib/tipos";
 import { carregarEvento, carregarResumo } from "../dados";
 import { carregarIngressos } from "../ingressos";
 import { type Walkin } from "./camarote";
