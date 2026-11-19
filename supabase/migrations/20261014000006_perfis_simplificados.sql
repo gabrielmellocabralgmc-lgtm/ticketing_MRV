@@ -33,8 +33,9 @@ returns table (setor setor, capacidade int, cota_por_area boolean, alocado int, 
 language sql stable security definer set search_path = public as $$
   select es.setor, es.capacidade, es.cota_por_area,
          coalesce((select sum(c.quantidade)::int from cotas c where c.evento_id = es.evento_id and c.setor = es.setor), 0),
-         ocupados(es.evento_id, es.setor),
-         (select count(*)::int from ingressos i where i.evento_id = es.evento_id and i.setor = es.setor and i.status = 'lista_espera')
+         coalesce((select count(*)::int from ingressos i where i.evento_id = es.evento_id and i.setor = es.setor
+                    and i.status not in ('cancelado', 'recusado', 'convite_expirado', 'lista_espera')), 0),
+         coalesce((select count(*)::int from ingressos i where i.evento_id = es.evento_id and i.setor = es.setor and i.status = 'lista_espera'), 0)
   from evento_setores es
   where es.evento_id = p_evento and eh_staff()
   order by es.setor
