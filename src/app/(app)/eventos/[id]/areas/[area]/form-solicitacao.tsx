@@ -11,7 +11,7 @@ import { buscarHistoricoCPF } from "../../galo-actions";
 const vazia = (): PessoaForm => ({ nome: "", cpf: "", celular: "", email: "" });
 
 // avulsos (Admin): pode deixar COMPLETAMENTE vazio (RED FLAG); ou parcialmente preenchido (também RED FLAG)
-// Se preencher algo, precisa ser válido
+// Se preencher algo, precisa ser válido (menos CPF que é sempre opcional para avulsos)
 // exigirEmail: evento com ingresso digital (vai por e-mail). Para a equipe (avulsos) é só recomendado.
 function problemas(p: PessoaForm, avulsos = false, exigirEmail = false) {
   const e: Partial<Record<keyof PessoaForm, string>> = {};
@@ -21,8 +21,9 @@ function problemas(p: PessoaForm, avulsos = false, exigirEmail = false) {
   if (avulsos && !temAlgo) return e;
 
   if ((!avulsos || p.nome.trim()) && p.nome.trim().split(/\s+/).length < 2) e.nome = "Nome completo";
-  if (!p.cpf) e.cpf = "Obrigatório";
-  else if (!cpfValido(p.cpf)) e.cpf = "CPF inválido";
+  // CPF: obrigatório para não-avulsos; para avulsos, só valida se preenchido
+  if (!avulsos && !p.cpf) e.cpf = "Obrigatório";
+  else if (p.cpf && !cpfValido(p.cpf)) e.cpf = "CPF inválido";
   const cel = somenteDigitos(p.celular);
   if ((!avulsos || cel) && (cel.length < 10 || cel.length > 11)) e.celular = "DDD + número";
   if (exigirEmail && !avulsos && !p.email?.trim()) e.email = "Obrigatório: o ingresso vai por e-mail";
