@@ -66,9 +66,10 @@ begin
     i := i + 1;
     -- Marketing cola só nome + CPF; áreas e convidados informam também o celular
     if v_origem = 'marketing' then
-      -- adicionados pelo Admin (avulsos) podem vir só com o CPF; o nome é informado depois
+      -- adicionados pelo Admin (avulsos) podem vir completamente vazios (RED FLAG); o nome e CPF são informados depois
       perform _exigir(v_avulsos or limpar_nome(p ->> 'nome') is not null, 'DADOS_INCOMPLETOS: informe o nome');
-      perform _exigir(normalizar_cpf(p ->> 'cpf') is not null, format('DADOS_INCOMPLETOS: informe o CPF de %s', coalesce(p ->> 'nome', 'todas as pessoas')));
+      -- CPF é obrigatório APENAS para não-avulsos (quando o Admin não está adicionando vazio)
+      perform _exigir(v_avulsos or normalizar_cpf(p ->> 'cpf') is not null, format('DADOS_INCOMPLETOS: informe o CPF de %s', coalesce(p ->> 'nome', 'todas as pessoas')));
     end if;
     v_pessoa := _upsert_pessoa(p || jsonb_build_object('colaborador', coalesce((p ->> 'colaborador')::boolean, i = 1 and not v_importacao and not v_sem_titular)),
                                not v_importacao and v_origem <> 'marketing');
