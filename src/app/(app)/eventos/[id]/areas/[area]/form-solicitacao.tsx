@@ -10,10 +10,16 @@ import { buscarHistoricoCPF } from "../../galo-actions";
 
 const vazia = (): PessoaForm => ({ nome: "", cpf: "", celular: "", email: "" });
 
-// avulsos (Admin): só o CPF é obrigatório; nome e celular podem ser informados depois
+// avulsos (Admin): pode deixar COMPLETAMENTE vazio (RED FLAG); ou parcialmente preenchido (também RED FLAG)
+// Se preencher algo, precisa ser válido
 // exigirEmail: evento com ingresso digital (vai por e-mail). Para a equipe (avulsos) é só recomendado.
 function problemas(p: PessoaForm, avulsos = false, exigirEmail = false) {
   const e: Partial<Record<keyof PessoaForm, string>> = {};
+  const temAlgo = p.nome.trim() || p.cpf || p.celular || p.email;
+
+  // Se avulsos e não tem nada, deixa vazio (vai ficar com RED FLAG)
+  if (avulsos && !temAlgo) return e;
+
   if ((!avulsos || p.nome.trim()) && p.nome.trim().split(/\s+/).length < 2) e.nome = "Nome completo";
   if (!p.cpf) e.cpf = "Obrigatório";
   else if (!cpfValido(p.cpf)) e.cpf = "CPF inválido";
@@ -22,6 +28,19 @@ function problemas(p: PessoaForm, avulsos = false, exigirEmail = false) {
   if (exigirEmail && !avulsos && !p.email?.trim()) e.email = "Obrigatório: o ingresso vai por e-mail";
   else if (p.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(p.email)) e.email = "E-mail inválido";
   return e;
+}
+
+// Verifica se um convidado avulso tem dados incompletos (RED FLAG)
+function temRedFlag(p: PessoaForm, avulsos = false) {
+  if (!avulsos) return false;
+  const temAlgo = p.nome.trim() || p.cpf || p.celular || p.email;
+  // RED FLAG se: tem algo mas não está completo
+  if (!temAlgo) return true; // Vazio total é RED FLAG
+  // Ou se tem algo mas está incompleto (não tem CPF válido, ou nome com menos de 2 palavras, etc)
+  const nome_completo = p.nome.trim().split(/\s+/).length >= 2;
+  const cpf_valido = p.cpf && cpfValido(p.cpf);
+  if (!cpf_valido || !nome_completo) return true;
+  return false;
 }
 
 /** Limite de linhas no formulário (a cota de uma área cabe aqui). */
@@ -61,11 +80,16 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
   const [pendente, iniciar] = useTransition();
   const [buscandoCPF, setBuscandoCPF] = useState<{ [key: number]: boolean }>({});
 
-  // sem titular, linha vazia não conta (o formulário já abre com uma linha por ingresso do saldo)
-  const preenchidas = pessoas.filter((p, i) => (i === 0 && !semTitular) || p.nome || p.cpf || p.celular || p.email);
+  // Para avulsos: contas linhas com RED FLAG também (vazias ou incompletas)
+  // Para outros: sem titular, linha vazia não conta
+  const preenchidas = pessoas.filter((p, i) => {
+    const temAlgo = p.nome || p.cpf || p.celular || p.email;
+    if (avulsos) return true; // Inclui todas as linhas para avulsos (mesmo vazias)
+    return (i === 0 && !semTitular) || temAlgo;
+  });
   const erros = preenchidas.map((p) => problemas(p, avulsos, exigirEmail));
   const valido = erros.every((e) => Object.keys(e).length === 0);
-  const cpfs = preenchidas.map((p) => somenteDigitos(p.cpf).padStart(11, "0"));
+  const cpfs = preenchidas.filter(p => p.cpf).map((p) => somenteDigitos(p.cpf).padStart(11, "0"));
   const repetido = cpfs.some((c, i) => c !== "00000000000" && cpfs.indexOf(c) !== i);
   // Sem saldo para o pedido inteiro: só dá para entrar na lista de espera (sem garantia)
   const excede = preenchidas.length > saldo;
@@ -142,27 +166,29 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
         </div>
       )}
       {pessoas.map((p, i) => {
-        const e = tocado && ((i === 0 && !semTitular) || p.nome || p.cpf || p.celular || p.email) ? problemas(p, avulsos, exigirEmail) : {};
+        const temAlgo = p.nome || p.cpf || p.celular || p.email;
+        const temErro = tocado && ((i === 0 && !semTitular) || temAlgo) ? problemas(p, avulsos, exigirEmail) : {};
+        const redFlag = avulsos && temRedFlag(p, avulsos);
         return (
-          <fieldset key={i} className="rounded-xl p-3 ring-1 ring-black/10">
-            <legend className="px-1 text-xs font-semibold tracking-wide text-tinta/60 uppercase">{avulsos || semTitular ? `Convidado ${i + 1}` : i === 0 ? "Titular" : `Convidado ${i}`}</legend>
+          <fieldset key={i} className={`rounded-xl p-3 ring-1 ${redFlag ? 'ring-red-300 bg-red-50' : 'ring-black/10'}`}>
+            <legend className="px-1 text-xs font-semibold tracking-wide text-tinta/60 uppercase">{avulsos || semTitular ? `Convidado ${i + 1}` : i === 0 ? "Titular" : `Convidado ${i}`} {redFlag && <span title="Convidado com dados incompletos ou vazios - preencha antes de enviar ingresso">🚩</span>}</legend>
             <div className={simples ? (exigirEmail ? "grid gap-3 sm:grid-cols-[2fr_1fr_1.4fr_auto]" : "grid gap-3 sm:grid-cols-[2fr_1fr_auto]") : "grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1.4fr_auto]"}>
               <div className="relative">
-                <Campo rotulo={simples ? "Nome" : avulsos ? "Nome (pode informar depois)" : "Nome completo"} erro={e.nome}><Entrada value={p.nome} onChange={(ev) => set(i, "nome", ev.target.value)} autoComplete="off" /></Campo>
+                <Campo rotulo={simples ? "Nome" : avulsos ? "Nome (pode informar depois)" : "Nome completo"} erro={temErro.nome}><Entrada value={p.nome} onChange={(ev) => set(i, "nome", ev.target.value)} autoComplete="off" /></Campo>
                 {avulsos && p.nome && p.nome.trim().split(/\s+/).length < 2 && <span title="Nome incompleto (menos de 2 palavras)" className="absolute right-2 top-2 text-lg">🔔</span>}
               </div>
               <div className="relative">
-                <Campo rotulo="CPF" erro={e.cpf}>
+                <Campo rotulo="CPF" erro={temErro.cpf}>
                   <Entrada value={p.cpf} inputMode="numeric" onChange={(ev) => set(i, "cpf", ev.target.value)}
                     onBlur={(ev) => somenteDigitos(ev.target.value).length >= 9 && set(i, "cpf", formatarCpf(ev.target.value))} />
                 </Campo>
                 {buscandoCPF[i] && <span className="absolute right-2 top-2 text-sm text-tinta/50">buscando…</span>}
               </div>
               {!simples && <>
-              <Campo rotulo={avulsos ? "Celular (opcional)" : "Celular (WhatsApp)"} erro={e.celular}><Entrada value={p.celular} inputMode="tel" onChange={(ev) => set(i, "celular", ev.target.value)} placeholder="(31) 9…" /></Campo>
+              <Campo rotulo={avulsos ? "Celular (opcional)" : "Celular (WhatsApp)"} erro={temErro.celular}><Entrada value={p.celular} inputMode="tel" onChange={(ev) => set(i, "celular", ev.target.value)} placeholder="(31) 9…" /></Campo>
               </>}
               {(!simples || exigirEmail) && (
-                <Campo rotulo={exigirEmail ? (avulsos ? "E-mail (o ingresso vai por ele)" : "E-mail (obrigatório)") : "E-mail (opcional)"} erro={e.email}>
+                <Campo rotulo={exigirEmail ? (avulsos ? "E-mail (o ingresso vai por ele)" : "E-mail (obrigatório)") : "E-mail (opcional)"} erro={temErro.email}>
                   <Entrada value={p.email} type="email" onChange={(ev) => set(i, "email", ev.target.value)} />
                 </Campo>
               )}
