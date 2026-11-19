@@ -30,7 +30,8 @@ export default async function TodasAsAreas({ params }: { params: Promise<{ id: s
     for (const d of (digs ?? []) as { ingresso_id: string | null; resgate_aberto_em: string | null }[]) if (d.ingresso_id && d.resgate_aberto_em) resgates.add(d.ingresso_id);
   }
   const marketing = s.areas.find((a) => linhas.some((l) => l.area_id === a.id && l.cota !== null));
-  const resumo = linhas.filter((l) => l.cota !== null && l.cota > 0);
+  // Inclui áreas com cota E camarote (que não tem cota por área)
+  const resumo = linhas.filter((l) => (l.cota !== null && l.cota > 0) || l.setor === "camarote");
 
   return (
     <>
