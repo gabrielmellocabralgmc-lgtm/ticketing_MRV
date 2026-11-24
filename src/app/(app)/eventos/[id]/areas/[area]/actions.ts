@@ -25,7 +25,7 @@ export async function solicitar(evento: string, setor: Setor, area: string, pess
     p_evento: evento, p_setor: setor, p_area: area,
     p_pessoas: pessoas.map((p) => ({ nome: p.nome, cpf: p.cpf, celular: p.celular, email: p.email || null })),
     // Marketing/Admin não passam por validação nem aprovação: já entra aprovado
-    p_opcoes: { lista_espera: listaEspera, origem: s.staff ? "marketing" : "responsavel", sem_titular: semTitular },
+    p_opcoes: { lista_espera: listaEspera, origem: s.staff ? "marketing" : "responsavel", sem_titular: semTitular, avulsos: semTitular },
   });
   if (error) return falha(error);
   revalidatePath(caminho(evento, area));
