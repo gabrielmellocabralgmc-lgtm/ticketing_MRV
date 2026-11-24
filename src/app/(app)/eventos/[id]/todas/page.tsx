@@ -8,6 +8,7 @@ import { rotuloSetor, type Setor, type StatusIngresso } from "@/lib/tipos";
 import { AbasMarketing } from "../abas-marketing";
 import { carregarEvento, carregarResumo } from "../dados";
 import { ConsultaTodas, type LinhaConsulta } from "./consulta";
+import { DetalheSetores } from "./detalhe-setores";
 
 export const metadata = { title: "Todas as áreas" };
 
@@ -64,6 +65,11 @@ export default async function TodasAsAreas({ params }: { params: Promise<{ id: s
             </tbody>
           </table>
         </div>
+      </Cartao>
+
+      <Cartao className="mb-6">
+        <h2 className="mb-4 text-lg font-bold text-mrv-900">Detalhamento por setor</h2>
+        <DetalheSetores linhas={ativos.map(({ id: i, nome, area_nome, setor, status, criado_em }) => ({ id: i, nome, area_nome, setor, status, criado_em }))} nomes_setores={ev.nomes_setores} />
       </Cartao>
 
       <ConsultaTodas evento={id} resgate={ev.resgate_unico} nomes={ev.nomes_setores} todasAreas={[...new Set(resumo.map((l) => l.area_nome))]}
