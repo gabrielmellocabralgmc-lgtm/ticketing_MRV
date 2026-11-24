@@ -156,7 +156,7 @@ function AdicionarConvidado(p: Comum & { massa: boolean }) {
       {p.massa && <div className="mb-4"><EscolhaAnfitriao anfitrioes={p.anfitrioes} valor={anfitriao} onChange={setAnfitriao} /></div>}
       {area ? (
         <FormSolicitacao key={`${setor}-${area}`} evento={p.evento} setor={setor} area={area} saldo={saldo}
-          padraoConvidados={0} avulsos colarInicial={p.massa} simples={p.simples} exigirEmail={p.exigirEmail} facial={p.facial}
+          padraoConvidados={0} avulsos={true} colarInicial={p.massa} simples={p.simples} exigirEmail={p.exigirEmail} facial={p.facial}
           excedeVaiParaEspera={semSaldo === "espera"}
           enviarCom={async (pessoas) => {
             if (p.massa && anfitriaoIncompleto(anfitriao)) return { ok: false, erro: "Escolha ou digite de quem são os convidados (ou marque “Sem vínculo”)." };
