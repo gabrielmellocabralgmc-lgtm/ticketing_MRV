@@ -42,7 +42,7 @@ export default async function Painel({ params }: { params: Promise<{ id: string 
       <CabecalhoJogo ev={ev} voltar={s.papel === "admin" ? { href: `/eventos/${id}`, rotulo: "Gestão do evento" } : { href: "/eventos", rotulo: "Eventos" }} escudoAtletico={img[CHAVE_ESCUDO_ATLETICO]} escudoAdversario={img[chaveEscudoAdversario(id)]}>
         {s.papel === "admin" && <Link href={`/eventos/${id}`} className="mt-1 text-sm font-semibold text-white/80 underline hover:text-white">Gestão completa do evento</Link>}
       </CabecalhoJogo>
-      {s.papel === "marketing" && <AbasMarketing evento={id} atual="painel" area={marketing?.id} />}
+      {s.papel === "marketing" && <AbasMarketing evento={id} atual="painel" />}
       <PainelJogo
         evento={id}
         linhas={linhas as unknown as LinhaPainel[]}
