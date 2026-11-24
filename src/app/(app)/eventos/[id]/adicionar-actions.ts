@@ -111,3 +111,17 @@ export async function reservarIngressos(
     dados: { criados: rows.length }
   };
 }
+
+export async function alterarPessoaArea(evento: string, ingresso: string, novaArea: string): Promise<Resultado> {
+  await exigirStaff();
+  const sb = await supabaseServidor();
+
+  const { error } = await sb.rpc("alterar_pessoa_area", {
+    p_ingresso_id: ingresso,
+    p_nova_area_id: novaArea,
+  });
+
+  if (error) return falha(error);
+  revalidatePath(`/eventos/${evento}`, "layout");
+  return { ok: true, mensagem: "Pessoa movida para a nova área." };
+}
