@@ -103,7 +103,7 @@ $$;
 -- 4. Função para reservar ingresso (cria um ingresso com status "reservado")
 -- Uso: Admin clica em "Reservar X ingressos" → calcula cota, cria ingressos reservados
 -- p_sem_validar_cota: true para camarote (sem cota por área), false para outros setores
-drop function if exists reservar_ingressos(uuid, setor, uuid, int, text);
+drop function if exists reservar_ingressos(uuid, setor, uuid, int, text, boolean);
 
 create or replace function reservar_ingressos(
   p_evento uuid,
