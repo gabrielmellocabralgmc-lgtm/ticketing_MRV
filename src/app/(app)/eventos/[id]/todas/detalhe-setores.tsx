@@ -2,7 +2,7 @@
 import { rotuloSetor, type Setor, type StatusIngresso } from "@/lib/tipos";
 
 export interface LinhaDetalhe {
-  id: string; nome: string; area_nome: string; setor: Setor; status: StatusIngresso; criado_em: string;
+  id: string; nome: string | null; area_nome: string; setor: Setor; status: StatusIngresso; criado_em: string;
 }
 
 const ENVIADOS: StatusIngresso[] = ["enviado", "confirmado", "presente"];
@@ -33,7 +33,7 @@ export function DetalheSetores({ linhas, nomes_setores }: { linhas: LinhaDetalhe
                   {linhasSetor.map((l) => (
                     <tr key={l.id}>
                       <td className="font-medium text-cinza">{l.area_nome}</td>
-                      <td>{l.nome}</td>
+                      <td className={l.nome ? "" : "italic text-cinza"}>{l.nome || "Sem nome"}</td>
                       <td className={`text-xs font-semibold uppercase ${ENVIADOS.includes(l.status) ? "text-mrv-700" : "text-orange-700"}`}>{l.status.replace(/_/g, " ")}</td>
                     </tr>
                   ))}
