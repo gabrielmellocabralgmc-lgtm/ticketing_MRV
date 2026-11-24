@@ -579,7 +579,7 @@ begin
   perform _exigir(p_qtd between 1 and 10, 'VALOR_INVALIDO: um convite vale de 1 a 10 lugares');
   select * into v_ev from eventos where id = p_evento;
   perform _exigir(found, 'NAO_ENCONTRADO: evento não encontrado');
-  if not eh_staff() then
+  if not eh_admin() then
     perform _exigir(v_ev.status = 'aberto', 'EVENTO_FECHADO: o evento não está aberto para solicitações');
   end if;
   v_expira := coalesce(p_expira_em, v_ev.prazo_solicitacao, v_ev.inicio - interval '1 day');
