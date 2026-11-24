@@ -1,9 +1,10 @@
 import Link from "next/link";
 import clsx from "clsx";
 
-/** Marketing MRV: só duas abas por evento — os ingressos da área dele e a consulta de todas as áreas. */
-export function AbasMarketing({ evento, atual, area }: { evento: string; atual: "marketing" | "todas"; area?: string }) {
+/** Marketing MRV: três abas por evento — painel de resumo, ingressos da área dele e a consulta de todas as áreas. */
+export function AbasMarketing({ evento, atual, area }: { evento: string; atual: "painel" | "marketing" | "todas"; area?: string }) {
   const abas = [
+    { id: "painel", rotulo: "Painel", href: `/eventos/${evento}/painel` },
     { id: "marketing", rotulo: "Ingressos do Marketing", href: area ? `/eventos/${evento}/areas/${area}` : `/eventos/${evento}` },
     { id: "todas", rotulo: "Todas as áreas", href: `/eventos/${evento}/todas` },
   ];
