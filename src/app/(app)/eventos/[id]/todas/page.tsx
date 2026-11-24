@@ -20,7 +20,7 @@ export default async function TodasAsAreas({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const s = await exigirSessao();
   if (!s.verTudo) redirect(`/eventos/${id}`);
-  const [ev, { linhas }, img] = await Promise.all([carregarEvento(id), carregarResumo(id), imagensDisponiveis()]);
+  const [ev, { linhas, setores }, img] = await Promise.all([carregarEvento(id), carregarResumo(id), imagensDisponiveis()]);
   const { data } = await (await supabaseServidor()).from("v_ingressos")
     .select("id, nome, cpf, celular, email, area_nome, area_ordem, setor, status, criado_em, convidado_de_nome, pedido_id")
     .eq("evento_id", id).order("area_ordem").order("criado_em");
@@ -68,7 +68,7 @@ export default async function TodasAsAreas({ params }: { params: Promise<{ id: s
         </div>
       </Cartao>
 
-      <ConsolidadoSetores linhas={ativos.map(({ setor, status }) => ({ setor, status }))} nomes_setores={ev.nomes_setores} />
+      <ConsolidadoSetores linhas={ativos.map(({ setor, status }) => ({ setor, status }))} setores={setores} nomes_setores={ev.nomes_setores} />
 
       <Cartao className="mb-6">
         <h2 className="mb-4 text-lg font-bold text-mrv-900">Detalhamento por setor</h2>

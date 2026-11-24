@@ -5,20 +5,25 @@ export interface LinhaConsolidado {
   setor: Setor; status: StatusIngresso;
 }
 
+export interface ResumoSetor {
+  setor: Setor; capacidade: number; ocupados: number;
+}
+
 const ENVIADOS: StatusIngresso[] = ["enviado", "confirmado", "presente"];
 const SOLICITADOS: StatusIngresso[] = ["solicitado", "validado_area", "aprovado", "facial_pendente", "facial_ok"];
 
-export function ConsolidadoSetores({ linhas, nomes_setores }: { linhas: LinhaConsolidado[]; nomes_setores?: Record<string, string> }) {
-  const setores: Setor[] = ["camarote", "arquibancada"];
+export function ConsolidadoSetores({ linhas, setores, nomes_setores }: { linhas: LinhaConsolidado[]; setores: ResumoSetor[]; nomes_setores?: Record<string, string> }) {
+  const setoresLista: Setor[] = ["camarote", "arquibancada"];
 
   return (
     <div className="mb-6 grid gap-4 md:grid-cols-2">
-      {setores.map((setor) => {
+      {setoresLista.map((setor) => {
         const linhasSetor = linhas.filter((l) => l.setor === setor);
-        if (!linhasSetor.length) return null;
+        const setorInfo = setores.find((s) => s.setor === setor);
+        if (!linhasSetor.length || !setorInfo) return null;
         const enviados = linhasSetor.filter((l) => ENVIADOS.includes(l.status)).length;
         const solicitados = linhasSetor.filter((l) => SOLICITADOS.includes(l.status)).length;
-        const disponiveis = linhasSetor.length - enviados - solicitados;
+        const disponiveis = setorInfo.capacidade - enviados - solicitados;
 
         return (
           <div key={setor} className="rounded-2xl border border-borda bg-gradient-to-br from-white to-fundo p-6">
@@ -37,8 +42,8 @@ export function ConsolidadoSetores({ linhas, nomes_setores }: { linhas: LinhaCon
                 <span className="text-4xl font-bold tabular text-cinza">{disponiveis}</span>
               </div>
               <div className="border-t border-borda pt-3">
-                <span className="text-xs font-semibold uppercase text-cinza">Total</span>
-                <span className="block text-2xl font-bold text-tinta">{linhasSetor.length}</span>
+                <span className="text-xs font-semibold uppercase text-cinza">Capacidade</span>
+                <span className="block text-2xl font-bold text-tinta">{setorInfo.capacidade}</span>
               </div>
             </div>
           </div>
