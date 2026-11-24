@@ -8,7 +8,7 @@ import { rotuloSetor, type NomesSetores, type Setor, type StatusIngresso } from 
 
 export interface LinhaConsulta {
   id: string; nome: string | null; cpf: string | null; celular: string | null; email: string | null;
-  area_nome: string; setor: Setor; status: StatusIngresso; resgateAberto: boolean;
+  area_nome: string; setor: Setor; status: StatusIngresso; resgateAberto: boolean; convidado_de_nome?: string | null;
 }
 
 /** Lista única de todos os convidados do evento, com busca por nome/CPF e filtro por área. Só leitura. */
@@ -50,7 +50,7 @@ export function ConsultaTodas({ evento, linhas, resgate, nomes, todasAreas = [] 
       {filtradas.length === 0 ? <Vazio>Ninguém encontrado.</Vazio> : (
         <div className="-mx-5 overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm [&_td]:px-5 [&_td]:py-3 [&_th]:bg-[#fafafa] [&_th]:px-5 [&_th]:py-2.5 [&_th]:text-xs [&_th]:font-semibold [&_th]:tracking-wide [&_th]:text-cinza [&_th]:uppercase [&_tbody_tr]:border-t [&_tbody_tr]:border-[#edeeed]">
-            <thead><tr><th>Nome</th><th>CPF</th><th>Contato</th><th>Área</th><th>Situação</th></tr></thead>
+            <thead><tr><th>Nome</th><th>CPF</th><th>Contato</th><th>Área</th><th>Pedido de</th><th>Situação</th></tr></thead>
             <tbody>
               {filtradas.map((l) => (
                 <tr key={l.id}>
@@ -58,6 +58,7 @@ export function ConsultaTodas({ evento, linhas, resgate, nomes, todasAreas = [] 
                   <td className="font-mono text-xs whitespace-nowrap">{l.cpf ? formatarCpf(l.cpf) : "—"}</td>
                   <td className="text-xs">{l.celular ? fmtCelular(l.celular) : "—"}{l.email && <div className="text-cinza">{l.email}</div>}</td>
                   <td>{l.area_nome}<div className="text-xs text-cinza">{rotuloSetor(l.setor, nomes)}</div></td>
+                  <td className="text-xs text-cinza">{l.convidado_de_nome ? `${l.convidado_de_nome}` : "—"}</td>
                   <td><SeloStatus status={l.status} para="gestor" resgate={resgate} resgateAberto={l.resgateAberto} /></td>
                 </tr>
               ))}

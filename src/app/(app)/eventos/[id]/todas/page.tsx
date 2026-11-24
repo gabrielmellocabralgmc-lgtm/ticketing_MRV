@@ -9,6 +9,7 @@ import { AbasMarketing } from "../abas-marketing";
 import { carregarEvento, carregarResumo } from "../dados";
 import { ConsultaTodas, type LinhaConsulta } from "./consulta";
 import { DetalheSetores } from "./detalhe-setores";
+import { ConsolidadoSetores } from "./consolidado-setores";
 
 export const metadata = { title: "Todas as áreas" };
 
@@ -21,7 +22,7 @@ export default async function TodasAsAreas({ params }: { params: Promise<{ id: s
   if (!s.verTudo) redirect(`/eventos/${id}`);
   const [ev, { linhas }, img] = await Promise.all([carregarEvento(id), carregarResumo(id), imagensDisponiveis()]);
   const { data } = await (await supabaseServidor()).from("v_ingressos")
-    .select("id, nome, cpf, celular, email, area_nome, area_ordem, setor, status, criado_em")
+    .select("id, nome, cpf, celular, email, area_nome, area_ordem, setor, status, criado_em, convidado_de_nome, pedido_id")
     .eq("evento_id", id).order("area_ordem").order("criado_em");
   const ativos = ((data ?? []) as (Omit<LinhaConsulta, "resgateAberto"> & { area_ordem: number; criado_em: string })[])
     .filter((l) => !INATIVOS.includes(l.status));
@@ -67,13 +68,15 @@ export default async function TodasAsAreas({ params }: { params: Promise<{ id: s
         </div>
       </Cartao>
 
+      <ConsolidadoSetores linhas={ativos.map(({ setor, status }) => ({ setor, status }))} nomes_setores={ev.nomes_setores} />
+
       <Cartao className="mb-6">
         <h2 className="mb-4 text-lg font-bold text-mrv-900">Detalhamento por setor</h2>
         <DetalheSetores linhas={ativos.map(({ id: i, nome, area_nome, setor, status, criado_em }) => ({ id: i, nome, area_nome, setor, status, criado_em }))} nomes_setores={ev.nomes_setores} />
       </Cartao>
 
       <ConsultaTodas evento={id} resgate={ev.resgate_unico} nomes={ev.nomes_setores} todasAreas={[...new Set(resumo.map((l) => l.area_nome))]}
-        linhas={ativos.map(({ id: i, nome, cpf, celular, email, area_nome, setor, status }) => ({ id: i, nome, cpf, celular, email, area_nome, setor, status, resgateAberto: resgates.has(i) }))} />
+        linhas={ativos.map(({ id: i, nome, cpf, celular, email, area_nome, setor, status, convidado_de_nome }) => ({ id: i, nome, cpf, celular, email, area_nome, setor, status, convidado_de_nome, resgateAberto: resgates.has(i) }))} />
     </>
   );
 }
