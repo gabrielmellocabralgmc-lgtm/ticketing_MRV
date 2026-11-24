@@ -82,3 +82,32 @@ export async function atualizarDadosAdmin(evento: string, ingresso: string, p: {
   revalidatePath(`/eventos/${evento}`, "layout");
   return { ok: true, mensagem: "Dados atualizados." };
 }
+
+export async function reservarIngressos(
+  evento: string,
+  setor: Setor,
+  area: string,
+  qtd: number,
+  motivo?: string
+): Promise<Resultado<{ criados: number }>> {
+  await exigirStaff();
+  const sb = await supabaseServidor();
+
+  const { data, error } = await sb.rpc("reservar_ingressos", {
+    p_evento: evento,
+    p_setor: setor,
+    p_area_id: area,
+    p_qtd: qtd,
+    p_motivo: motivo ?? "Reserva do Admin",
+    p_sem_validar_cota: setor === "camarote",
+  });
+
+  if (error) return falha(error);
+  revalidatePath(`/eventos/${evento}`, "layout");
+  const rows = data as Array<{ ingresso_id: string }>;
+  return {
+    ok: true,
+    mensagem: `${qtd} ingresso(s) reservado(s). Clique em uma linha e selecione "Alocar" para atribuir à pessoa.`,
+    dados: { criados: rows.length }
+  };
+}
