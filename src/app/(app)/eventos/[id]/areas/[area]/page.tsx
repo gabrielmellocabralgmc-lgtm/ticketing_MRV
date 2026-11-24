@@ -30,9 +30,10 @@ export default async function PainelArea({ params, searchParams }: { params: Pro
   const supabase = await supabaseServidor();
   const img = await imagensDisponiveis();
 
-  const [{ data: areaRow }, { data: setoresRows }] = await Promise.all([
+  const [{ data: areaRow }, { data: setoresRows }, { data: todasAreas }] = await Promise.all([
     supabase.from("areas").select("id, nome").eq("id", area).maybeSingle(),
     supabase.from("evento_setores").select("setor").eq("evento_id", id),
+    supabase.from("areas").select("id, nome").eq("ativo", true).order("nome"),
   ]);
   if (!areaRow) notFound();
   // Camarote: pedidos passam pelo Marketing (o responsável não lança direto), mas ele vê a aba
@@ -154,7 +155,7 @@ export default async function PainelArea({ params, searchParams }: { params: Pro
               confirmar={`Validar os ${aValidar} convidado(s) que preencheram pelo link? Eles ficam prontos para envio.`} />
           )}
         </div>
-        <ListaArea evento={id} resgate={ev.resgate_unico} resgates={resgates} setor={setor} area={area} areaNome={areaRow.nome} linhas={lista} eventoInfo={eventoInfo}
+        <ListaArea evento={id} resgate={ev.resgate_unico} resgates={resgates} setor={setor} area={area} areaNome={areaRow.nome} linhas={lista} eventoInfo={eventoInfo} areas={(todasAreas ?? []) as { id: string; nome: string }[]} isAdmin={s.staff}
           podeAlterar={s.staff || !prazoPassou} prazo={dataHora(ev.prazo_solicitacao)} facial={ev.exige_facial} />
       </Cartao>
       {!s.staff && <DuvidasArea evento={id} area={area} duvidas={(await duvidasDaArea(id, area)).map((d) => ({ id: d.id, status: d.status, autor_nome: d.autor_nome, mensagens: d.mensagens }))} />}

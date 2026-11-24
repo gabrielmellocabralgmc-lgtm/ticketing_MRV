@@ -36,7 +36,7 @@ const POS_APROVACAO: StatusIngresso[] = ["aprovado", "facial_pendente", "facial_
 
 const ALTERAVEIS: StatusIngresso[] = ["solicitado", "validado_area", "aprovado", "facial_ok", "facial_pendente", "lista_espera"];
 
-export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, podeAlterar, prazo, facial = true, resgate = false, resgates = {} }: {
+export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, podeAlterar, prazo, facial = true, resgate = false, resgates = {}, areas = [], isAdmin = false }: {
   evento: string; setor: Setor; area: string; areaNome: string; linhas: LinhaLista[];
   eventoInfo: { titulo: string; inicio: string; abertura_portoes: string | null };
   podeAlterar: boolean; prazo: string;
@@ -45,9 +45,14 @@ export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, p
   /** Evento com link de resgate único e quem já abriu o resgate (por ingresso). */
   resgate?: boolean;
   resgates?: Record<string, boolean>;
+  /** Todas as áreas do evento. */
+  areas?: { id: string; nome: string }[];
+  /** Se é admin. */
+  isAdmin?: boolean;
 }) {
   const [mostrarInativos, setMostrarInativos] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
+  const [alterandoArea, setAlterandoArea] = useState<string | null>(null);
   const [retorno, setRetorno] = useState<{ ok: boolean; msg: string } | null>(null);
   const [pendente, iniciar] = useTransition();
 
@@ -110,6 +115,23 @@ export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, p
         </div>
       )}
 
+      {alterandoArea && (
+        <ModalAlterarArea
+          ingressoId={alterandoArea}
+          areas={areas.filter((a) => a.id !== area)}
+          pendente={pendente}
+          cancelar={() => setAlterandoArea(null)}
+          confirmar={(novaArea) =>
+            iniciar(async () => {
+              const { alterarPessoaArea } = await import("../../adicionar-actions");
+              const r = await alterarPessoaArea(evento, alterandoArea, novaArea);
+              setRetorno(r.ok ? { ok: true, msg: r.mensagem ?? "Pessoa movida!" } : { ok: false, msg: r.erro ?? "Erro" });
+              if (r.ok) setAlterandoArea(null);
+            })
+          }
+        />
+      )}
+
       <div>
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-tinta/70">Pessoas</h3>
@@ -163,6 +185,9 @@ export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, p
                             )}
                           </>
                         )}
+                        {isAdmin && (
+                          <button className="rounded-md px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50" onClick={() => setAlterandoArea(l.ingresso_id)}>Mudar área</button>
+                        )}
                         {podeAlterar && ALTERAVEIS.includes(l.status) && (
                           <button className="rounded-md px-2 py-1 text-xs font-semibold text-mrv-700 hover:bg-mrv-50" onClick={() => setEditando(l.ingresso_id)}>Editar</button>
                         )}
@@ -200,6 +225,28 @@ function FormEditar({ l, salvar, cancelar, pendente }: { l: LinhaLista; salvar: 
         <Botao type="button" onClick={() => salvar(p)} disabled={pendente || !p.cpf}>Salvar</Botao>
         <Botao type="button" variante="fantasma" onClick={cancelar}>Voltar</Botao>
       </div>
+    </div>
+  );
+}
+
+function ModalAlterarArea({ ingressoId, areas, pendente, cancelar, confirmar }: {
+  ingressoId: string; areas: { id: string; nome: string }[]; pendente: boolean;
+  cancelar: () => void; confirmar: (novaArea: string) => void;
+}) {
+  const [novaArea, setNovaArea] = useState("");
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <Cartao className="w-full max-w-sm space-y-4 p-6">
+        <h3 className="text-lg font-bold text-mrv-900">Mudar para qual área?</h3>
+        <select value={novaArea} onChange={(e) => setNovaArea(e.target.value)} className="w-full rounded-lg border border-borda px-3 py-2">
+          <option value="">Escolha a área…</option>
+          {areas.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
+        </select>
+        <div className="flex gap-2 justify-end">
+          <Botao type="button" variante="fantasma" onClick={cancelar} disabled={pendente}>Cancelar</Botao>
+          <Botao type="button" onClick={() => confirmar(novaArea)} disabled={pendente || !novaArea}>Confirmar</Botao>
+        </div>
+      </Cartao>
     </div>
   );
 }
