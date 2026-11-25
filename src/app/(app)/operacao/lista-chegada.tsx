@@ -49,6 +49,7 @@ export function ListaChegada({ evento, convidados, walkins }: { evento: string; 
   const [busca, setBusca] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [foraDaLista, setForaDaLista] = useState(false);
+  const [ordem, setOrdem] = useState<"anfitriao" | "nome">("anfitriao");
   const [pendente, iniciar] = useTransition();
 
   // aplica por cima dos dados do servidor o que ainda está guardado no celular
@@ -115,8 +116,21 @@ export function ListaChegada({ evento, convidados, walkins }: { evento: string; 
   const b = normalizarTexto(busca);
   const d = busca.replace(/\D/g, "");
   const visiveis = convidados.filter((c) => !b || normalizarTexto(c.nome).includes(b) || normalizarTexto(c.anfitriao).includes(b) || (d.length >= 3 && (c.cpf_mascarado ?? "").replace(/\D/g, "").includes(d)));
-  const grupos = new Map<string, Convidado[]>();
-  for (const c of visiveis) grupos.set(c.pedido_id, [...(grupos.get(c.pedido_id) ?? []), c]);
+  const porNome = (a: Convidado, b: Convidado) => a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" });
+  // Por anfitrião: um bloco por anfitrião (A–Z), ele primeiro e depois os convidados dele (A–Z).
+  // Em ordem alfabética: uma lista só, por nome.
+  const grupos: { chave: string; titulo: string | null; area: string | null; itens: Convidado[] }[] = [];
+  if (ordem === "nome") {
+    if (visiveis.length) grupos.push({ chave: "todos", titulo: null, area: null, itens: [...visiveis].sort(porNome) });
+  } else {
+    const mapa = new Map<string, Convidado[]>();
+    for (const c of visiveis) mapa.set(c.anfitriao, [...(mapa.get(c.anfitriao) ?? []), c]);
+    for (const [anf, itens] of [...mapa].sort((a, b) => a[0].localeCompare(b[0], "pt-BR", { sensitivity: "base" }))) {
+      itens.sort((a, b) => Number(b.titular) - Number(a.titular) || porNome(a, b));
+      const dono = itens.find((c) => c.titular) ?? itens[0];
+      grupos.push({ chave: anf, titulo: anf, area: dono.area + (dono.indicacao_de ? ` · indicação ${dono.indicacao_de}` : ""), itens });
+    }
+  }
   const chegaram = convidados.filter((c) => chegadas[c.ingresso_id]).length;
   const anfitrioes = convidados.filter((c) => c.titular);
   const aguardandoMkt = walkins.filter((w) => w.status === "pendente");
@@ -139,6 +153,15 @@ export function ListaChegada({ evento, convidados, walkins }: { evento: string; 
         <div className="flex gap-2">
           <Entrada value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome, anfitrião ou CPF…" className="py-3 text-base" aria-label="Buscar convidado" />
           <Botao variante="secundario" className="shrink-0" onClick={() => setForaDaLista((f) => !f)}>{foraDaLista ? "Fechar" : "+ Fora da lista"}</Botao>
+        </div>
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-cinza">Ordenar:</span>
+          {([["anfitriao", "Por anfitrião"], ["nome", "A–Z (nome)"]] as const).map(([v, r]) => (
+            <button key={v} type="button" onClick={() => setOrdem(v)} aria-pressed={ordem === v}
+              className={clsx("rounded-full px-3 py-1.5 font-semibold", ordem === v ? "bg-mrv-700 text-white" : "bg-white text-mrv-700 ring-1 ring-borda")}>
+              {r}
+            </button>
+          ))}
         </div>
         {erro && <Aviso tom="erro">{erro}</Aviso>}
       </div>
@@ -164,14 +187,16 @@ export function ListaChegada({ evento, convidados, walkins }: { evento: string; 
 
       {visiveis.length === 0 && <p className="py-8 text-center text-sm text-tinta/50">{convidados.length ? "Ninguém encontrado." : "Nenhum convidado aprovado para o camarote ainda."}</p>}
 
-      {[...grupos.values()].map((g) => (
-        <section key={g[0].pedido_id} className="overflow-hidden rounded-2xl border border-borda bg-white">
-          <div className="border-b border-borda bg-mrv-50 px-4 py-2 text-xs">
-            <span className="font-semibold text-mrv-700">Anfitrião: {g[0].anfitriao}</span>
-            <span className="text-cinza"> · {g[0].area}{g[0].indicacao_de ? ` · indicação ${g[0].indicacao_de}` : ""}</span>
-          </div>
+      {grupos.map((g) => (
+        <section key={g.chave} className="overflow-hidden rounded-2xl border border-borda bg-white">
+          {g.titulo && (
+            <div className="border-b border-borda bg-mrv-50 px-4 py-2 text-xs">
+              <span className="font-semibold text-mrv-700">Anfitrião: {g.titulo}</span>
+              <span className="text-cinza"> · {g.area}</span>
+            </div>
+          )}
           <ul className="divide-y divide-borda">
-            {g.map((c) => {
+            {g.itens.map((c) => {
               const em = chegadas[c.ingresso_id];
               const naoEnviada = fila.some((p) => p.ingresso === c.ingresso_id);
               return (
