@@ -2,7 +2,7 @@
 
 | Peça | Onde | Observação |
 |---|---|---|
-| Site | **Vercel**, projeto `ticketing-mrv` → https://ticketing-mrv.vercel.app | Publica sozinho a cada push na `main` |
+| Site | **Vercel**, projeto `ticketing-mrv` → https://ticketing-mrv.vercel.app | Publica sozinho a cada push na `main`. Funções em São Paulo (`gru1`, `vercel.json`), perto do banco |
 | Banco | **Neon**, organização *act.3 Brasil*, projeto **Ticketing MRV** (São Paulo), banco `neondb` | Único banco do sistema |
 | E-mail | **Resend**, domínio `ingressos.weareact3.com` | Sem `RESEND_API_KEY` nada sai (fica "simulado") |
 | Rotinas | **GitHub Actions** (`.github/workflows/rotinas.yml`, a cada 30 min) + cron diário da Vercel (`vercel.json`) | Chamam `/api/cron/*` com o `CRON_SECRET` |

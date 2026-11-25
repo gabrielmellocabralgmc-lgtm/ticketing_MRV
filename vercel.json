@@ -1,4 +1,5 @@
 {
+  "regions": ["gru1"],
   "crons": [
     { "path": "/api/cron/retencao", "schedule": "30 9 * * *" },
     { "path": "/api/cron/tudo", "schedule": "0 10 * * *" }
