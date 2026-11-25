@@ -1,6 +1,6 @@
 // Cria (ou promove) um Admin no banco de produção.
 //   DATABASE_URL=... npm run criar-admin -- email@mrv.com.br "Nome Sobrenome"
-// (No primeiro deploy, basta definir ADMIN_EMAIL/ADMIN_NOME no Railway: o deploy cria sozinho.)
+// (Alternativa: definir ADMIN_EMAIL/ADMIN_NOME na Vercel; o próximo deploy cria sozinho.)
 import pg from "pg";
 
 const [email, nome = "Admin"] = process.argv.slice(2);

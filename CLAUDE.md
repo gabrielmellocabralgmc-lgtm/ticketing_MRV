@@ -28,13 +28,15 @@ Guia para o Claude trabalhar neste projeto. Detalhes de negócio e de cada fase 
 
 - **Next.js 15** (App Router, Server Actions) + TypeScript + **Tailwind 4**, interface em pt-BR.
   Cores MRV `#006B3F` (verde) e `#FF8B22` (laranja); telas de jogo/login no estilo Galo ID (preto/branco, fonte Saira).
-- **Banco: Postgres no Neon** (não é mais Supabase — a migração `…026_sem_supabase.sql` removeu a dependência).
+- **Banco: Postgres no Neon** — organização *act.3 Brasil*, projeto **Ticketing MRV** (São Paulo), banco `neondb`.
+  Não é mais Supabase (a migração `…026_sem_supabase.sql` removeu a dependência). Até 25/11/2026 o banco ficava
+  dentro do projeto *Ingressos adidas* (banco `Ticketing_MRV`, Ohio) — **não mexer no projeto do adidas**.
   `supabase/shim.sql` + `src/lib/db/cliente.ts` imitam a API/RLS do Supabase sobre Postgres puro.
   A pasta continua se chamando `supabase/` por histórico.
 - **Login próprio**: link por e-mail (20 min, 1 uso) e senha para Admin; sessão em cookie assinado (`AUTH_SECRET`).
 - **E-mail: Resend** (domínio `ingressos.weareact3.com`), adapter em `src/lib/mensagens/email.ts`.
   Sem `RESEND_API_KEY` nada sai de verdade: e-mails ficam como "simulado" na caixa de saída.
-- **Hospedagem: Vercel** (`ticketing-mrv.vercel.app`). Railway foi usado antes e desligado (`railway.json` é legado).
+- **Hospedagem: Vercel** (`ticketing-mrv.vercel.app`). O Railway foi apagado em 25/11/2026. Detalhes: [docs/DEPLOY.md](docs/DEPLOY.md).
 - **Rotinas**: GitHub Actions `.github/workflows/rotinas.yml` chama `/api/cron/tudo` a cada 30 min;
   `vercel.json` tem crons diários. Saúde: `/api/saude`.
 - **exceljs** (import/export XLSX no layout da planilha legada), **Vitest + PGlite** nos testes.
@@ -70,13 +72,13 @@ npm run importar -- "<planilha>.xlsx" --como <email> --inicio <data ISO> --dry-r
 
 - `.claude/launch.json` tem a configuração `demo` (usar com o navegador do app para conferir telas).
 - `npm run dev` precisa de `.env.local` com `DATABASE_URL` etc. — **aponta para o banco real**; prefira o demo.
-- A seção "Rodar localmente" do README (`supabase start`) está desatualizada.
 
 ## Variáveis de ambiente (ver `.env.example`)
 
 `DATABASE_URL` (Neon com pooler), `DATABASE_URL_DIRETA` (sem pooler, migrações), `AUTH_SECRET`, `SITE_URL`,
 `CRON_SECRET`, `RESEND_API_KEY`, `EMAIL_REMETENTE`, `EMAIL_RESPONDER_PARA`, `ADMIN_EMAIL`, `ADMIN_NOME`.
 Valores reais ficam só na Vercel (Settings → Environment Variables) e, se preciso, em `.env.local` (fora do git).
+`DATABASE_URL` e `DATABASE_URL_DIRETA` têm de apontar para o **mesmo** banco (o build loga o host em `[migrar]`).
 
 ## Estrutura
 
@@ -90,7 +92,7 @@ src/app/api/cron/      rotinas (expirar convites, prazos, lembretes, retenção)
 src/lib/               db, auth, CPF, parse de listas, mensagens, xlsx, importação, demo
 scripts/               migrar.mjs · importar-planilha.ts · criar-admin.mjs
 tests/                 unit/ e db/ (PGlite)
-docs/                  DEPLOY-VERCEL.md (atual) · DEPLOY.md (Railway, legado)
+docs/DEPLOY.md         onde e como roda em produção
 ```
 
 ## LGPD

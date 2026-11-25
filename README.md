@@ -2,30 +2,29 @@
 
 Sistema de gestão dos ingressos de patrocínio da MRV na Arena MRV (jogos do Galo e shows). Substitui o processo de e-mail + Microsoft Forms + WhatsApp + planilha: solicitação pelas áreas, validação, aprovação do Marketing, envio, onboarding no Galo ID e exportação.
 
-**Status: Fase 1 (MVP).** Detalhes do que entrou e do que falta no fim deste arquivo.
+**Status: Fases 1 a 4 entregues e em produção.** Detalhes de cada fase no fim deste arquivo.
 
 ## Stack
 
 - **Next.js 15** (App Router, Server Actions) + TypeScript + Tailwind 4, interface em pt-BR com as cores do regulamento (`#006B3F` verde, `#FF8B22` laranja)
-- **Supabase**: Postgres, Auth por magic link, Row Level Security, Realtime
+- **Postgres no Neon** (projeto *Ticketing MRV*, São Paulo). O sistema nasceu no Supabase; a camada `supabase/shim.sql` + `src/lib/db/cliente.ts` imita a API dele sobre Postgres puro e mantém a Row Level Security. Login próprio por link no e-mail (Resend) ou senha; as telas se atualizam a cada 20 s.
 - **Regras de negócio no banco** (`supabase/migrations/*_funcoes.sql`): cota, CPF duplicado, status, lista de espera e convites são funções `plpgsql` com trava por setor (`SELECT … FOR UPDATE`). A UI, o importador e os jobs passam pelas mesmas funções, e não existe policy de INSERT/UPDATE direto nas tabelas de pedidos e ingressos.
 - **exceljs** para importar e exportar XLSX no layout da planilha legada
 - **Vitest + PGlite** (Postgres em WebAssembly) para testar as regras do banco sem Docker
 
 ## Rodar localmente
 
-Pré-requisitos: Node 20+ e Docker (para o Supabase local).
+Pré-requisito: Node 20+.
 
 ```bash
 npm install
-npx supabase start          # sobe Postgres/Auth/Studio e aplica migrations + seed.sql
-cp .env.example .env.local  # preencha com as chaves impressas pelo "supabase start"
-npm run dev                 # http://localhost:3000
+npm run demo        # http://localhost:3000 com banco de demonstração (PGlite em .demo.nosync/), sem .env
+npm run demo:zerar  # apaga o banco de demonstração e recomeça do zero
 ```
 
-O seed cria usuários **fictícios**. Entre com `admin@exemplo.com`, `marketing@exemplo.com` ou `responsavel.dh@exemplo.com` (há um para cada área). O magic link chega no Inbucket local: http://127.0.0.1:54324.
+O modo demo cria o banco com todas as migrações e o `seed.sql` (usuários e dados **fictícios**); a tela de login mostra os usuários para entrar com um clique. Nenhum e-mail sai de verdade.
 
-Para recriar o banco do zero: `npx supabase db reset`.
+`npm run dev` usa o banco de `DATABASE_URL` (`.env.local`), ou seja, o banco real: prefira o demo.
 
 ## Testes
 
@@ -43,44 +42,22 @@ Para validar a planilha real **sem colocá-la no repositório**:
 PLANILHA_MRV="/caminho/MRV_TicketManagement_xxx.xlsx" npm test
 ```
 
-## Publicar (Supabase Cloud + Vercel)
+## Publicar (Vercel + Neon)
 
-1. **Supabase**: crie o projeto e aplique o schema:
-   ```bash
-   npx supabase link --project-ref <ref>
-   npx supabase db push
-   ```
-   Não rode o `seed.sql` em produção. Ele só contém dados fictícios.
-2. **Auth** (Dashboard → Authentication):
-   - *Sign In / Providers → Email*: desligue **Allow new users to sign up** (só o Admin cadastra usuários).
-   - *URL Configuration*: Site URL = `https://seu-dominio`; Redirect URLs = `https://seu-dominio/auth/callback`.
-   - *Emails → Magic Link*: cole o conteúdo de `supabase/templates/magic_link.html`. Ele usa `token_hash`, então funciona mesmo se o link for aberto em outro aparelho.
-   - *SMTP* (o padrão do Supabase tem limite baixo de envio): use o Resend, ver **E-mail** abaixo.
-3. **Vercel**: importe o repositório e configure as variáveis de `.env.example` (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SITE_URL`, `CRON_SECRET`, `RESEND_API_KEY`, `EMAIL_REMETENTE`).
-4. **Primeiro Admin**:
-   ```bash
-   npm run criar-admin -- seu.email@mrv.com.br "Seu Nome"
-   ```
-   Os responsáveis de cada área são cadastrados em **Áreas e responsáveis** (Admin ou Marketing); os demais perfis, em **Usuários**.
-5. **Jobs** (`vercel.json`): expirar convites a cada 30 min e fechar prazos de hora em hora. No plano Hobby da Vercel o cron só roda uma vez por dia. Alternativa sem custo: `pg_cron` no próprio Supabase.
-   ```sql
-   select cron.schedule('expirar-convites', '*/30 * * * *', 'select expirar_convites()');
-   select cron.schedule('fechar-prazos', '5 * * * *',
-     $$select fechar_prazo(id) from eventos where status = 'aberto' and prazo_solicitacao < now()$$);
-   ```
+Como está montado hoje, variáveis, rotinas e como conferir: **[docs/DEPLOY.md](docs/DEPLOY.md)**.
+
+Resumo: cada push na `main` publica na Vercel; o build roda `scripts/migrar.mjs`, que aplica só as migrações novas no Neon (tabela `_migracoes`) e garante o Admin de `ADMIN_EMAIL`, e depois `next build`. As rotinas (expirar convites, prazos, encerrar jogos, lembretes, retenção) são chamadas pelo GitHub Actions a cada 30 min e por um cron diário da Vercel.
 
 ## E-mail (Resend, domínio `ingressos.weareact3.com`)
 
 1. No Resend: *Domains → Add domain* → `ingressos.weareact3.com` e crie no DNS do `weareact3.com` exatamente os registros (SPF, DKIM, MX) que o Resend mostrar. Espere ficar **Verified**.
 2. Crie uma API key (*API Keys → Create*, permissão *Sending access*, restrita ao domínio).
-3. **Login (magic link)** sai pelo Supabase Auth usando o SMTP do Resend. Em *Authentication → Emails → SMTP Settings*:
-   - Host `smtp.resend.com`, porta `465`, usuário `resend`, senha = a API key
-   - Sender email `naoresponda@ingressos.weareact3.com`, sender name `Ingressos MRV`
+3. **Login**: o link de acesso (vale 20 min, 1 uso) é enviado pela mesma API do Resend. Sem `RESEND_API_KEY` (local), o link aparece no terminal.
 4. **Mensagens do sistema** (convites, passo a passo do Galo ID, lembretes — fase 3) usam a API do Resend pelo adapter `src/lib/mensagens/email.ts`, com `RESEND_API_KEY` e `EMAIL_REMETENTE` (padrão `Ingressos MRV <naoresponda@ingressos.weareact3.com>`). `EMAIL_RESPONDER_PARA` opcional faz as respostas irem para o Marketing.
 
 ## Áreas e responsáveis
 
-Em **Áreas e responsáveis** (Admin e Marketing): criar/renomear/desativar áreas, centro de custo, e adicionar ou remover responsáveis por nome e e-mail — **mais de um por área**, e uma pessoa pode responder por várias. Quem é adicionado recebe acesso por magic link (a conta é criada na hora) e passa a ver só as listas dessas áreas. Área nova não tem cota nos eventos já criados: defina em *Ajustar cota* na página do evento.
+Em **Áreas e responsáveis** (Admin e Marketing): criar/renomear/desativar áreas, centro de custo, e adicionar ou remover responsáveis por nome e e-mail — **mais de um por área**, e uma pessoa pode responder por várias. Quem é adicionado recebe acesso pelo link enviado por e-mail (a conta é criada na hora) e passa a ver só as listas dessas áreas. Área nova não tem cota nos eventos já criados: defina em *Ajustar cota* na página do evento.
 
 ## Aparência
 
@@ -194,42 +171,6 @@ Aba **Operação camarote** (perfis Operação do camarote e Admin): check-list 
 controle de bebidas (a sobra vem da contagem final do jogo anterior), relatório geral e fotos de comprovação.
 
 - Itens dos check-lists e bebidas: **Configurações › Operação do camarote** (Admin).
-- Fotos: reduzidas no celular (~1600 px, JPEG ≈ 200–400 KB) e guardadas **fora do banco**, no Supabase Storage
-  (bucket privado `operacao`, criado pela migração). O banco guarda só o registro, com o horário de envio.
-  No modo demo ficam em `.demo.nosync/fotos/`.
+- Fotos: reduzidas no celular (~1600 px, JPEG ≈ 200–400 KB) e guardadas no próprio banco, na tabela
+  `op_arquivos` (só o servidor lê), com o horário de envio. No modo demo ficam em `.demo.nosync/fotos/`.
 - Relatório completo para imprimir/PDF: `/operacao-camarote/<evento>/imprimir`.
-
-
-## Deploy na Vercel (atual) — ver [docs/DEPLOY-VERCEL.md](docs/DEPLOY-VERCEL.md)
-
-App na Vercel (mesma conta do adidas_ingressos), banco no Neon, e-mail no Resend. O build de produção
-roda `scripts/migrar.mjs` (script `vercel-build`); as rotinas frequentes são chamadas pelo GitHub
-Actions (`.github/workflows/rotinas.yml`, a cada 30 min) e há um cron diário da Vercel (`vercel.json`).
-
-## Deploy alternativo: Railway (app) + Neon (banco) + Resend (e-mail)
-
-O sistema roda em qualquer Postgres. Em produção: **Neon** (mesma conta do adidas_ingressos, num
-banco separado) e o app no **Railway** (fora da Vercel). A camada que imitava o Supabase
-(`supabase/shim.sql` + `src/lib/db/cliente.ts`) mantém a RLS e todas as regras no banco.
-
-| Antes (Supabase) | Agora |
-|---|---|
-| Login por link mágico | Próprio sistema: link por e-mail (Resend), vale 20 min e 1 uso; sessão em cookie assinado (`AUTH_SECRET`), 30 dias |
-| Realtime | Telas atualizam sozinhas a cada 20 s |
-| Storage (fotos da operação) | Tabela `op_arquivos` no próprio banco (fotos já chegam reduzidas, ~300 KB) |
-| Vercel Cron | Agendador interno (`src/lib/agenda.ts`), ligado quando `CRON_SECRET` existe |
-
-**Passo a passo detalhado:** [docs/DEPLOY.md](docs/DEPLOY.md). Resumo:
-1. **Neon**: no projeto do adidas, crie o banco `ticketing_mrv` (Databases → New database). Copie as duas
-   connection strings: com pooler → `DATABASE_URL`; sem pooler → `DATABASE_URL_DIRETA`.
-2. **GitHub**: suba este repositório (privado).
-3. **Railway**: New Project → Deploy from GitHub repo. Em *Variables*, preencha o `.env.example`
-   (inclusive `ADMIN_EMAIL`/`ADMIN_NOME` para o primeiro Admin). O `railway.json` já define build,
-   start (`npm start` = migrações + servidor) e a verificação de saúde (`/api/saude`).
-4. **Domínio**: Settings → Networking → Generate Domain (ou um subdomínio próprio). Coloque o endereço
-   final em `NEXT_PUBLIC_SITE_URL` e faça um novo deploy.
-5. **Resend**: use a chave da conta existente; o domínio `ingressos.weareact3.com` precisa estar verificado.
-6. Entre em `/login` com o `ADMIN_EMAIL` e cadastre os demais usuários em Configurações › Usuários.
-
-A cada deploy, `scripts/migrar.mjs` aplica só as migrações novas (tabela `_migracoes`).
-Local, sem e-mail: sem `RESEND_API_KEY`, o link de acesso aparece no terminal.

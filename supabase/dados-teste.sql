@@ -1,4 +1,4 @@
--- CARGA DE TESTE para o ambiente publicado (Railway + Neon). Roda uma vez, no deploy, quando
+-- CARGA DE TESTE para o ambiente publicado (Vercel + Neon). Roda uma vez, no deploy, quando
 -- CARGA_TESTE=1 (ver scripts/migrar.mjs). Remover tudo: CARGA_TESTE=remover.
 --  · Jogos REAIS do Galo em casa (Arena MRV), com convidados FICTÍCIOS.
 --  · Usuários fictícios com e-mails @teste.invalid (domínio que não existe: nenhum e-mail real).

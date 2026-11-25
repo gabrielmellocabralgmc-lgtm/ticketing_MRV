@@ -26,7 +26,7 @@ function conferir(nome) {
     : !/^postgres(ql)?:\/\//i.test(v) ? "não começa com postgresql://"
     : null;
   if (problema) {
-    console.error(`[migrar] ${nome} inválida: ${problema}. Corrija em Railway → Variables.`);
+    console.error(`[migrar] ${nome} inválida: ${problema}. Corrija na Vercel → Settings → Environment Variables.`);
     process.exit(1);
   }
   try {
@@ -108,7 +108,7 @@ try {
   const { rows: admins } = await c.query(`select email from perfis where papel = 'admin' and ativo order by email`);
   console.log(admins.length
     ? `[migrar] Admins ativos: ${admins.map((a) => mascarar(a.email)).join(", ")}`
-    : "[migrar] nenhum Admin ativo — defina ADMIN_EMAIL nas Variables e faça um novo deploy");
+    : "[migrar] nenhum Admin ativo — defina ADMIN_EMAIL na Vercel (Environment Variables) e faça um novo deploy");
 
   // Carga de teste (jogos reais + convidados/usuários fictícios): CARGA_TESTE=1 carrega uma vez;
   // CARGA_TESTE=remover apaga tudo dela. Sem a variável, nada acontece.
