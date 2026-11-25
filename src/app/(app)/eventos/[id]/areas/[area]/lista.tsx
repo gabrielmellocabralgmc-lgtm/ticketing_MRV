@@ -1,7 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { BotaoCopiar, BotaoWhatsApp } from "@/components/copiar";
-import { Aviso, Botao, Entrada, Selo, SeloStatus, Tabela, Vazio } from "@/components/ui";
+import { Aviso, Botao, Cartao, Entrada, Selo, SeloStatus, Tabela, Vazio } from "@/components/ui";
 import { formatarCpf } from "@/lib/cpf";
 import { celular, dataHora } from "@/lib/formato";
 import { linkTorcedor, linkWhatsApp, textoConvite, textoGaloId } from "@/lib/mensagens";
