@@ -94,7 +94,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
               <div className="flex items-center gap-4 bg-preto px-5 py-4 text-white">
                 <Escudo url={img[CHAVE_ESCUDO_ATLETICO]} nome="do Atlético" tamanho="p" />
                 <div className="min-w-0 flex-1">
-                  <Link href={`/eventos/${e.id}`} className="font-display text-xl font-extrabold uppercase hover:underline">{e.titulo}</Link>
+                  <Link href={`/eventos/${e.id}/painel`} className="font-display text-xl font-extrabold uppercase hover:underline">{e.titulo}</Link>
                   <div className="text-sm text-white/75 first-letter:uppercase">{dataLonga(e.inicio)}{e.prazo_solicitacao && ` · solicitações até ${dataHora(e.prazo_solicitacao)}`}</div>
                 </div>
                 

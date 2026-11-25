@@ -40,6 +40,8 @@ export default async function Eventos() {
 
   const img = await imagensDisponiveis();
   const admin = s.papel === "admin";
+  // Admin e Marketing abrem o evento direto no Painel; responsáveis vão para a lista da área
+  const abrir = (id: string) => (s.verTudo ? `/eventos/${id}/painel` : `/eventos/${id}`);
   const statusTom = (e: Evento) => (e.status === "aberto" ? "verde" : e.status === "rascunho" ? "amarelo" : "cinza") as "verde" | "amarelo" | "cinza";
 
   // Próximos: card com faixa preta e escudos; anteriores: linha compacta
@@ -50,7 +52,7 @@ export default async function Eventos() {
       <div className="grid gap-5 md:grid-cols-2">
         {itens.map((e) => (
           <div key={e.id} className="flex flex-col overflow-hidden rounded-2xl border border-borda bg-white transition hover:border-mrv-600">
-          <Link href={`/eventos/${e.id}`} className="group flex flex-1 flex-col focus-visible:outline-2 focus-visible:outline-mrv-600">
+          <Link href={abrir(e.id)} className="group flex flex-1 flex-col focus-visible:outline-2 focus-visible:outline-mrv-600">
             <div className={clsx("flex items-center gap-4 p-5", e.tipo === "show" ? "bg-[linear-gradient(45deg,#006B3F,#079D56)]" : "bg-preto")}>
               {e.tipo === "jogo" && <Escudo url={img[CHAVE_ESCUDO_ATLETICO]} nome="do Atlético" />}
               <div className={clsx("min-w-0 flex-1 text-[22px] leading-tight font-extrabold text-white", e.tipo !== "show" && "font-display uppercase")}>{e.titulo}</div>
@@ -86,7 +88,7 @@ export default async function Eventos() {
     <div className="grid gap-3 md:grid-cols-2">
       {itens.map((e) => (
         <div key={e.id} className="overflow-hidden rounded-2xl border border-borda bg-white hover:border-mrv-600">
-        <Link href={`/eventos/${e.id}`} className="flex items-center gap-4 px-5 py-4">
+        <Link href={abrir(e.id)} className="flex items-center gap-4 px-5 py-4">
           {e.tipo === "jogo" && <Escudo url={img[chaveEscudoAdversario(e.id)]} nome={e.adversario ? `do ${e.adversario}` : "do adversário"} tamanho="p" escuro={false} />}
           <div className="min-w-0">
             <div className={clsx("text-[17px] font-bold", e.tipo !== "show" && "font-display uppercase")}>{e.titulo}</div>
