@@ -131,6 +131,19 @@ export async function definirConvidadoDe(evento: string, ingresso: string, anfit
   return { ok: true, mensagem: data ? `Agora é convidado(a) de ${data as string}.` : "Agora aparece como anfitrião (sem vínculo)." };
 }
 
+/** Camarote: o mesmo anfitrião para várias pessoas de uma vez (tudo ou nada). */
+export async function definirConvidadoDeVarios(evento: string, ingressos: string[], anfitriao: Anfitriao): Promise<Resultado> {
+  await exigirStaff();
+  const sb = await supabaseServidor();
+  const { data, error } = await sb.rpc("definir_convidado_de_varios", {
+    p_ingressos: ingressos, p_anfitriao: anfitriao.ingresso || null, p_externo: anfitriao.externo?.trim() || null,
+  });
+  if (error) return falha(error);
+  revalidatePath(`/eventos/${evento}`, "layout");
+  const n = data as number;
+  return { ok: true, mensagem: `${n} pessoa${n === 1 ? "" : "s"} atualizada${n === 1 ? "" : "s"}.` };
+}
+
 export async function alterarPessoaArea(evento: string, ingresso: string, novaArea: string): Promise<Resultado> {
   await exigirStaff();
   const sb = await supabaseServidor();

@@ -11,11 +11,11 @@ import { normalizarTexto } from "@/lib/texto";
 import { type Setor, type StatusIngresso } from "@/lib/tipos";
 import { facialOk, pendenteFacial } from "../marketing-actions";
 import { PortaCamarote, type Walkin } from "./camarote";
-import { AcoesConvidados, EscolhaAnfitriao, anfitriaoIncompleto, type PessoaDaLista } from "../adicionar-convidado";
+import { AcoesConvidados, DefinirAnfitriao, type PessoaDaLista } from "../adicionar-convidado";
 import { cancelarConvite } from "../areas/[area]/actions";
 import { BotaoWhatsApp } from "@/components/copiar";
 import { linkTorcedor, linkWhatsApp, textoConvite } from "@/lib/mensagens";
-import { atualizarDadosAdmin, definirConvidadoDe, preencherReserva, type Anfitriao } from "../adicionar-actions";
+import { atualizarDadosAdmin, definirConvidadoDe, preencherReserva } from "../adicionar-actions";
 import type { OpcaoSetor } from "../adicionar-opcoes";
 import { NomeEditavel } from "../nome-editavel";
 import { EditorCotas, type AreaCota } from "../editor-cotas";
@@ -354,28 +354,3 @@ function PreencherReserva({ para, salvar, fechar }: {
   );
 }
 
-/** Camarote: escolher de quem a pessoa é convidada (alguém da lista, alguém de fora ou ninguém). */
-function DefinirAnfitriao({ nome, anfitrioes, inicial, salvar, fechar }: {
-  nome: string; anfitrioes: PessoaDaLista[]; inicial: Anfitriao; fechar: () => void;
-  salvar: (a: Anfitriao) => Promise<{ ok: boolean; mensagem?: string; erro?: string }>;
-}) {
-  const [a, setA] = useState<Anfitriao>(inicial);
-  const [erro, setErro] = useState<string | null>(null);
-  const [pendente, iniciar] = useTransition();
-  return (
-    <div className="rounded-xl bg-white p-3 ring-1 ring-mrv-600/30">
-      <div className="mb-2 text-sm font-semibold">{nome}: convidado(a) de quem?</div>
-      <EscolhaAnfitriao anfitrioes={anfitrioes} valor={a} onChange={setA} />
-      {erro && <div className="mt-2"><Aviso tom="erro">{erro}</Aviso></div>}
-      <div className="mt-2 flex gap-2">
-        <Botao type="button" disabled={pendente || anfitriaoIncompleto(a)} onClick={() => iniciar(async () => {
-          setErro(null);
-          const r = await salvar(a);
-          if (!r.ok) return setErro(r.erro ?? "Não foi possível salvar.");
-          fechar();
-        })}>{pendente ? "Salvando…" : "Salvar"}</Botao>
-        <Botao type="button" variante="fantasma" onClick={fechar}>Voltar</Botao>
-      </div>
-    </div>
-  );
-}

@@ -297,3 +297,29 @@ function ReservarIngressosForm(p: Comum) {
     </div>
   );
 }
+
+/** Camarote: escolher de quem a pessoa é convidada (alguém da lista, alguém de fora ou ninguém). */
+export function DefinirAnfitriao({ nome, anfitrioes, inicial, salvar, fechar }: {
+  nome: string; anfitrioes: PessoaDaLista[]; inicial: Anfitriao; fechar: () => void;
+  salvar: (a: Anfitriao) => Promise<{ ok: boolean; mensagem?: string; erro?: string }>;
+}) {
+  const [a, setA] = useState<Anfitriao>(inicial);
+  const [erro, setErro] = useState<string | null>(null);
+  const [pendente, iniciar] = useTransition();
+  return (
+    <div className="rounded-xl bg-white p-3 ring-1 ring-mrv-600/30">
+      <div className="mb-2 text-sm font-semibold">{nome}: convidado(a) de quem?</div>
+      <EscolhaAnfitriao anfitrioes={anfitrioes} valor={a} onChange={setA} />
+      {erro && <div className="mt-2"><Aviso tom="erro">{erro}</Aviso></div>}
+      <div className="mt-2 flex gap-2">
+        <Botao type="button" disabled={pendente || anfitriaoIncompleto(a)} onClick={() => iniciar(async () => {
+          setErro(null);
+          const r = await salvar(a);
+          if (!r.ok) return setErro(r.erro ?? "Não foi possível salvar.");
+          fechar();
+        })}>{pendente ? "Salvando…" : "Salvar"}</Botao>
+        <Botao type="button" variante="fantasma" onClick={fechar}>Voltar</Botao>
+      </div>
+    </div>
+  );
+}

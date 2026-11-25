@@ -7,6 +7,8 @@ import { celular, dataHora } from "@/lib/formato";
 import { linkTorcedor, linkWhatsApp, textoConvite, textoGaloId } from "@/lib/mensagens";
 import type { Setor, StatusIngresso } from "@/lib/tipos";
 import { cancelarConvite, cancelarIngresso, editarPessoa, validarIngresso } from "./actions";
+import { DefinirAnfitriao, type PessoaDaLista } from "../../adicionar-convidado";
+import { definirConvidadoDe, definirConvidadoDeVarios } from "../../adicionar-actions";
 
 export interface LinhaLista {
   ingresso_id: string;
@@ -38,7 +40,7 @@ const POS_APROVACAO: StatusIngresso[] = ["aprovado", "facial_pendente", "facial_
 
 const ALTERAVEIS: StatusIngresso[] = ["solicitado", "validado_area", "aprovado", "facial_ok", "facial_pendente", "lista_espera"];
 
-export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, podeAlterar, prazo, facial = true, resgate = false, resgates = {}, areas = [], isAdmin = false }: {
+export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, podeAlterar, prazo, facial = true, resgate = false, resgates = {}, areas = [], isAdmin = false, anfitrioes = [] }: {
   evento: string; setor: Setor; area: string; areaNome: string; linhas: LinhaLista[];
   eventoInfo: { titulo: string; inicio: string; abertura_portoes: string | null };
   podeAlterar: boolean; prazo: string;
@@ -51,12 +53,19 @@ export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, p
   areas?: { id: string; nome: string }[];
   /** Se é admin. */
   isAdmin?: boolean;
+  /** Camarote (Admin): quem está ativo na lista do jogo, para escolher de quem cada um é convidado. */
+  anfitrioes?: PessoaDaLista[];
 }) {
   const [mostrarInativos, setMostrarInativos] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
   const [alterandoArea, setAlterandoArea] = useState<string | null>(null);
   const [retorno, setRetorno] = useState<{ ok: boolean; msg: string } | null>(null);
   const [pendente, iniciar] = useTransition();
+  // Camarote (Admin): "Convidado de…" por pessoa e para várias de uma vez
+  const vinculo = isAdmin && setor === "camarote";
+  const [vinculando, setVinculando] = useState<string | null>(null);
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [lote, setLote] = useState(false);
 
   const rodar = (f: () => Promise<{ ok: boolean; erro?: string; mensagem?: string }>) =>
     iniciar(async () => {
@@ -73,6 +82,8 @@ export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, p
   // reservas (sem nome ainda) aparecem como "Reservado para …"
   const pessoas = linhas.filter((l) => (l.nome || l.status === "reservado") && (mostrarInativos || !INATIVOS.includes(l.status)));
   const inativos = linhas.filter((l) => l.nome && INATIVOS.includes(l.status)).length;
+  const selecionaveis = pessoas.filter((l) => l.nome && l.status !== "reservado" && !INATIVOS.includes(l.status));
+  const marcar = (id: string, v: boolean) => setSel((x) => { const n = new Set(x); if (v) n.add(id); else n.delete(id); return n; });
 
   return (
     <div className="space-y-6">
@@ -145,22 +156,66 @@ export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, p
             </label>
           )}
         </div>
+        {vinculo && sel.size > 0 && (
+          <div className="mb-2 rounded-xl bg-mrv-50 p-3 ring-1 ring-mrv-600/30">
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              <b>{sel.size} selecionado{sel.size > 1 ? "s" : ""}</b>
+              <Botao type="button" variante={lote ? "primario" : "secundario"} onClick={() => setLote((x) => !x)}>Definir “convidado de” para todos</Botao>
+              <button type="button" className="text-xs text-tinta/60 hover:underline" onClick={() => { setSel(new Set()); setLote(false); }}>limpar seleção</button>
+            </div>
+            {lote && (
+              <div className="mt-3">
+                <DefinirAnfitriao nome={`${sel.size} pessoa${sel.size > 1 ? "s" : ""}`} inicial={{}}
+                  anfitrioes={anfitrioes.filter((a) => !sel.has(a.id))} fechar={() => setLote(false)}
+                  salvar={async (a) => {
+                    const r = await definirConvidadoDeVarios(evento, [...sel], a);
+                    if (r.ok) { setRetorno({ ok: true, msg: r.mensagem ?? "Feito." }); setSel(new Set()); }
+                    return r;
+                  }} />
+              </div>
+            )}
+          </div>
+        )}
         {pessoas.length === 0 ? (
           <Vazio>Nenhuma solicitação ainda.</Vazio>
         ) : (
           <Tabela>
-            <thead><tr><th>Nome</th><th>CPF</th><th>Celular</th><th>Vínculo</th><th>Status</th><th className="text-right">Ações</th></tr></thead>
+            <thead><tr>
+              {vinculo && (
+                <th className="w-8">
+                  <input type="checkbox" aria-label="Selecionar todos" className="accent-mrv-700"
+                    checked={selecionaveis.length > 0 && selecionaveis.every((l) => sel.has(l.ingresso_id))}
+                    onChange={(e) => setSel(e.target.checked ? new Set(selecionaveis.map((l) => l.ingresso_id)) : new Set())} />
+                </th>
+              )}
+              <th>Nome</th><th>CPF</th><th>Celular</th><th>Vínculo</th><th>Status</th><th className="text-right">Ações</th></tr></thead>
             <tbody>
               {pessoas.map((l) => (
-                editando === l.ingresso_id ? (
+                vinculando === l.ingresso_id ? (
                   <tr key={l.ingresso_id}>
-                    <td colSpan={6}>
+                    <td colSpan={vinculo ? 7 : 6}>
+                      <DefinirAnfitriao nome={l.nome ?? ""} anfitrioes={anfitrioes.filter((a) => a.id !== l.ingresso_id)}
+                        inicial={l.anfitriao_externo ? { externo: l.anfitriao_externo } : {}} fechar={() => setVinculando(null)}
+                        salvar={async (a) => { const r = await definirConvidadoDe(evento, l.ingresso_id, a); if (r.ok) setRetorno({ ok: true, msg: r.mensagem ?? "Feito." }); return r; }} />
+                    </td>
+                  </tr>
+                ) : editando === l.ingresso_id ? (
+                  <tr key={l.ingresso_id}>
+                    <td colSpan={vinculo ? 7 : 6}>
                       <FormEditar l={l} pendente={pendente} cancelar={() => setEditando(null)}
                         salvar={(p) => rodar(() => editarPessoa(evento, area, l.ingresso_id, p))} />
                     </td>
                   </tr>
                 ) : (
-                  <tr key={l.ingresso_id} className={INATIVOS.includes(l.status) ? "opacity-50" : ""}>
+                  <tr key={l.ingresso_id} className={INATIVOS.includes(l.status) ? "opacity-50" : sel.has(l.ingresso_id) ? "bg-mrv-50/60" : ""}>
+                    {vinculo && (
+                      <td>
+                        {selecionaveis.includes(l) && (
+                          <input type="checkbox" aria-label={`Selecionar ${l.nome}`} className="accent-mrv-700"
+                            checked={sel.has(l.ingresso_id)} onChange={(e) => marcar(l.ingresso_id, e.target.checked)} />
+                        )}
+                      </td>
+                    )}
                     <td className={l.titular || setor !== "camarote" ? "font-medium" : "pl-9"}>
                       {l.status === "reservado" ? <>🔖 Reservado para <b>{l.reservado_para ?? "—"}</b></> : l.nome}
                       {l.indicacao_de && l.titular && <div className="text-xs font-normal text-tinta/60">Indicação: {l.indicacao_de}</div>}
@@ -187,6 +242,9 @@ export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, p
                               <BotaoWhatsApp rotulo="Passo a passo" link={linkWhatsApp(l.celular, textoGaloId({ nome: l.nome!, evento: eventoInfo, setor, token: l.token }))} />
                             )}
                           </>
+                        )}
+                        {vinculo && selecionaveis.includes(l) && (
+                          <button className="rounded-md px-2 py-1 text-xs font-semibold text-mrv-700 hover:bg-mrv-50" onClick={() => setVinculando(l.ingresso_id)}>Convidado de…</button>
                         )}
                         {isAdmin && (
                           <button className="rounded-md px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50" onClick={() => setAlterandoArea(l.ingresso_id)}>Mudar área</button>

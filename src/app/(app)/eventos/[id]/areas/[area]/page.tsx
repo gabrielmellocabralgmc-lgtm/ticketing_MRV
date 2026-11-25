@@ -18,6 +18,7 @@ import { ModoPreenchimento } from "./modo-preenchimento";
 import { AbasMarketing } from "../../abas-marketing";
 import { DuvidasArea } from "./duvidas";
 import { duvidasDaArea } from "@/lib/duvidas";
+import { carregarAnfitrioes } from "../../adicionar-opcoes";
 
 export const metadata = { title: "Lista da área" };
 
@@ -65,6 +66,7 @@ export default async function PainelArea({ params, searchParams }: { params: Pro
   const camarote = setor === "camarote";
   const podeSolicitar = s.staff || (ev.status === "aberto" && !prazoPassou && !camarote);
   const eventoInfo = { titulo: ev.titulo, inicio: ev.inicio, abertura_portoes: ev.abertura_portoes };
+  const anfitrioes = s.staff && camarote ? await carregarAnfitrioes(id) : [];
 
   return (
     <>
@@ -155,7 +157,7 @@ export default async function PainelArea({ params, searchParams }: { params: Pro
               confirmar={`Validar os ${aValidar} convidado(s) que preencheram pelo link? Eles ficam prontos para envio.`} />
           )}
         </div>
-        <ListaArea evento={id} resgate={ev.resgate_unico} resgates={resgates} setor={setor} area={area} areaNome={areaRow.nome} linhas={lista} eventoInfo={eventoInfo} areas={(todasAreas ?? []) as { id: string; nome: string }[]} isAdmin={s.staff}
+        <ListaArea evento={id} resgate={ev.resgate_unico} resgates={resgates} setor={setor} area={area} areaNome={areaRow.nome} linhas={lista} eventoInfo={eventoInfo} areas={(todasAreas ?? []) as { id: string; nome: string }[]} isAdmin={s.staff} anfitrioes={anfitrioes}
           podeAlterar={s.staff || !prazoPassou} prazo={dataHora(ev.prazo_solicitacao)} facial={ev.exige_facial} />
       </Cartao>
       {!s.staff && <DuvidasArea evento={id} area={area} duvidas={(await duvidasDaArea(id, area)).map((d) => ({ id: d.id, status: d.status, autor_nome: d.autor_nome, mensagens: d.mensagens }))} />}

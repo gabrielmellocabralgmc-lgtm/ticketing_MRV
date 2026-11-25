@@ -178,6 +178,21 @@ describe("camarote: definir convidado de à mão", () => {
     await expect(b.como(adm, `select definir_convidado_de($1, $2)`, [iHost, i1])).rejects.toThrow(/VALOR_INVALIDO/);
     await expect(b.como(respDH, `select definir_convidado_de($1)`, [i1])).rejects.toThrow(/SEM_PERMISSAO/);
   });
+
+  it("vários de uma vez: mesmo anfitrião para todos, tudo ou nada", async () => {
+    const ev = await novoEvento();
+    const ps = [nova("Lote Anfitrião"), nova("Lote A"), nova("Lote B"), nova("Lote C")];
+    const [{ r }] = await b.como<{ r: { ingressos: string[] } }>(adm,
+      `select adicionar_em_massa($1, 'camarote', $2, $3) as r`, [ev, presid, JSON.stringify(ps)]);
+    const [host, a, bb, c] = r.ingressos;
+    // o anfitrião no meio da seleção: nada é alterado
+    await expect(b.como(adm, `select definir_convidado_de_varios($1, $2)`, [[a, host, bb], host])).rejects.toThrow(/VALOR_INVALIDO/);
+    expect((await b.sql<{ n: number }>(`select count(*)::int n from ingressos where id = any($1) and convidado_de is not null`, [[a, bb]]))[0].n).toBe(0);
+    const [{ n }] = await b.como<{ n: number }>(adm, `select definir_convidado_de_varios($1, $2) n`, [[a, bb, c], host]);
+    expect(n).toBe(3);
+    const nomes = await b.sql<{ c: string }>(`select convidado_de_nome c from v_ingressos where id = any($1)`, [[a, bb, c]]);
+    expect(nomes.map((x) => x.c)).toEqual(["Lote Anfitrião", "Lote Anfitrião", "Lote Anfitrião"]);
+  });
 });
 
 describe("migração 048 sobre o estado de produção", () => {
