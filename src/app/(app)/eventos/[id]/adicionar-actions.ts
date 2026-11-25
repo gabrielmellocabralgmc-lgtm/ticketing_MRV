@@ -119,6 +119,18 @@ export async function preencherReserva(
   return { ok: true, dados: { status: data as string }, mensagem: `Reserva preenchida: ${p.nome.trim()} está na lista.` };
 }
 
+/** Camarote: de quem a pessoa é convidada, definido à mão (alguém da lista, alguém de fora ou ninguém). */
+export async function definirConvidadoDe(evento: string, ingresso: string, anfitriao: Anfitriao): Promise<Resultado> {
+  await exigirStaff();
+  const sb = await supabaseServidor();
+  const { data, error } = await sb.rpc("definir_convidado_de", {
+    p_ingresso: ingresso, p_anfitriao: anfitriao.ingresso || null, p_externo: anfitriao.externo?.trim() || null,
+  });
+  if (error) return falha(error);
+  revalidatePath(`/eventos/${evento}`, "layout");
+  return { ok: true, mensagem: data ? `Agora é convidado(a) de ${data as string}.` : "Agora aparece como anfitrião (sem vínculo)." };
+}
+
 export async function alterarPessoaArea(evento: string, ingresso: string, novaArea: string): Promise<Resultado> {
   await exigirStaff();
   const sb = await supabaseServidor();

@@ -91,7 +91,7 @@ function useSetorArea(p: Comum) {
 }
 
 /** Vincular a alguém: ninguém, alguém já na lista do jogo ou alguém de fora (não ocupa lugar). */
-function EscolhaAnfitriao({ anfitrioes, valor, onChange }: { anfitrioes: PessoaDaLista[]; valor: Anfitriao; onChange: (a: Anfitriao) => void }) {
+export function EscolhaAnfitriao({ anfitrioes, valor, onChange }: { anfitrioes: PessoaDaLista[]; valor: Anfitriao; onChange: (a: Anfitriao) => void }) {
   const { curto: nomeSetorCurto } = useSetores();
   const tipo = valor.ingresso !== undefined ? "lista" : valor.externo !== undefined ? "fora" : "nenhum";
   return (
@@ -122,7 +122,7 @@ function EscolhaAnfitriao({ anfitrioes, valor, onChange }: { anfitrioes: PessoaD
   );
 }
 
-const anfitriaoIncompleto = (a: Anfitriao) => (a.ingresso !== undefined && !a.ingresso) || (a.externo !== undefined && !a.externo.trim());
+export const anfitriaoIncompleto = (a: Anfitriao) => (a.ingresso !== undefined && !a.ingresso) || (a.externo !== undefined && !a.externo.trim());
 
 function AdicionarConvidado(p: Comum & { massa: boolean }) {
   const { setor, area, op, saldo, saldoArea, campos, campoArea } = useSetorArea(p);

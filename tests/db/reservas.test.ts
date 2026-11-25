@@ -142,6 +142,44 @@ describe("camarote: convidado de", () => {
   });
 });
 
+describe("camarote: definir convidado de à mão", () => {
+  it("vincula a alguém da lista, a alguém de fora, ou desfaz — pessoa por pessoa", async () => {
+    const ev = await novoEvento();
+    const host = nova("Anfitriã Manual");
+    const g1 = nova("Convidado Manual Um");
+    const g2 = nova("Convidado Manual Dois");
+    const [{ r }] = await b.como<{ r: { ingressos: string[] } }>(adm,
+      `select adicionar_em_massa($1, 'camarote', $2, $3, null, 'Anfitrião do Pedido') as r`, [ev, presid, JSON.stringify([host, g1, g2])]);
+    const [iHost, i1, i2] = r.ingressos;
+    const nomeDe = async (id: string) => (await b.sql<{ c: string | null }>(`select convidado_de_nome c from v_ingressos where id = $1`, [id]))[0].c;
+    // todos vieram como convidados do anfitrião de fora (do pedido)
+    expect(await nomeDe(i1)).toBe("Anfitrião do Pedido");
+
+    // a primeira passa a ser anfitriã (sem vínculo), mesmo com o pedido tendo um anfitrião de fora
+    await b.como(adm, `select definir_convidado_de($1)`, [iHost]);
+    expect(await nomeDe(iHost)).toBeNull();
+    // o segundo vira convidado dela (da lista)
+    await b.como(adm, `select definir_convidado_de($1, $2)`, [i1, iHost]);
+    expect(await nomeDe(i1)).toBe("Anfitriã Manual");
+    // o terceiro, de outra pessoa de fora
+    await b.como(adm, `select definir_convidado_de($1, null, 'Credenciado Ciclano')`, [i2]);
+    expect(await nomeDe(i2)).toBe("Credenciado Ciclano");
+
+    const porta = await b.como<{ nome: string; anfitriao: string; titular: boolean }>(adm,
+      `select nome, anfitriao, titular from lista_camarote($1) order by nome`, [ev]);
+    expect(porta).toEqual([
+      { nome: "Anfitriã Manual", anfitriao: "Anfitriã Manual", titular: true },
+      { nome: "Convidado Manual Dois", anfitriao: "Credenciado Ciclano", titular: false },
+      { nome: "Convidado Manual Um", anfitriao: "Anfitriã Manual", titular: false },
+    ]);
+
+    // regras
+    await expect(b.como(adm, `select definir_convidado_de($1, $1)`, [i1])).rejects.toThrow(/VALOR_INVALIDO/);
+    await expect(b.como(adm, `select definir_convidado_de($1, $2)`, [iHost, i1])).rejects.toThrow(/VALOR_INVALIDO/);
+    await expect(b.como(respDH, `select definir_convidado_de($1)`, [i1])).rejects.toThrow(/SEM_PERMISSAO/);
+  });
+});
+
 describe("migração 048 sobre o estado de produção", () => {
   it("unifica status_ingresso_old (em uso) e status_ingresso (sem uso) num tipo só, com 'reservado'", async () => {
     const raiz = path.resolve(__dirname, "../..");

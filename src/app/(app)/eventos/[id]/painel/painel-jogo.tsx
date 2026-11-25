@@ -11,11 +11,11 @@ import { normalizarTexto } from "@/lib/texto";
 import { type Setor, type StatusIngresso } from "@/lib/tipos";
 import { facialOk, pendenteFacial } from "../marketing-actions";
 import { PortaCamarote, type Walkin } from "./camarote";
-import { AcoesConvidados, type PessoaDaLista } from "../adicionar-convidado";
+import { AcoesConvidados, EscolhaAnfitriao, anfitriaoIncompleto, type PessoaDaLista } from "../adicionar-convidado";
 import { cancelarConvite } from "../areas/[area]/actions";
 import { BotaoWhatsApp } from "@/components/copiar";
 import { linkTorcedor, linkWhatsApp, textoConvite } from "@/lib/mensagens";
-import { atualizarDadosAdmin, preencherReserva } from "../adicionar-actions";
+import { atualizarDadosAdmin, definirConvidadoDe, preencherReserva, type Anfitriao } from "../adicionar-actions";
 import type { OpcaoSetor } from "../adicionar-opcoes";
 import { NomeEditavel } from "../nome-editavel";
 import { EditorCotas, type AreaCota } from "../editor-cotas";
@@ -155,7 +155,7 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
             <div className="w-full sm:w-72"><Entrada value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar nome, CPF ou área…" aria-label="Buscar" /></div>
           </div>
         </div>
-        <TabelaSimples linhas={filtrar(ativos)} vazio="Ninguém neste setor ainda." evento={leitura ? undefined : evento} facial={facial} digitais={digitais} />
+        <TabelaSimples linhas={filtrar(ativos)} vazio="Ninguém neste setor ainda." evento={leitura ? undefined : evento} facial={facial} digitais={digitais} anfitrioes={anfitrioes} />
       </div>
 
       {!leitura && <LinksPendentes evento={evento} convites={convites.filter((c) => c.setor === setor)} eventoInfo={eventoInfo} />}
@@ -214,12 +214,15 @@ function Grande({ rotulo, valor, laranja }: { rotulo: string; valor: number | st
   );
 }
 
-function TabelaSimples({ linhas, vazio, posicao, evento, facial = true, digitais = {} }: {
+function TabelaSimples({ linhas, vazio, posicao, evento, facial = true, digitais = {}, anfitrioes = [] }: {
   linhas: LinhaPainel[]; vazio: string; posicao?: boolean; evento?: string; facial?: boolean; digitais?: Record<string, boolean>;
+  /** Quem está ativo na lista do jogo (para escolher de quem alguém do camarote é convidado). */
+  anfitrioes?: PessoaDaLista[];
 }) {
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   const [ocupado, iniciar] = useTransition();
   const [preenchendo, setPreenchendo] = useState<string | null>(null);
+  const [vinculando, setVinculando] = useState<string | null>(null);
   const rodar = (f: () => Promise<{ ok: boolean; mensagem?: string; erro?: string }>, confirmar: string) =>
     confirm(confirmar) && iniciar(async () => { const r = await f(); setMsg({ ok: r.ok, texto: (r.ok ? r.mensagem : r.erro) ?? "" }); });
   if (!linhas.length) return vazio ? <p className="py-6 text-center text-sm text-tinta/50">{vazio}</p> : null;
@@ -267,6 +270,10 @@ function TabelaSimples({ linhas, vazio, posicao, evento, facial = true, digitais
                     <button disabled={ocupado} onClick={() => rodar(() => facialOk(evento, [l.id]), `Confirmar que ${l.nome} já tem a facial cadastrada?`)}
                       className="ml-2 rounded-md px-2 py-0.5 text-xs font-semibold text-mrv-700 ring-1 ring-mrv-600 hover:bg-mrv-50">Facial OK</button>
                   )}
+                  {evento && l.setor === "camarote" && !reserva && (
+                    <button disabled={ocupado} onClick={() => setVinculando((x) => (x === l.id ? null : l.id))} title="Definir de quem a pessoa é convidada"
+                      className="ml-2 rounded-md px-2 py-0.5 text-xs font-semibold text-mrv-700 ring-1 ring-mrv-600/50 hover:bg-mrv-50">Convidado de…</button>
+                  )}
                   {evento && reserva && (
                     <button disabled={ocupado} onClick={() => setPreenchendo((x) => (x === l.id ? null : l.id))}
                       className="ml-2 rounded-md px-2 py-0.5 text-xs font-semibold text-mrv-700 ring-1 ring-mrv-600 hover:bg-mrv-50">Preencher</button>
@@ -278,6 +285,16 @@ function TabelaSimples({ linhas, vazio, posicao, evento, facial = true, digitais
                   )}
                 </td>
               </tr>
+              {evento && vinculando === l.id && (
+                <tr className="bg-mrv-50/40">
+                  <td colSpan={5} className="px-4 pb-3">
+                    <DefinirAnfitriao nome={l.nome ?? ""} anfitrioes={anfitrioes.filter((a) => a.id !== l.id)}
+                      inicial={l.convidado_de ? { ingresso: l.convidado_de } : l.anfitriao_externo ? { externo: l.anfitriao_externo } : {}}
+                      fechar={() => setVinculando(null)}
+                      salvar={async (a) => { const r = await definirConvidadoDe(evento, l.id, a); if (r.ok) setMsg({ ok: true, texto: r.mensagem ?? "" }); return r; }} />
+                  </td>
+                </tr>
+              )}
               {evento && preenchendo === l.id && (
                 <tr className="bg-laranja-100/40">
                   <td colSpan={5} className="px-4 pb-3">
@@ -318,6 +335,32 @@ function PreencherReserva({ para, salvar, fechar }: {
         <Botao type="button" disabled={pendente || !d.nome.trim() || !d.cpf.trim()} onClick={() => iniciar(async () => {
           setErro(null);
           const r = await salvar(d);
+          if (!r.ok) return setErro(r.erro ?? "Não foi possível salvar.");
+          fechar();
+        })}>{pendente ? "Salvando…" : "Salvar"}</Botao>
+        <Botao type="button" variante="fantasma" onClick={fechar}>Voltar</Botao>
+      </div>
+    </div>
+  );
+}
+
+/** Camarote: escolher de quem a pessoa é convidada (alguém da lista, alguém de fora ou ninguém). */
+function DefinirAnfitriao({ nome, anfitrioes, inicial, salvar, fechar }: {
+  nome: string; anfitrioes: PessoaDaLista[]; inicial: Anfitriao; fechar: () => void;
+  salvar: (a: Anfitriao) => Promise<{ ok: boolean; mensagem?: string; erro?: string }>;
+}) {
+  const [a, setA] = useState<Anfitriao>(inicial);
+  const [erro, setErro] = useState<string | null>(null);
+  const [pendente, iniciar] = useTransition();
+  return (
+    <div className="rounded-xl bg-white p-3 ring-1 ring-mrv-600/30">
+      <div className="mb-2 text-sm font-semibold">{nome}: convidado(a) de quem?</div>
+      <EscolhaAnfitriao anfitrioes={anfitrioes} valor={a} onChange={setA} />
+      {erro && <div className="mt-2"><Aviso tom="erro">{erro}</Aviso></div>}
+      <div className="mt-2 flex gap-2">
+        <Botao type="button" disabled={pendente || anfitriaoIncompleto(a)} onClick={() => iniciar(async () => {
+          setErro(null);
+          const r = await salvar(a);
           if (!r.ok) return setErro(r.erro ?? "Não foi possível salvar.");
           fechar();
         })}>{pendente ? "Salvando…" : "Salvar"}</Botao>
