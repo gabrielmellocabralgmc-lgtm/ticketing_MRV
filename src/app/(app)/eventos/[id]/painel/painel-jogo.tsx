@@ -336,7 +336,7 @@ function PreencherReserva({ para, salvar, fechar }: {
       <div className="mb-2 text-sm font-semibold">Preencher a reserva para {para}</div>
       <div className="grid gap-2 sm:grid-cols-4">
         <Entrada aria-label="Nome completo" placeholder="Nome completo" value={d.nome} onChange={(e) => setD({ ...d, nome: e.target.value })} />
-        <Entrada aria-label="CPF" placeholder="CPF" inputMode="numeric" value={d.cpf} onChange={(e) => setD({ ...d, cpf: e.target.value })} />
+        <Entrada aria-label="CPF ou passaporte" placeholder="CPF ou passaporte" autoCapitalize="characters" value={d.cpf} onChange={(e) => setD({ ...d, cpf: e.target.value })} />
         <Entrada aria-label="Celular" placeholder="Celular (opcional)" inputMode="tel" value={d.celular} onChange={(e) => setD({ ...d, celular: e.target.value })} />
         <Entrada aria-label="E-mail" placeholder="E-mail (opcional)" type="email" value={d.email} onChange={(e) => setD({ ...d, email: e.target.value })} />
       </div>

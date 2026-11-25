@@ -76,7 +76,7 @@ export function ListaGeral({ linhas, acoes }: { linhas: LinhaGeral[]; acoes: Aco
       const b = normalizarTexto(busca);
       const d = somenteDigitos(busca);
       if (!normalizarTexto(l.nome).includes(b) && !normalizarTexto(l.reservado_para).includes(b) && !normalizarTexto(convidadoDe(l)).includes(b)
-        && !(d.length >= 3 && (l.cpf ?? "").includes(d))) return false;
+        && !(d.length >= 3 && (l.cpf ?? "").includes(d)) && !(busca.trim().length >= 4 && (l.cpf ?? "").includes(busca.trim().toUpperCase()))) return false;
     }
     return true;
   });

@@ -1,7 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { Aviso, Botao, Campo, Entrada } from "@/components/ui";
-import { cpfValido, formatarCpf, somenteDigitos } from "@/lib/cpf";
+import { cpfValido, ehPassaporte, formatarCpf, somenteDigitos } from "@/lib/cpf";
 import { preencherConvite } from "./actions";
 
 type P = { nome: string; cpf: string; celular: string; email: string };
@@ -10,7 +10,7 @@ const vazia = (): P => ({ nome: "", cpf: "", celular: "", email: "" });
 function erros(p: P, exigirEmail = false) {
   const e: Partial<Record<keyof P, string>> = {};
   if (p.nome.trim().split(/\s+/).length < 2) e.nome = "Informe o nome completo";
-  if (!cpfValido(p.cpf)) e.cpf = "CPF inválido";
+  if (!cpfValido(p.cpf)) e.cpf = "CPF inválido. Estrangeiro? Digite o passaporte (com as letras)";
   const c = somenteDigitos(p.celular);
   if (c.length < 10 || c.length > 11) e.celular = "Celular com DDD";
   if (exigirEmail && !p.email.trim()) e.email = "Informe o e-mail: o ingresso é enviado por ele";
@@ -48,8 +48,8 @@ export function FormConvidado({ token, lugares, privacidade, exigirEmail = false
             <legend className="px-1 text-sm font-semibold text-mrv-900">{i === 0 ? "Seus dados" : `Acompanhante ${i}${i > 0 ? " (opcional)" : ""}`}</legend>
             <Campo rotulo="Nome completo" erro={e.nome}><Entrada value={p.nome} onChange={(ev) => set(i, "nome", ev.target.value)} autoComplete={i === 0 ? "name" : "off"} /></Campo>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Campo rotulo="CPF" erro={e.cpf} dica="O ingresso é emitido no CPF">
-                <Entrada value={p.cpf} inputMode="numeric" onChange={(ev) => set(i, "cpf", ev.target.value)} onBlur={(ev) => somenteDigitos(ev.target.value).length >= 9 && set(i, "cpf", formatarCpf(ev.target.value))} />
+              <Campo rotulo={ehPassaporte(p.cpf) ? "Passaporte" : "CPF"} erro={e.cpf} dica="O ingresso é emitido no CPF. Estrangeiro: digite o número do passaporte">
+                <Entrada value={p.cpf} autoCapitalize="characters" onChange={(ev) => set(i, "cpf", ev.target.value)} onBlur={(ev) => (ehPassaporte(ev.target.value) || somenteDigitos(ev.target.value).length >= 9) && set(i, "cpf", formatarCpf(ev.target.value))} />
               </Campo>
               <Campo rotulo="Celular (WhatsApp)" erro={e.celular}><Entrada value={p.celular} inputMode="tel" autoComplete={i === 0 ? "tel" : "off"} onChange={(ev) => set(i, "celular", ev.target.value)} /></Campo>
             </div>

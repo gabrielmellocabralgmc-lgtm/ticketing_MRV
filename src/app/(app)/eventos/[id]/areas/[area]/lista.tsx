@@ -188,7 +188,7 @@ export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, p
                     onChange={(e) => setSel(e.target.checked ? new Set(selecionaveis.map((l) => l.ingresso_id)) : new Set())} />
                 </th>
               )}
-              <th>Nome</th><th>CPF</th><th>Celular</th><th>Vínculo</th><th>Status</th><th className="text-right">Ações</th></tr></thead>
+              <th>Nome</th><th>CPF / passaporte</th><th>Celular</th><th>Vínculo</th><th>Status</th><th className="text-right">Ações</th></tr></thead>
             <tbody>
               {pessoas.map((l) => (
                 vinculando === l.ingresso_id ? (
@@ -279,7 +279,7 @@ function FormEditar({ l, salvar, cancelar, pendente }: { l: LinhaLista; salvar: 
   return (
     <div className="grid gap-2 py-1 sm:grid-cols-[2fr_1fr_1fr_1.4fr_auto] sm:items-center">
       <Entrada value={p.nome} onChange={(e) => setP({ ...p, nome: e.target.value })} placeholder="Nome completo" />
-      <Entrada value={p.cpf} onChange={(e) => setP({ ...p, cpf: e.target.value })} placeholder="CPF (redigite)" inputMode="numeric" />
+      <Entrada value={p.cpf} onChange={(e) => setP({ ...p, cpf: e.target.value })} placeholder="CPF ou passaporte (redigite)" autoCapitalize="characters" />
       <Entrada value={p.celular} onChange={(e) => setP({ ...p, celular: e.target.value })} placeholder="Celular" inputMode="tel" />
       <Entrada value={p.email} onChange={(e) => setP({ ...p, email: e.target.value })} placeholder="E-mail" />
       <div className="flex gap-2">

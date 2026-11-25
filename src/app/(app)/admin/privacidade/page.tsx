@@ -40,7 +40,7 @@ export default async function Privacidade() {
           <h2 className="mb-1 font-bold">Pedido do titular</h2>
           <p className="mb-4 text-sm text-cinza">Quando alguém pede a exclusão dos próprios dados (LGPD, art. 18). Não funciona se a pessoa tiver ingresso ativo para jogo futuro.</p>
           <FormAcao acao={anonimizarTitular} rotulo="Anonimizar esta pessoa" variante="perigo" confirmar="Anonimizar os dados desta pessoa? Não dá para desfazer.">
-            <Campo rotulo="CPF"><Entrada name="cpf" inputMode="numeric" required /></Campo>
+            <Campo rotulo="CPF ou passaporte"><Entrada name="cpf" autoCapitalize="characters" required /></Campo>
           </FormAcao>
         </Cartao>
       </div>

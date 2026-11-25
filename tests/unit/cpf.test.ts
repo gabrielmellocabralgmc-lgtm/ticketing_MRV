@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cpfValido, formatarCpf, mascararCpf, normalizarCpf } from "@/lib/cpf";
+import { cpfValido, ehPassaporte, formatarCpf, mascararCpf, normalizarCpf } from "@/lib/cpf";
 
 describe("cpf", () => {
   it("recupera zeros à esquerda perdidos no Excel", () => {
@@ -25,5 +25,20 @@ describe("cpf", () => {
 
   it("mascara o CPF", () => {
     expect(mascararCpf("123.456.789-09")).toBe("***.456.789-**");
+  });
+});
+
+describe("passaporte (estrangeiro)", () => {
+  it("com letra vira passaporte: maiúsculas, sem pontuação", () => {
+    expect(ehPassaporte("ab123456")).toBe(true);
+    expect(ehPassaporte("123.456.789-09")).toBe(false);
+    expect(normalizarCpf("ab 123-456")).toBe("AB123456");
+    expect(cpfValido("ab123456")).toBe(true);
+    expect(formatarCpf("ab123456")).toBe("AB123456");
+    expect(mascararCpf("AB123456")).toBe("Pass. AB***56");
+  });
+  it("rejeita passaporte curto ou longo demais", () => {
+    expect(cpfValido("ab1")).toBe(false);
+    expect(cpfValido("A".repeat(21))).toBe(false);
   });
 });

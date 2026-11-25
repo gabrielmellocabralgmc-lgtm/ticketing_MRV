@@ -15,7 +15,7 @@ describe("separarLista", () => {
 
   it("aponta o que falta e CPF inválido", () => {
     const [a, b] = separarLista("Fulano de Tal\nBeltrano 111.222.333-44");
-    expect(a.problemas).toEqual(["sem CPF", "sem celular"]);
+    expect(a.problemas).toEqual(["sem CPF/passaporte", "sem celular"]);
     expect(b.problemas).toContain("CPF inválido");
   });
 });
@@ -24,5 +24,13 @@ describe("separarLista — CPF × celular", () => {
   it("não confunde celular sem formatação com CPF", () => {
     const [p] = separarLista("Fulano 31999998888 12345678909");
     expect(p).toMatchObject({ cpf: "12345678909", celular: "31999998888", problemas: [] });
+  });
+});
+
+describe("separarLista: estrangeiro com passaporte", () => {
+  it("reconhece o passaporte (letras e números) quando não há CPF", () => {
+    const [a, b] = separarLista("John Smith; passaporte: ab123456; (31) 99999-0000\nAnna Müller X7Y8Z9Q1");
+    expect(a).toMatchObject({ nome: "John Smith", cpf: "AB123456", celular: "31999990000" });
+    expect(b).toMatchObject({ nome: "Anna Müller", cpf: "X7Y8Z9Q1" });
   });
 });

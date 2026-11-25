@@ -1,7 +1,7 @@
 "use client";
 import { useState, useTransition, type ReactNode } from "react";
 import { AreaTexto, Aviso, Botao, Campo, Entrada } from "@/components/ui";
-import { cpfValido, formatarCpf, somenteDigitos } from "@/lib/cpf";
+import { cpfValido, ehPassaporte, formatarCpf, normalizarCpf, somenteDigitos } from "@/lib/cpf";
 import { separarLista } from "@/lib/parse-lista";
 import type { Setor } from "@/lib/tipos";
 import type { Resultado } from "@/lib/erros";
@@ -23,7 +23,7 @@ function problemas(p: PessoaForm, avulsos = false, exigirEmail = false) {
   if ((!avulsos || p.nome.trim()) && p.nome.trim().split(/\s+/).length < 2) e.nome = "Nome completo";
   // CPF: obrigatório para não-avulsos; para avulsos, só valida se preenchido
   if (!avulsos && !p.cpf) e.cpf = "Obrigatório";
-  else if (p.cpf && !cpfValido(p.cpf)) e.cpf = "CPF inválido";
+  else if (p.cpf && !cpfValido(p.cpf)) e.cpf = "CPF inválido. Estrangeiro? Digite o passaporte (com as letras)";
   const cel = somenteDigitos(p.celular);
   if ((!avulsos || cel) && (cel.length < 10 || cel.length > 11)) e.celular = "DDD + número";
   if (exigirEmail && !avulsos && !p.email?.trim()) e.email = "Obrigatório: o ingresso vai por e-mail";
@@ -90,7 +90,7 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
   });
   const erros = preenchidas.map((p) => problemas(p, avulsos, exigirEmail));
   const valido = erros.every((e) => Object.keys(e).length === 0);
-  const cpfs = preenchidas.filter(p => p.cpf).map((p) => somenteDigitos(p.cpf).padStart(11, "0"));
+  const cpfs = preenchidas.filter(p => p.cpf).map((p) => normalizarCpf(p.cpf) ?? p.cpf);
   const repetido = cpfs.some((c, i) => c !== "00000000000" && cpfs.indexOf(c) !== i);
   // Sem saldo para o pedido inteiro: só dá para entrar na lista de espera (sem garantia)
   const excede = preenchidas.length > saldo;
@@ -99,7 +99,7 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
     setPessoas((ps) => ps.map((p, j) => (j === i ? { ...p, [campo]: v } : p)));
 
     // Se é CPF e tem 11 dígitos, buscar histórico para Admin com avulsos
-    if (campo === "cpf" && avulsos && somenteDigitos(v).length === 11) {
+    if (campo === "cpf" && avulsos && !ehPassaporte(v) && somenteDigitos(v).length === 11) {
       setBuscandoCPF((s) => ({ ...s, [i]: true }));
       // Debounce de 300ms para não fazer muitas requisições
       const timer = setTimeout(async () => {
@@ -179,9 +179,9 @@ export function FormSolicitacao({ evento, setor, area, saldo, padraoConvidados, 
                 {avulsos && p.nome && p.nome.trim().split(/\s+/).length < 2 && <span title="Nome incompleto (menos de 2 palavras)" className="absolute right-2 top-2 text-lg">🔔</span>}
               </div>
               <div className="relative">
-                <Campo rotulo="CPF" erro={temErro.cpf}>
-                  <Entrada value={p.cpf} inputMode="numeric" onChange={(ev) => set(i, "cpf", ev.target.value)}
-                    onBlur={(ev) => somenteDigitos(ev.target.value).length >= 9 && set(i, "cpf", formatarCpf(ev.target.value))} />
+                <Campo rotulo={ehPassaporte(p.cpf) ? "Passaporte" : "CPF ou passaporte"} erro={temErro.cpf}>
+                  <Entrada value={p.cpf} autoCapitalize="characters" onChange={(ev) => set(i, "cpf", ev.target.value)}
+                    onBlur={(ev) => (ehPassaporte(ev.target.value) || somenteDigitos(ev.target.value).length >= 9) && set(i, "cpf", formatarCpf(ev.target.value))} />
                 </Campo>
                 {buscandoCPF[i] && <span className="absolute right-2 top-2 text-sm text-tinta/50">buscando…</span>}
               </div>

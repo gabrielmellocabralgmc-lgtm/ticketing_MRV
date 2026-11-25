@@ -212,7 +212,7 @@ function FormForaDaLista({ evento, anfitrioes, aoConcluir }: { evento: string; a
       <h2 className="font-bold">Pessoa fora da lista</h2>
       <p className="text-sm text-cinza">Registre aqui. O Marketing libera (ou não) a entrada no painel do jogo; liberada, ela já aparece como chegou.</p>
       <Campo rotulo="Nome completo"><Entrada value={d.nome} onChange={(e) => setD({ ...d, nome: e.target.value })} /></Campo>
-      <Campo rotulo="CPF (se tiver)"><Entrada value={d.cpf} inputMode="numeric" onChange={(e) => setD({ ...d, cpf: e.target.value })} /></Campo>
+      <Campo rotulo="CPF ou passaporte (se tiver)"><Entrada value={d.cpf} autoCapitalize="characters" onChange={(e) => setD({ ...d, cpf: e.target.value })} /></Campo>
       <Campo rotulo="Quem está recebendo">
         <Selecao value={d.anfitriao} onChange={(e) => setD({ ...d, anfitriao: e.target.value })}>
           {anfitrioes.map((a) => <option key={a.ingresso_id} value={a.ingresso_id}>{a.nome}</option>)}

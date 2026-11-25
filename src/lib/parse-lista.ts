@@ -14,6 +14,8 @@ export interface PessoaColada {
 
 const RE_EMAIL = /[^\s;,<>()]+@[^\s;,<>()]+\.[a-z]{2,}/i;
 const RE_CPF = /(?<!\d)(\d{3}\.?\d{3}\.?\d{3}-?\d{2})(?!\d)/;
+// passaporte: 5 a 20 letras/números, com pelo menos uma letra e um número (pode vir com "passaporte:")
+const RE_PASSAPORTE = /(?:\b(?:passaporte|passport|pass)\b\s*:?\s*)?\b((?=[a-z0-9]*\d)(?=[a-z0-9]*[a-z])[a-z0-9]{5,20})\b/i;
 // celular BR: (31) 99999-9999 · 31999999999 · +55 31 9 9999-9999
 const RE_CEL = /(?:\+?55[\s.-]?)?\(?\b(\d{2})\)?[\s.-]?(9[\s.-]?\d{4}[\s.-]?\d{4})\b/;
 
@@ -40,6 +42,15 @@ export function separarLista(texto: string): PessoaColada[] {
       if (!cpfValido(cpf)) problemas.push("CPF inválido");
     }
 
+    // Estrangeiro: sem CPF, um "código" com letras E números (ex.: AB123456) é o passaporte
+    if (!cpf) {
+      const mPass = linha.match(RE_PASSAPORTE);
+      if (mPass) {
+        cpf = normalizarCpf(mPass[1]);
+        linha = linha.replace(mPass[0], " ");
+      }
+    }
+
     let celular: string | null = null;
     const mCel = linha.match(RE_CEL);
     if (mCel) {
@@ -49,7 +60,7 @@ export function separarLista(texto: string): PessoaColada[] {
 
     const nome = limparNome(linha.replace(/\b(cpf|tel|telefone|cel|celular|whats(app)?|e-?mail|nome)\b\s*:?/gi, " ").replace(/[;,|\t:]+/g, " ").replace(/(^|\s)[-–]+(?=\s|$)/g, " "));
     if (!nome) problemas.push("sem nome");
-    if (!cpf) problemas.push("sem CPF");
+    if (!cpf) problemas.push("sem CPF/passaporte");
     if (!celular) problemas.push("sem celular");
     // linha só com texto e sem dados → provavelmente comentário ("segue a lista:")
     if (!cpf && !celular && !email && (nome?.split(" ").length ?? 0) > 6) continue;
