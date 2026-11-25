@@ -1,40 +1,7 @@
 -- Funções para jogos do Galo: cancelar, histórico por CPF, reservar
-
--- 1. Adicionar "reservado" ao enum status_ingresso
-alter type status_ingresso rename to status_ingresso_old;
-
-create type status_ingresso as enum (
-  'reservado',
-  'convite_enviado',
-  'aguardando_preenchimento',
-  'solicitado',
-  'validado_area',
-  'aprovado',
-  'facial_pendente',
-  'facial_ok',
-  'enviado',
-  'confirmado',
-  'presente',
-  'convite_expirado',
-  'lista_espera',
-  'recusado',
-  'cancelado',
-  'no_show'
-);
-
-alter table ingressos alter column status type status_ingresso using status::text::status_ingresso;
-alter table status_historico alter column de type status_ingresso using de::text::status_ingresso;
-alter table status_historico alter column para type status_ingresso using para::text::status_ingresso;
-alter table transicoes alter column de type status_ingresso using de::text::status_ingresso;
-alter table transicoes alter column para type status_ingresso using para::text::status_ingresso;
-
-drop function if exists status_consome(status_ingresso);
-create or replace function status_consome(s status_ingresso) returns boolean
-language sql immutable as $$
-  select s not in ('reservado', 'convite_expirado', 'lista_espera', 'recusado', 'cancelado')
-$$;
-
-drop type status_ingresso_old;
+-- NOTA (25/11/2026): este arquivo voltou ao conteúdo que foi de fato aplicado em produção (só as
+-- funções). A troca do tipo status_ingresso foi feita à mão em produção e ficou pela metade; ela é
+-- arrumada, de forma idempotente, na migração 20261125000048_status_reservado.sql.
 
 -- 2. Função para cancelar ingresso (remove da lista e devolve a cota)
 create or replace function cancelar_ingresso(p_ingresso uuid, p_motivo text default '') returns text
@@ -102,16 +69,12 @@ $$;
 
 -- 4. Função para reservar ingresso (cria um ingresso com status "reservado")
 -- Uso: Admin clica em "Reservar X ingressos" → calcula cota, cria ingressos reservados
--- p_sem_validar_cota: true para camarote (sem cota por área), false para outros setores
-drop function if exists reservar_ingressos(uuid, setor, uuid, int, text, boolean);
-
 create or replace function reservar_ingressos(
   p_evento uuid,
   p_setor setor,
   p_area_id uuid,
   p_qtd int,
-  p_motivo text default 'Reserva do Admin',
-  p_sem_validar_cota boolean default false
+  p_motivo text default 'Reserva do Admin'
 ) returns table (ingresso_id uuid, status text) language plpgsql security definer set search_path = public as $$
 declare
   v_cota int;
@@ -121,13 +84,9 @@ declare
 begin
   perform _exigir(eh_admin(), 'SEM_PERMISSAO: apenas Admin pode reservar ingressos');
 
-  -- Verificar cota disponível (exceto para camarote)
-  if not p_sem_validar_cota then
-    select quantidade into v_cota from cotas where evento_id = p_evento and setor = p_setor and area_id = p_area_id;
-    perform _exigir(v_cota >= p_qtd, 'COTA_INSUFICIENTE: não há cota suficiente para reservar');
-  else
-    v_cota := 0; -- camarote não usa cota
-  end if;
+  -- Verificar cota disponível
+  select quantidade into v_cota from cotas where evento_id = p_evento and setor = p_setor and area_id = p_area_id;
+  perform _exigir(v_cota >= p_qtd, 'COTA_INSUFICIENTE: não há cota suficiente para reservar');
 
   -- Criar pedido para alocar esses ingressos
   insert into pedidos (evento_id, setor, area_id, origem, solicitante)
@@ -142,11 +101,10 @@ begin
     return next;
   end loop;
 
-  -- Decrementar cota (apenas se não for camarote)
-  if not p_sem_validar_cota then
-    v_nova_cota := v_cota - p_qtd;
-    update cotas set quantidade = v_nova_cota where evento_id = p_evento and setor = p_setor and area_id = p_area_id;
-    insert into cotas_historico (evento_id, setor, area_id, de, para, autor, motivo)
-    values (p_evento, p_setor, p_area_id, v_cota, v_nova_cota, auth.uid(), p_motivo);
-  end if;
+  -- Decrementar cota
+  v_nova_cota := v_cota - p_qtd;
+  update cotas set quantidade = v_nova_cota where evento_id = p_evento and setor = p_setor and area_id = p_area_id;
+
+  insert into cotas_historico (evento_id, setor, area_id, de, para, autor, motivo)
+  values (p_evento, p_setor, p_area_id, v_cota, v_nova_cota, auth.uid(), p_motivo);
 end $$;
