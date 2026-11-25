@@ -4,7 +4,7 @@ import { dataLonga } from "@/lib/formato";
 import { supabaseServidor } from "@/lib/supabase/server";
 import { exigirOperacao } from "./acesso";
 
-export const metadata = { title: "Operação camarote" };
+export const metadata = { title: "Check-list camarote" };
 
 export default async function OperacaoCamarote() {
   await exigirOperacao();
@@ -28,7 +28,7 @@ export default async function OperacaoCamarote() {
 
   return (
     <>
-      <Titulo sub="Check-list antes e depois de cada jogo, controle de bebidas, relatório e fotos de comprovação.">Operação do camarote</Titulo>
+      <Titulo sub="Check-list antes e depois de cada jogo, controle de bebidas, relatório e fotos de comprovação.">Check-list do camarote</Titulo>
       {lista.length === 0 ? <Vazio>Nenhum jogo cadastrado.</Vazio> : (
         <ul className="grid gap-3 md:grid-cols-2">
           {lista.map((e) => {

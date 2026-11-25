@@ -7,7 +7,7 @@ import { exigirSessao } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
 import { ListaChegada, type Convidado, type WalkinOperacao } from "./lista-chegada";
 
-export const metadata = { title: "Camarote" };
+export const metadata = { title: "Lista de presença" };
 
 export default async function Operacao({ searchParams }: { searchParams: Promise<{ evento?: string }> }) {
   const s = await exigirSessao();

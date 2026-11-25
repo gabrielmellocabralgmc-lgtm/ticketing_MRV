@@ -13,13 +13,13 @@ export default async function LayoutInterno({ children }: { children: React.Reac
   // Cada perfil vê só o que usa
   const links =
     s.papel === "operacao"
-      ? [{ href: "/operacao", rotulo: "Lista do camarote" }, { href: "/operacao-camarote", rotulo: "Operação camarote" }]
+      ? [{ href: "/operacao", rotulo: "Lista de presença" }, { href: "/operacao-camarote", rotulo: "Check-list camarote" }]
       : s.papel === "admin"
         ? [
             { href: "/dashboard", rotulo: "Dashboard" },
             { href: "/eventos", rotulo: "Eventos" },
             { href: "/duvidas", rotulo: duvidasAbertas ? `Dúvidas (${duvidasAbertas})` : "Dúvidas" },
-            { href: "/operacao-camarote", rotulo: "Operação camarote" },
+            { href: "/operacao-camarote", rotulo: "Check-list camarote" },
             { href: "/admin", rotulo: "Configurações" },
           ]
         : [{ href: "/eventos", rotulo: "Eventos" }];

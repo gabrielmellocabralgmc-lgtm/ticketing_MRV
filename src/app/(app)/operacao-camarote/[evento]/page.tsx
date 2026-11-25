@@ -10,7 +10,7 @@ import { Checklist } from "./checklist";
 import { carregarOperacao } from "./dados";
 import { RelatorioJogo } from "./relatorio";
 
-export const metadata = { title: "Operação camarote" };
+export const metadata = { title: "Check-list camarote" };
 
 const ABAS = [
   { id: "antes", rotulo: "Antes do jogo" },
@@ -48,7 +48,7 @@ export default async function OperacaoJogo({ params, searchParams }: { params: P
 
   return (
     <>
-      <CabecalhoJogo ev={ev} tamanho="m" rotulo="Operação do camarote" escudoAtletico={img[CHAVE_ESCUDO_ATLETICO]} escudoAdversario={img[chaveEscudoAdversario(ev.id)]}
+      <CabecalhoJogo ev={ev} tamanho="m" rotulo="Check-list do camarote" escudoAtletico={img[CHAVE_ESCUDO_ATLETICO]} escudoAdversario={img[chaveEscudoAdversario(ev.id)]}
         voltar={{ href: "/operacao-camarote", rotulo: "Jogos" }} />
 
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">

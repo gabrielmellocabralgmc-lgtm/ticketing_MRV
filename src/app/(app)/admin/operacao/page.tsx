@@ -4,7 +4,7 @@ import { supabaseServidor } from "@/lib/supabase/server";
 import { EditorOperacao } from "./editor";
 import type { BebidaForm, ItemForm } from "./actions";
 
-export const metadata = { title: "Operação do camarote" };
+export const metadata = { title: "Check-list do camarote" };
 
 export default async function AdminOperacao() {
   await exigirAdmin();
@@ -17,7 +17,7 @@ export default async function AdminOperacao() {
     <>
       <Titulo voltar={{ href: "/admin", rotulo: "Configurações" }}
         sub="O que a operação do camarote confere antes e depois de cada jogo, e quais bebidas são contadas. Itens desativados somem dos próximos check-lists (o histórico fica).">
-        Operação do camarote
+        Check-list do camarote
       </Titulo>
       <EditorOperacao itens={(itens ?? []).map((i) => ({ ...i, dica: i.dica ?? "" })) as ItemForm[]} bebidas={(bebidas ?? []) as BebidaForm[]} />
     </>
