@@ -93,7 +93,6 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
   // vagas de convite sem dados ficam fora da lista; reservas aparecem ("Reservado para …")
   const doSetor = linhas.filter((l) => l.setor === setor && (l.nome || l.status === "reservado"));
   const ativos = doSetor.filter((l) => l.status !== "lista_espera");
-  const espera = doSetor.filter((l) => l.status === "lista_espera").sort((a, b) => (a.lista_espera_desde ?? "").localeCompare(b.lista_espera_desde ?? ""));
   const filtrar = (ls: LinhaPainel[]) => {
     if (!busca) return ls;
     const b = normalizarTexto(busca);
@@ -104,6 +103,12 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
   const info = setores.find((s) => s.setor === setor);
   const enviados = ativos.filter((l) => ENVIADOS.includes(l.status)).length;
   const reservados = ativos.filter((l) => l.status === "reservado").length;
+  // sem facial: aprovado já está pronto para envio
+  const semFacial = facial ? ativos.filter((l) => l.status === "aprovado" || l.status === "facial_pendente").length : 0;
+  const prontos = ativos.filter((l) => l.status === "facial_ok" || (!facial && l.status === "aprovado")).length;
+  const aguardando = ativos.length - enviados - reservados - semFacial - prontos; // preenchidos, a validar/aprovar etc.
+  const capacidade = info?.capacidade ?? 0;
+  const disponiveis = Math.max(0, capacidade - (info?.ocupados ?? 0));
 
   return (
     <div className="space-y-4">
@@ -134,11 +139,23 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
           cotaPorArea={cotas[setor].cotaPorArea} areas={cotas[setor].areas} />
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Grande rotulo="Ocupados" valor={`${info?.ocupados ?? 0} / ${info?.capacidade ?? 0}`} />
+      {/* Disponíveis em destaque: é o número que o Marketing mais procura */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-1 rounded-2xl border-2 border-mrv-700 bg-mrv-50 px-6 py-4">
+        <div>
+          <div className="text-sm font-bold tracking-wide text-mrv-700 uppercase">Disponíveis · <NomeSetor s={setor} curto /></div>
+          <div className="tabular font-display text-[56px] leading-none font-bold text-mrv-700">{disponiveis}</div>
+        </div>
+        <p className="text-sm text-tinta/70">
+          lugar{disponiveis === 1 ? "" : "es"} livre{disponiveis === 1 ? "" : "s"} de <b>{capacidade}</b> no total
+          <span className="block text-xs text-cinza">{info?.ocupados ?? 0} ocupado(s), contando reservas</span>
+        </p>
+      </div>
+      <div className={clsx("grid grid-cols-2 gap-3", aguardando > 0 ? "sm:grid-cols-5" : "sm:grid-cols-4")}>
         <Grande rotulo="Enviados" valor={enviados} />
-        <Grande rotulo="Ainda não enviados" valor={ativos.length - enviados} laranja={ativos.length - enviados > 0} />
-        <Grande rotulo="Lista de espera" valor={espera.length} laranja={espera.length > 0} />
+        <Grande rotulo="Prontos para envio" valor={prontos} />
+        {facial && <Grande rotulo="Pendente envio · falta facial" valor={semFacial} laranja={semFacial > 0} />}
+        <Grande rotulo="🔖 Reservados (sem nome)" valor={reservados} laranja={reservados > 0} />
+        {aguardando > 0 && <Grande rotulo="Aguardando aprovação/dados" valor={aguardando} />}
       </div>
 
       <div className="rounded-2xl border border-borda bg-white p-5">
@@ -160,13 +177,6 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
 
       {!leitura && <LinksPendentes evento={evento} convites={convites.filter((c) => c.setor === setor)} eventoInfo={eventoInfo} />}
 
-      {espera.length > 0 && (
-        <div className="rounded-2xl border border-[#ffd9b3] bg-white p-5">
-          <h2 className="mb-1 font-bold text-[#6b3a08]">Lista de espera · <NomeSetor s={setor} /></h2>
-          <p className="mb-3 text-sm text-[#8a4b0f]">Em ordem de chegada. Sobe sozinho quando abre vaga na área.</p>
-          <TabelaSimples linhas={filtrar(espera)} posicao vazio="" />
-        </div>
-      )}
     </div>
   );
 }
