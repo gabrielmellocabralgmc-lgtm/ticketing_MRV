@@ -1,7 +1,7 @@
 "use client";
 // Painel do evento (Marketing): um setor por aba, lista com o status de cada ingresso,
 // lista de espera e "+ Adicionar convidado" (os mesmos poderes do Admin).
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import clsx from "clsx";
 import { BotaoCopiar } from "@/components/copiar";
 import { Aviso, Botao, Entrada, Selo } from "@/components/ui";
@@ -15,12 +15,13 @@ import { AcoesConvidados, type PessoaDaLista } from "../adicionar-convidado";
 import { cancelarConvite } from "../areas/[area]/actions";
 import { BotaoWhatsApp } from "@/components/copiar";
 import { linkTorcedor, linkWhatsApp, textoConvite } from "@/lib/mensagens";
-import { atualizarDadosAdmin } from "../adicionar-actions";
+import { atualizarDadosAdmin, preencherReserva } from "../adicionar-actions";
 import type { OpcaoSetor } from "../adicionar-opcoes";
 import { NomeEditavel } from "../nome-editavel";
 import { EditorCotas, type AreaCota } from "../editor-cotas";
 import { NomeSetor } from "@/components/setores";
-import { cancelarIngresso, reservarIngressos } from "../galo-actions";
+import { convidadoDe } from "@/lib/anfitriao";
+import { cancelarIngresso } from "../galo-actions";
 
 export interface LinhaPainel {
   id: string;
@@ -39,6 +40,8 @@ export interface LinhaPainel {
   convidado_de_nome: string | null;
   enviado_em: string | null;
   lista_espera_desde: string | null;
+  /** Reserva sem nome ainda: para quem os lugares estão guardados. */
+  reservado_para?: string | null;
 }
 
 export interface SetorPainel {
@@ -49,6 +52,7 @@ export interface SetorPainel {
 
 // Status em linguagem simples para quem só acompanha
 const STATUS_SIMPLES: Partial<Record<StatusIngresso, { rotulo: string; tom: "cinza" | "azul" | "amarelo" | "verde" | "laranja" | "vermelho" }>> = {
+  reservado: { rotulo: "Reservado", tom: "laranja" },
   solicitado: { rotulo: "Preenchido", tom: "cinza" },
   validado_area: { rotulo: "Aguardando aprovação", tom: "azul" },
   aprovado: { rotulo: "Pendente facial", tom: "vermelho" },
@@ -65,13 +69,15 @@ export interface ConvitePendente {
   id: string; token: string; nome_previsto: string | null; qtd_lugares: number; expira_em: string; setor: Setor; area_id: string; area_nome: string; contato: string | null;
 }
 
-export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins, opcoes, anfitrioes, eventoInfo, convites, simples, digital = false, facial = true, digitais = {}, cotas = {} }: {
+export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins, opcoes, anfitrioes, eventoInfo, convites, simples, leitura = false, digital = false, facial = true, digitais = {}, cotas = {} }: {
   evento: string; linhas: LinhaPainel[]; setores: SetorPainel[];
   areas: { id: string; nome: string }[]; areaPadrao: string; walkins: Walkin[];
   opcoes: OpcaoSetor[]; anfitrioes: PessoaDaLista[]; convites: ConvitePendente[];
   eventoInfo: { titulo: string; inicio: string; abertura_portoes: string | null };
   /** Marketing: adicionar convidado só com nome, CPF e área. */
   simples?: boolean;
+  /** Só acompanhar (Marketing): sem botões de ação. */
+  leitura?: boolean;
   /** Evento com ingresso digital (PDF/link enviado pelo sistema). */
   digital?: boolean;
   /** Evento exige facial: mostra os botões de facial. */
@@ -84,17 +90,20 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
   const [setor, setSetor] = useState<Setor>(setores.find((s) => s.setor === "arquibancada")?.setor ?? setores[0]?.setor ?? "arquibancada");
   const [busca, setBusca] = useState("");
 
-  const doSetor = linhas.filter((l) => l.setor === setor && l.nome); // vagas de convite sem dados ficam fora da lista
+  // vagas de convite sem dados ficam fora da lista; reservas aparecem ("Reservado para …")
+  const doSetor = linhas.filter((l) => l.setor === setor && (l.nome || l.status === "reservado"));
   const ativos = doSetor.filter((l) => l.status !== "lista_espera");
   const espera = doSetor.filter((l) => l.status === "lista_espera").sort((a, b) => (a.lista_espera_desde ?? "").localeCompare(b.lista_espera_desde ?? ""));
   const filtrar = (ls: LinhaPainel[]) => {
     if (!busca) return ls;
     const b = normalizarTexto(busca);
     const d = busca.replace(/\D/g, "");
-    return ls.filter((l) => normalizarTexto(l.nome).includes(b) || normalizarTexto(l.area_nome).includes(b) || (d.length >= 3 && (l.cpf ?? "").includes(d)));
+    return ls.filter((l) => normalizarTexto(l.nome).includes(b) || normalizarTexto(l.reservado_para).includes(b) || normalizarTexto(l.area_nome).includes(b)
+      || normalizarTexto(l.convidado_de_nome).includes(b) || (d.length >= 3 && (l.cpf ?? "").includes(d)));
   };
   const info = setores.find((s) => s.setor === setor);
   const enviados = ativos.filter((l) => ENVIADOS.includes(l.status)).length;
+  const reservados = ativos.filter((l) => l.status === "reservado").length;
 
   return (
     <div className="space-y-4">
@@ -109,23 +118,18 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
         ))}
       </div>
 
-      {/* Reservar ingressos (apenas para Admin no Galo) */}
-      {opcoes.some((o) => o.setor === "camarote" || o.setor === "arquibancada") && (
-        <ReservarIngressos evento={evento} setor={setor} areas={areas} areaPadrao={areaPadrao} />
-      )}
-
       {/* as mesmas ações do Admin: abatem da cota e entram aprovadas */}
-      <AcoesConvidados key={setor} evento={evento} areas={areas} setores={opcoes} setorInicial={setor} areaInicial={areaPadrao}
-        anfitrioes={anfitrioes} eventoInfo={eventoInfo} simples={simples} exigirEmail={digital} facial={facial} />
+      {!leitura && <AcoesConvidados key={setor} evento={evento} areas={areas} setores={opcoes} setorInicial={setor} areaInicial={areaPadrao}
+        anfitrioes={anfitrioes} eventoInfo={eventoInfo} simples={simples} exigirEmail={digital} facial={facial} />}
       {digital && (
         <div className="flex justify-end">
           <a href={`/eventos/${evento}/ingressos-digitais`} className="rounded-lg bg-mrv-600 px-4 py-2 text-sm font-bold text-white hover:bg-mrv-700">Ingressos digitais (PDF/links) →</a>
         </div>
       )}
 
-      {setor === "camarote" && <PortaCamarote evento={evento} walkins={walkins} />}
+      {setor === "camarote" && !leitura && <PortaCamarote evento={evento} walkins={walkins} />}
 
-      {cotas[setor] && (
+      {cotas[setor] && !leitura && (
         <EditorCotas key={`cotas-${setor}`} evento={evento} setor={setor} capacidade={cotas[setor].capacidade}
           cotaPorArea={cotas[setor].cotaPorArea} areas={cotas[setor].areas} />
       )}
@@ -139,7 +143,9 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
 
       <div className="rounded-2xl border border-borda bg-white p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-xl font-bold">Lista · <NomeSetor s={setor} /></h2>
+          <h2 className="text-xl font-bold">Lista · <NomeSetor s={setor} />
+            {reservados > 0 && <span className="ml-2 align-middle text-sm font-semibold text-laranja-700">🔖 {reservados} reservado{reservados > 1 ? "s" : ""}</span>}
+          </h2>
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
             {setor === "camarote" && (
               <a href={`/eventos/${evento}/camarote/imprimir`} target="_blank" rel="noopener"
@@ -149,10 +155,10 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
             <div className="w-full sm:w-72"><Entrada value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar nome, CPF ou área…" aria-label="Buscar" /></div>
           </div>
         </div>
-        <TabelaSimples linhas={filtrar(ativos)} vazio="Ninguém neste setor ainda." evento={evento} facial={facial} digitais={digitais} />
+        <TabelaSimples linhas={filtrar(ativos)} vazio="Ninguém neste setor ainda." evento={leitura ? undefined : evento} facial={facial} digitais={digitais} />
       </div>
 
-      <LinksPendentes evento={evento} convites={convites.filter((c) => c.setor === setor)} eventoInfo={eventoInfo} />
+      {!leitura && <LinksPendentes evento={evento} convites={convites.filter((c) => c.setor === setor)} eventoInfo={eventoInfo} />}
 
       {espera.length > 0 && (
         <div className="rounded-2xl border border-[#ffd9b3] bg-white p-5">
@@ -208,55 +214,12 @@ function Grande({ rotulo, valor, laranja }: { rotulo: string; valor: number | st
   );
 }
 
-function ReservarIngressos({ evento, setor, areas, areaPadrao }: { evento: string; setor: Setor; areas: { id: string; nome: string }[]; areaPadrao: string }) {
-  const [pendente, iniciar] = useTransition();
-  const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
-  const [area, setArea] = useState(areaPadrao);
-  const [qtd, setQtd] = useState("5");
-
-  const reservar = () => {
-    const q = parseInt(qtd) || 0;
-    if (q <= 0 || q > 100) {
-      setMsg({ ok: false, texto: "Digite um número entre 1 e 100." });
-      return;
-    }
-    iniciar(async () => {
-      const r = await reservarIngressos(evento, setor, area, q, `Reserva para ${setor}`);
-      setMsg({ ok: r.ok, texto: r.ok ? r.mensagem ?? "Pronto." : r.erro });
-      if (r.ok) {
-        setQtd("5");
-      }
-    });
-  };
-
-  return (
-    <div className="rounded-2xl border border-borda bg-white p-5">
-      <h3 className="mb-3 font-bold text-mrv-700">Reservar ingressos</h3>
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="flex-1 min-w-[200px]">
-          <label className="block text-xs font-semibold text-tinta/60 uppercase">Área</label>
-          <select value={area} onChange={(e) => setArea(e.target.value)} className="mt-1 w-full rounded-lg border border-borda px-3 py-2 text-sm">
-            {areas.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
-          </select>
-        </div>
-        <div className="flex-1 min-w-[100px]">
-          <label className="block text-xs font-semibold text-tinta/60 uppercase">Qtd.</label>
-          <Entrada type="number" value={qtd} onChange={(e) => setQtd(e.target.value)} inputMode="numeric" min="1" max="100" />
-        </div>
-        <Botao type="button" onClick={reservar} disabled={pendente} variante="secundario">
-          {pendente ? "Reservando…" : "Reservar"}
-        </Botao>
-      </div>
-      {msg && <div className="mt-2"><Aviso tom={msg.ok ? "ok" : "erro"}>{msg.texto}</Aviso></div>}
-    </div>
-  );
-}
-
 function TabelaSimples({ linhas, vazio, posicao, evento, facial = true, digitais = {} }: {
   linhas: LinhaPainel[]; vazio: string; posicao?: boolean; evento?: string; facial?: boolean; digitais?: Record<string, boolean>;
 }) {
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   const [ocupado, iniciar] = useTransition();
+  const [preenchendo, setPreenchendo] = useState<string | null>(null);
   const rodar = (f: () => Promise<{ ok: boolean; mensagem?: string; erro?: string }>, confirmar: string) =>
     confirm(confirmar) && iniciar(async () => { const r = await f(); setMsg({ ok: r.ok, texto: (r.ok ? r.mensagem : r.erro) ?? "" }); });
   if (!linhas.length) return vazio ? <p className="py-6 text-center text-sm text-tinta/50">{vazio}</p> : null;
@@ -272,17 +235,20 @@ function TabelaSimples({ linhas, vazio, posicao, evento, facial = true, digitais
         <tbody>
           {linhas.map((l, i) => {
             const st = STATUS_SIMPLES[l.status] ?? { rotulo: l.status, tom: "cinza" as const };
+            const reserva = l.status === "reservado";
             return (
-              <tr key={l.id} className="border-t border-black/5">
+              <Fragment key={l.id}>
+              <tr className={clsx("border-t border-black/5", reserva && "bg-laranja-100/40")}>
                 <td className="tabular px-4 py-2 text-xs text-tinta/40">{i + 1}</td>
                 <td className={clsx("px-4 py-2", l.convidado_de ? "pl-8" : "font-medium")}>
-                  {evento ? (
+                  {reserva ? (
+                    <span>🔖 Reservado para <b>{l.reservado_para ?? "—"}</b></span>
+                  ) : evento ? (
                     <NomeEditavel linha={l} salvar={(id, d) => atualizarDadosAdmin(evento, id, d)}>
                       <span>{l.convidado_de && <span className="text-tinta/40">↳ </span>}{l.nome}</span>
                     </NomeEditavel>
                   ) : <>{l.convidado_de && <span className="text-tinta/40">↳ </span>}{l.nome}</>}
-                  {!l.convidado_de && l.anfitriao_externo && <span className="block text-xs font-normal text-tinta/50">convidado de {l.anfitriao_externo} (fora da lista)</span>}
-                  {l.convidado_de && <span className="block text-xs font-normal text-tinta/50">convidado de {l.convidado_de_nome}</span>}
+                  {convidadoDe(l) && <span className="block text-xs font-normal text-tinta/50">convidado de {convidadoDe(l)}{!l.convidado_de && " (fora da lista)"}</span>}
                 </td>
                 <td className="px-4 py-2 font-mono text-xs whitespace-nowrap">{l.cpf ? formatarCpf(l.cpf) : "—"}</td>
                 <td className="px-4 py-2 text-xs">{l.area_nome}</td>
@@ -301,17 +267,62 @@ function TabelaSimples({ linhas, vazio, posicao, evento, facial = true, digitais
                     <button disabled={ocupado} onClick={() => rodar(() => facialOk(evento, [l.id]), `Confirmar que ${l.nome} já tem a facial cadastrada?`)}
                       className="ml-2 rounded-md px-2 py-0.5 text-xs font-semibold text-mrv-700 ring-1 ring-mrv-600 hover:bg-mrv-50">Facial OK</button>
                   )}
+                  {evento && reserva && (
+                    <button disabled={ocupado} onClick={() => setPreenchendo((x) => (x === l.id ? null : l.id))}
+                      className="ml-2 rounded-md px-2 py-0.5 text-xs font-semibold text-mrv-700 ring-1 ring-mrv-600 hover:bg-mrv-50">Preencher</button>
+                  )}
                   {evento && l.status !== "cancelado" && l.status !== "presente" && l.status !== "no_show" && (
-                    <button disabled={ocupado} onClick={() => rodar(() => cancelarIngresso(evento, l.id, `Cancelado pelo Admin`), `Cancelar ingresso de ${l.nome}? O saldo será devolvido.`)}
+                    <button disabled={ocupado} onClick={() => rodar(() => cancelarIngresso(evento, l.id, reserva ? "Reserva cancelada" : "Cancelado pelo Admin"),
+                      reserva ? `Cancelar a reserva para ${l.reservado_para}? O lugar volta para o saldo.` : `Cancelar ingresso de ${l.nome}? O lugar volta para o saldo.`)}
                       className="ml-2 rounded-md px-2 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-red-300 hover:bg-red-50">Cancelar</button>
                   )}
                 </td>
               </tr>
+              {evento && preenchendo === l.id && (
+                <tr className="bg-laranja-100/40">
+                  <td colSpan={5} className="px-4 pb-3">
+                    <PreencherReserva para={l.reservado_para ?? ""} fechar={() => setPreenchendo(null)}
+                      salvar={(d) => preencherReserva(evento, l.id, d)} />
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             );
           })}
         </tbody>
       </table>
       {msg && <div className="px-4 pt-3"><Aviso tom={msg.ok ? "ok" : "erro"}>{msg.texto}</Aviso></div>}
+    </div>
+  );
+}
+
+/** Nome e CPF de quem vai usar a reserva (celular e e-mail opcionais). */
+function PreencherReserva({ para, salvar, fechar }: {
+  para: string; fechar: () => void;
+  salvar: (d: { nome: string; cpf: string; celular: string; email: string }) => Promise<{ ok: boolean; mensagem?: string; erro?: string }>;
+}) {
+  const [d, setD] = useState({ nome: para, cpf: "", celular: "", email: "" });
+  const [erro, setErro] = useState<string | null>(null);
+  const [pendente, iniciar] = useTransition();
+  return (
+    <div className="rounded-xl bg-white p-3 ring-1 ring-laranja-700/30">
+      <div className="mb-2 text-sm font-semibold">Preencher a reserva para {para}</div>
+      <div className="grid gap-2 sm:grid-cols-4">
+        <Entrada aria-label="Nome completo" placeholder="Nome completo" value={d.nome} onChange={(e) => setD({ ...d, nome: e.target.value })} />
+        <Entrada aria-label="CPF" placeholder="CPF" inputMode="numeric" value={d.cpf} onChange={(e) => setD({ ...d, cpf: e.target.value })} />
+        <Entrada aria-label="Celular" placeholder="Celular (opcional)" inputMode="tel" value={d.celular} onChange={(e) => setD({ ...d, celular: e.target.value })} />
+        <Entrada aria-label="E-mail" placeholder="E-mail (opcional)" type="email" value={d.email} onChange={(e) => setD({ ...d, email: e.target.value })} />
+      </div>
+      {erro && <div className="mt-2"><Aviso tom="erro">{erro}</Aviso></div>}
+      <div className="mt-2 flex gap-2">
+        <Botao type="button" disabled={pendente || !d.nome.trim() || !d.cpf.trim()} onClick={() => iniciar(async () => {
+          setErro(null);
+          const r = await salvar(d);
+          if (!r.ok) return setErro(r.erro ?? "Não foi possível salvar.");
+          fechar();
+        })}>{pendente ? "Salvando…" : "Salvar"}</Botao>
+        <Botao type="button" variante="fantasma" onClick={fechar}>Voltar</Botao>
+      </div>
     </div>
   );
 }

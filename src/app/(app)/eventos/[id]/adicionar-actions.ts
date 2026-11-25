@@ -83,33 +83,40 @@ export async function atualizarDadosAdmin(evento: string, ingresso: string, p: {
   return { ok: true, mensagem: "Dados atualizados." };
 }
 
+/**
+ * Reserva lugares "para a pessoa X" de uma área, antes de ter nome e CPF. Camarote: sai do pote geral
+ * (capacidade do setor); demais setores: da cota da área. A reserva já ocupa lugar e aparece nas listas.
+ */
 export async function reservarIngressos(
-  evento: string,
-  setor: Setor,
-  area: string,
-  qtd: number,
-  motivo?: string
+  evento: string, setor: Setor, area: string, qtd: number, para: string, observacao?: string,
 ): Promise<Resultado<{ criados: number }>> {
   await exigirStaff();
   const sb = await supabaseServidor();
-
   const { data, error } = await sb.rpc("reservar_ingressos", {
-    p_evento: evento,
-    p_setor: setor,
-    p_area_id: area,
-    p_qtd: qtd,
-    p_motivo: motivo ?? "Reserva do Admin",
-    p_sem_validar_cota: setor === "camarote",
+    p_evento: evento, p_setor: setor, p_area: area, p_qtd: qtd, p_para: para, p_observacao: observacao?.trim() || null,
   });
-
   if (error) return falha(error);
   revalidatePath(`/eventos/${evento}`, "layout");
-  const rows = data as Array<{ ingresso_id: string }>;
+  const n = (data as { ingressos: string[] }).ingressos.length;
   return {
-    ok: true,
-    mensagem: `${qtd} ingresso(s) reservado(s). Clique em uma linha e selecione "Alocar" para atribuir à pessoa.`,
-    dados: { criados: rows.length }
+    ok: true, dados: { criados: n },
+    mensagem: `${n === 1 ? "1 ingresso reservado" : `${n} ingressos reservados`} para ${para.trim()}. Eles já contam como ocupados; use "Preencher" na lista quando tiver nome e CPF.`,
   };
+}
+
+/** Coloca nome e CPF numa reserva: o ingresso segue para aprovado (ou pronto para envio). */
+export async function preencherReserva(
+  evento: string, ingresso: string, p: { nome: string; cpf: string; celular: string; email: string },
+): Promise<Resultado<{ status: string }>> {
+  await exigirStaff();
+  const sb = await supabaseServidor();
+  const { data, error } = await sb.rpc("preencher_reserva", {
+    p_ingresso: ingresso,
+    p_pessoa: { nome: p.nome, cpf: p.cpf, celular: p.celular || null, email: p.email || null },
+  });
+  if (error) return falha(error);
+  revalidatePath(`/eventos/${evento}`, "layout");
+  return { ok: true, dados: { status: data as string }, mensagem: `Reserva preenchida: ${p.nome.trim()} está na lista.` };
 }
 
 export async function alterarPessoaArea(evento: string, ingresso: string, novaArea: string): Promise<Resultado> {

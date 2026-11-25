@@ -1,8 +1,10 @@
 "use client";
+import { convidadoDe } from "@/lib/anfitriao";
 import { rotuloSetor, type Setor, type StatusIngresso } from "@/lib/tipos";
 
 export interface LinhaDetalhe {
   id: string; nome: string | null; area_nome: string; setor: Setor; status: StatusIngresso; criado_em: string;
+  convidado_de?: string | null; convidado_de_nome?: string | null; anfitriao_externo?: string | null; reservado_para?: string | null;
 }
 
 const ENVIADOS: StatusIngresso[] = ["enviado", "confirmado", "presente"];
@@ -28,12 +30,17 @@ export function DetalheSetores({ linhas, nomes_setores }: { linhas: LinhaDetalhe
             </div>
             <div className="-mx-5 overflow-x-auto">
               <table className="w-full min-w-[520px] text-left text-sm [&_td]:px-5 [&_td]:py-2 [&_th]:px-5 [&_th]:py-2 [&_th]:text-xs [&_th]:font-semibold [&_th]:tracking-wide [&_th]:text-cinza [&_th]:uppercase [&_tbody_tr]:border-t [&_tbody_tr]:border-[#edeeed]">
-                <thead><tr><th>Área</th><th>Nome</th><th>Status</th></tr></thead>
+                <thead><tr><th>Área</th><th>Nome</th>{setor === "camarote" && <th>Convidado de</th>}<th>Status</th></tr></thead>
                 <tbody>
                   {linhasSetor.map((l) => (
                     <tr key={l.id}>
                       <td className="font-medium text-cinza">{l.area_nome}</td>
-                      <td className={l.nome ? "" : "italic text-cinza"}>{l.nome || "Sem nome"}</td>
+                      {l.status === "reservado"
+                        ? <td>🔖 Reservado para <b>{l.reservado_para ?? "—"}</b></td>
+                        : <td className={l.nome ? "" : "italic text-cinza"}>{l.nome || "Sem nome"}</td>}
+                      {setor === "camarote" && (
+                        <td className="text-xs text-cinza">{convidadoDe({ setor, convidado_de: l.convidado_de ?? null, convidado_de_nome: l.convidado_de_nome ?? null, anfitriao_externo: l.anfitriao_externo }) ?? (l.status === "reservado" ? "—" : "Anfitrião")}</td>
+                      )}
                       <td className={`text-xs font-semibold uppercase ${ENVIADOS.includes(l.status) ? "text-mrv-700" : "text-orange-700"}`}>{l.status.replace(/_/g, " ")}</td>
                     </tr>
                   ))}

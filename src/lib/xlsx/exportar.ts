@@ -1,3 +1,4 @@
+import { convidadoDe } from "@/lib/anfitriao";
 // Exporta um evento no mesmo layout da planilha legada (abas Arquibancada/Pista, Camarote,
 // Convidados Camarote, Divisão) para quem ainda trabalha no Excel.
 import ExcelJS from "exceljs";
@@ -19,10 +20,12 @@ export interface LinhaExport {
   indicacao_de: string | null;
   preenchido_por: string | null;
   observacao: string | null;
+  anfitriao_externo?: string | null;
+  reservado_para?: string | null;
 }
 
 const ENVIADO: StatusIngresso[] = ["enviado", "confirmado", "presente", "no_show"];
-const CONTA: StatusIngresso[] = ["convite_enviado", "aguardando_preenchimento", "solicitado", "validado_area", "aprovado", "facial_pendente", "facial_ok", ...ENVIADO];
+const CONTA: StatusIngresso[] = ["reservado", "convite_enviado", "aguardando_preenchimento", "solicitado", "validado_area", "aprovado", "facial_pendente", "facial_ok", ...ENVIADO];
 const VERDE = "FF006B3F";
 
 function cabecalho(ws: ExcelJS.Worksheet, titulo: string, evento: string, colunas: string[], larguras: number[]) {
@@ -84,7 +87,7 @@ export async function exportarEvento(o: {
         g.some((l) => l.preenchido_por === "convidado") && "Preenchido pelo convidado",
       ].filter(Boolean).join(" · ");
       ws.addRow([
-        titular.area_nome, titular.nome ?? (titular.indicacao_de ? `Vaga: ${titular.indicacao_de}` : "Vaga reservada"),
+        titular.area_nome, titular.nome ?? (titular.reservado_para ? `Reservado para ${titular.reservado_para}` : titular.indicacao_de ? `Vaga: ${titular.indicacao_de}` : "Vaga reservada"),
         titular.celular ?? "", cpfTexto(titular.cpf), cpfTexto(convidados[0]?.cpf ?? null),
         titular.preenchido_por === "importacao" ? "" : "Sim", g.length, enviados || null, statusTexto(titular.status), obs || null,
       ]);
@@ -103,8 +106,8 @@ export async function exportarEvento(o: {
       ["Nome", "CPF", "RESERVADOS", "ENVIADOS", "INDICAÇÃO", "STATUS", "Observação", "Área MRV", "Convidado de"],
       [42, 16, 12, 11, 22, 22, 30, 24, 30]);
     for (const l of cam) {
-      ws.addRow([l.nome ?? "", cpfTexto(l.cpf), 1, ENVIADO.includes(l.status) ? 1 : null, l.indicacao_de ?? "",
-        l.nome ? statusTexto(l.status) : "RESERVADO", l.observacao ?? null, l.area_nome, l.convidado_de_nome ?? (l.convidado_de ? "?" : "Anfitrião")]);
+      ws.addRow([l.nome ?? (l.reservado_para ? `Reservado para ${l.reservado_para}` : ""), cpfTexto(l.cpf), 1, ENVIADO.includes(l.status) ? 1 : null, l.indicacao_de ?? "",
+        l.nome ? statusTexto(l.status) : "RESERVADO", l.observacao ?? null, l.area_nome, convidadoDe(l) ?? (l.nome ? "Anfitrião" : "")]);
     }
     ws.getCell("C3").value = cam.length;
     ws.getCell("D3").value = cam.filter((l) => ENVIADO.includes(l.status)).length;
@@ -118,7 +121,7 @@ export async function exportarEvento(o: {
     wc.getRow(2).font = { bold: true };
     [6, 42, 6, 32, 24].forEach((w, i) => (wc.getColumn(i + 1).width = w));
     cam.filter((l) => l.nome).sort((a, b) => (a.nome ?? "").localeCompare(b.nome ?? "", "pt-BR"))
-      .forEach((l, i) => wc.addRow([i + 1, l.nome, 1, l.convidado_de_nome ?? (l.convidado_de ? "?" : "(anfitrião)"), l.indicacao_de ?? ""]));
+      .forEach((l, i) => wc.addRow([i + 1, l.nome, 1, convidadoDe(l) ?? "(anfitrião)", l.indicacao_de ?? ""]));
   }
 
   // ------------------------------------------------ Divisão

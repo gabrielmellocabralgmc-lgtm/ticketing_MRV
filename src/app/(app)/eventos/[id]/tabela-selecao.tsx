@@ -1,5 +1,6 @@
 "use client";
 // Tabela com seleção múltipla e ações em lote (aprovação, Galo ID, envio).
+import { convidadoDe } from "@/lib/anfitriao";
 import { useMemo, useState, useTransition, type ReactNode } from "react";
 import { BotaoCopiar, BotaoWhatsApp } from "@/components/copiar";
 import { Aviso, Botao, Selo, SeloStatus, Tabela, Vazio } from "@/components/ui";
@@ -29,6 +30,10 @@ export interface LinhaIngresso {
   facial_em: string | null;
   /** Adicionado pelo Admin (WhatsApp, e-mail…): nome e contato podem ser atualizados depois. */
   manual_admin?: boolean;
+  /** Anfitrião de fora da lista (credenciado, outro camarote…), do pedido. */
+  anfitriao_externo?: string | null;
+  /** Reserva sem nome ainda: para quem os lugares estão guardados. */
+  reservado_para?: string | null;
 }
 
 export interface AcaoLote {
@@ -119,7 +124,7 @@ export function TabelaSelecao({
                 </td>
                 <td className="font-mono text-xs whitespace-nowrap">{l.cpf ? formatarCpf(l.cpf) : "—"}</td>
                 <td className="text-xs">{l.area_nome}<div className="text-tinta/50"><NomeSetor s={l.setor} /></div></td>
-                <td className="text-xs">{l.convidado_de ? `Convidado de ${l.convidado_de_nome ?? "?"}` : l.setor === "camarote" ? "Titular" : "Convidado"}{l.indicacao_de && !l.convidado_de && <div className="text-tinta/50">Indicação: {l.indicacao_de}</div>}</td>
+                <td className="text-xs">{l.setor === "camarote" ? (convidadoDe(l) ? <>Convidado de <b>{convidadoDe(l)}</b></> : "Anfitrião") : "—"}{l.indicacao_de && !convidadoDe(l) && <div className="text-tinta/50">Indicação: {l.indicacao_de}</div>}</td>
                 <td><SeloStatus status={l.status} />{extra?.(l)}</td>
                 <td>
                   <div className="flex flex-wrap items-center justify-end gap-1.5 text-xs">

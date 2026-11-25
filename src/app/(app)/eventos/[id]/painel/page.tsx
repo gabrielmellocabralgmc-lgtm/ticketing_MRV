@@ -2,7 +2,8 @@ import Link from "next/link";
 import { AoVivo } from "@/components/ao-vivo";
 import { CabecalhoJogo } from "@/components/jogo";
 import { CHAVE_ESCUDO_ATLETICO, chaveEscudoAdversario, imagensDisponiveis } from "@/lib/imagens";
-import { exigirStaff } from "@/lib/sessao";
+import { exigirSessao } from "@/lib/sessao";
+import { redirect } from "next/navigation";
 import { supabaseServidor } from "@/lib/supabase/server";
 import { type Setor } from "@/lib/tipos";
 import { carregarEvento, carregarResumo } from "../dados";
@@ -15,13 +16,15 @@ import { AbasMarketing } from "../abas-marketing";
 export const metadata = { title: "Painel do evento" };
 
 export default async function Painel({ params }: { params: Promise<{ id: string }> }) {
-  const s = await exigirStaff();
+  // Admin mexe; Marketing acompanha (só leitura — as ações do painel exigem Admin no servidor)
+  const s = await exigirSessao();
+  if (!s.verTudo) redirect("/eventos");
   const { id } = await params;
   const ev = await carregarEvento(id);
   const supabase = await supabaseServidor();
   const [{ setores, linhas: resumo }, linhas, { data: areas }] = await Promise.all([
     carregarResumo(id),
-    carregarIngressos(id, ["convite_enviado", "aguardando_preenchimento", "solicitado", "validado_area", "aprovado", "facial_pendente", "facial_ok", "enviado", "confirmado", "presente", "lista_espera"], "painel"),
+    carregarIngressos(id, ["reservado", "convite_enviado", "aguardando_preenchimento", "solicitado", "validado_area", "aprovado", "facial_pendente", "facial_ok", "enviado", "confirmado", "presente", "lista_espera"], "painel"),
     supabase.from("areas").select("id, nome, slug").eq("ativo", true).order("ordem"),
   ]);
   const [img, { data: walkins }, anfitrioes, { data: convites }] = await Promise.all([
@@ -53,6 +56,7 @@ export default async function Painel({ params }: { params: Promise<{ id: string 
         opcoes={opcoesAdicionar(setores, resumo, areas ?? [])}
         anfitrioes={anfitrioes}
         simples={s.papel === "marketing"}
+        leitura={s.papel !== "admin"}
         digital={ev.ingressos_digitais}
         cotas={Object.fromEntries(setores.map((st) => [st.setor, {
           capacidade: st.capacidade, cotaPorArea: st.cota_por_area,

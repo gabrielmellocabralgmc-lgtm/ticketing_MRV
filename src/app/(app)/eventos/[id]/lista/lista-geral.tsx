@@ -10,6 +10,7 @@ import { celular, dataHora } from "@/lib/formato";
 import { linkTorcedor, linkWhatsApp, textoGaloId } from "@/lib/mensagens";
 import type { Resultado } from "@/lib/erros";
 import { normalizarTexto } from "@/lib/texto";
+import { convidadoDe } from "@/lib/anfitriao";
 import { statusAmigavel, type Setor, type StatusIngresso } from "@/lib/tipos";
 import type { LinhaIngresso } from "../tabela-selecao";
 import { NomeEditavel, semNome } from "../nome-editavel";
@@ -74,7 +75,8 @@ export function ListaGeral({ linhas, acoes }: { linhas: LinhaGeral[]; acoes: Aco
     if (busca) {
       const b = normalizarTexto(busca);
       const d = somenteDigitos(busca);
-      if (!normalizarTexto(l.nome).includes(b) && !(d.length >= 3 && (l.cpf ?? "").includes(d))) return false;
+      if (!normalizarTexto(l.nome).includes(b) && !normalizarTexto(l.reservado_para).includes(b) && !normalizarTexto(convidadoDe(l)).includes(b)
+        && !(d.length >= 3 && (l.cpf ?? "").includes(d))) return false;
     }
     return true;
   });
@@ -158,7 +160,8 @@ function TabelaSetor({ setor, todas, linhas, ordem, nomesPorId, pendente, acoes,
   const ordenadas = [...linhas];
   if (ordem === "nome") ordenadas.sort((a, b) => (a.nome ?? "").localeCompare(b.nome ?? "", "pt-BR"));
   if (ordem === "status") ordenadas.sort((a, b) => a.status.localeCompare(b.status));
-  const reservados = todas.filter((l) => !["cancelado", "recusado", "convite_expirado", "lista_espera"].includes(l.status)).length;
+  const ocupados = todas.filter((l) => !["cancelado", "recusado", "convite_expirado", "lista_espera"].includes(l.status)).length;
+  const reservas = todas.filter((l) => l.status === "reservado").length;
   const enviados = todas.filter((l) => ENVIADO.includes(l.status)).length;
   const prontos = todas.filter((l) => l.status === "facial_ok").length;
 
@@ -175,7 +178,7 @@ function TabelaSetor({ setor, todas, linhas, ordem, nomesPorId, pendente, acoes,
       <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-borda px-4 py-3">
         <h2 className="text-lg font-bold"><NomeSetor s={setor} /></h2>
         <span className="text-sm text-cinza">
-          Reservados <b className="tabular text-tinta">{reservados}</b> · Enviados <b className="tabular text-mrv-700">{enviados}</b> · Prontos para envio <b className="tabular text-mrv-700">{prontos}</b>
+          Ocupados <b className="tabular text-tinta">{ocupados}</b>{reservas > 0 && <> · 🔖 Reservas sem nome <b className="tabular text-laranja-700">{reservas}</b></>} · Enviados <b className="tabular text-mrv-700">{enviados}</b> · Prontos para envio <b className="tabular text-mrv-700">{prontos}</b>
         </span>
       </header>
       <div className="max-h-[65vh] overflow-auto">
@@ -190,18 +193,22 @@ function TabelaSetor({ setor, todas, linhas, ordem, nomesPorId, pendente, acoes,
           <tbody>
             {ordenadas.length === 0 && <tr><td colSpan={6} className="py-8 text-center text-cinza">Nenhum ingresso neste filtro.</td></tr>}
             {ordenadas.map((l, i) => {
-              const anfitriao = l.convidado_de ? nomesPorId.get(l.convidado_de) ?? l.convidado_de_nome : null;
+              const anfitriao = convidadoDe({ ...l, convidado_de_nome: (l.convidado_de && nomesPorId.get(l.convidado_de)) || l.convidado_de_nome });
               const selo = <SeloStatus status={l.status} para="gestor" resgate={acoes.resgate} resgateAberto={acoes.resgates[l.id]} />;
               const detalhes = [
-                anfitriao ? `${setor === "camarote" ? "Convidado do anfitrião" : "Acompanhante de"} ${anfitriao}` : setor === "camarote" ? "Anfitrião" : "Convidado",
+                setor === "camarote" ? (anfitriao ? `Convidado de ${anfitriao}` : "Anfitrião") : null,
                 l.indicacao_de && `Indicação: ${l.indicacao_de}`,
                 l.enviado_em && `Enviado em ${dataHora(l.enviado_em)}`,
                 l.facial_em && `Facial confirmada em ${dataHora(l.facial_em)}`,
               ].filter(Boolean) as string[];
               return (
-                <tr key={l.id} className="border-t border-[#edeeed] even:bg-fundo/50 hover:bg-mrv-50/60">
+                <tr key={l.id} className={clsx("border-t border-[#edeeed] even:bg-fundo/50 hover:bg-mrv-50/60", l.status === "reservado" && "bg-laranja-100/40")}>
                   <td className="tabular px-3 py-1.5 text-xs text-tinta/40">{i + 1}</td>
                   <td className="px-3 py-1.5">
+                    {l.status === "reservado" ? (
+                      <span>🔖 Reservado para <b>{l.reservado_para ?? "—"}</b>
+                        <span className="block text-xs text-cinza">preencha nome e CPF no Painel do evento</span></span>
+                    ) : <>
                     <NomeEditavel linha={l} salvar={acoes.atualizarDados}>
                       {/* detalhes ao passar o mouse (ou focar com o teclado) */}
                       <span className="group relative inline-block" tabIndex={0}>
@@ -211,6 +218,8 @@ function TabelaSetor({ setor, todas, linhas, ordem, nomesPorId, pendente, acoes,
                         </span>
                       </span>
                     </NomeEditavel>
+                    {anfitriao && <span className="block text-xs text-cinza">convidado de {anfitriao}</span>}
+                    </>}
                   </td>
                   <td className="px-3 py-1.5">
                     {l.cpf ? (

@@ -12,7 +12,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const [{ data: ev }, { data: linhas }, { data: setores }] = await Promise.all([
     supabase.from("eventos").select("titulo, inicio").eq("id", id).single(),
     supabase.from("v_ingressos")
-      .select("id, pedido_id, setor, area_nome, area_ordem, status, nome, cpf, celular, convidado_de, convidado_de_nome, indicacao_de, preenchido_por, observacao, criado_em")
+      .select("id, pedido_id, setor, area_nome, area_ordem, status, nome, cpf, celular, convidado_de, convidado_de_nome, anfitriao_externo, reservado_para, indicacao_de, preenchido_por, observacao, criado_em")
       .eq("evento_id", id).order("area_ordem").order("pedido_id").order("criado_em"),
     supabase.from("evento_setores").select("setor, capacidade").eq("evento_id", id),
   ]);

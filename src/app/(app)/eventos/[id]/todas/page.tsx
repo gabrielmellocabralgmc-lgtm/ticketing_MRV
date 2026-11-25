@@ -22,7 +22,7 @@ export default async function TodasAsAreas({ params }: { params: Promise<{ id: s
   if (!s.verTudo) redirect(`/eventos/${id}`);
   const [ev, { linhas, setores }, img] = await Promise.all([carregarEvento(id), carregarResumo(id), imagensDisponiveis()]);
   const { data } = await (await supabaseServidor()).from("v_ingressos")
-    .select("id, nome, cpf, celular, email, area_nome, area_ordem, setor, status, criado_em, convidado_de_nome, pedido_id")
+    .select("id, nome, cpf, celular, email, area_nome, area_ordem, setor, status, criado_em, convidado_de, convidado_de_nome, anfitriao_externo, reservado_para, pedido_id")
     .eq("evento_id", id).order("area_ordem").order("criado_em");
   const ativos = ((data ?? []) as (Omit<LinhaConsulta, "resgateAberto"> & { area_ordem: number; criado_em: string })[])
     .filter((l) => !INATIVOS.includes(l.status));
@@ -72,7 +72,8 @@ export default async function TodasAsAreas({ params }: { params: Promise<{ id: s
 
       <Cartao className="mb-6">
         <h2 className="mb-4 text-lg font-bold text-mrv-900">Detalhamento por setor</h2>
-        <DetalheSetores linhas={ativos.map(({ id: i, nome, area_nome, setor, status, criado_em }) => ({ id: i, nome, area_nome, setor, status, criado_em }))} nomes_setores={ev.nomes_setores} />
+        <DetalheSetores linhas={ativos.map(({ id: i, nome, area_nome, setor, status, criado_em, convidado_de, convidado_de_nome, anfitriao_externo, reservado_para }) =>
+          ({ id: i, nome, area_nome, setor, status, criado_em, convidado_de, convidado_de_nome, anfitriao_externo, reservado_para }))} nomes_setores={ev.nomes_setores} />
       </Cartao>
 
       <ConsultaTodas evento={id} resgate={ev.resgate_unico} nomes={ev.nomes_setores} todasAreas={[...new Set(resumo.map((l) => l.area_nome))]}

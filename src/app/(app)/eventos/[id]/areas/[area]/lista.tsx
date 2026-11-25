@@ -29,6 +29,8 @@ export interface LinhaLista {
   convite_contato: string | null;
   convite_qtd: number | null;
   indicacao_de: string | null;
+  reservado_para?: string | null;
+  anfitriao_externo?: string | null;
 }
 
 const INATIVOS: StatusIngresso[] = ["cancelado", "recusado", "convite_expirado"];
@@ -68,7 +70,8 @@ export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, p
   for (const l of linhas) if (l.convite_id && !l.nome && ["convite_enviado", "aguardando_preenchimento"].includes(l.status)) {
     aguardando.set(l.convite_id, [...(aguardando.get(l.convite_id) ?? []), l]);
   }
-  const pessoas = linhas.filter((l) => l.nome && (mostrarInativos || !INATIVOS.includes(l.status)));
+  // reservas (sem nome ainda) aparecem como "Reservado para …"
+  const pessoas = linhas.filter((l) => (l.nome || l.status === "reservado") && (mostrarInativos || !INATIVOS.includes(l.status)));
   const inativos = linhas.filter((l) => l.nome && INATIVOS.includes(l.status)).length;
 
   return (
@@ -159,13 +162,13 @@ export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, p
                 ) : (
                   <tr key={l.ingresso_id} className={INATIVOS.includes(l.status) ? "opacity-50" : ""}>
                     <td className={l.titular || setor !== "camarote" ? "font-medium" : "pl-9"}>
-                      {l.nome}
+                      {l.status === "reservado" ? <>🔖 Reservado para <b>{l.reservado_para ?? "—"}</b></> : l.nome}
                       {l.indicacao_de && l.titular && <div className="text-xs font-normal text-tinta/60">Indicação: {l.indicacao_de}</div>}
                     </td>
                     <td className="font-mono text-xs whitespace-nowrap">{l.cpf && /^\d{11}$/.test(l.cpf) ? formatarCpf(l.cpf) : l.cpf}</td>
                     <td className="whitespace-nowrap">{celular(l.celular)}</td>
                     <td className="text-xs">
-                      {setor !== "camarote" ? "Convidado" : l.titular ? "Titular" : `Convidado de ${l.convidado_de_nome ?? "?"}`}
+                      {setor !== "camarote" || l.status === "reservado" ? "—" : l.titular ? "Anfitrião" : <>Convidado de <b>{l.convidado_de_nome ?? "?"}</b></>}
                       {l.preenchido_por === "convidado" && <div><Selo tom="azul">Preenchido pelo convidado</Selo></div>}
                     </td>
                     <td><SeloStatus status={l.status} para="gestor" resgate={resgate} resgateAberto={resgates[l.ingresso_id]} /></td>

@@ -1,6 +1,12 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "demo", "runtimeExecutable": "npm", "runtimeArgs": ["run", "demo"], "port": 3000 }
+    { "name": "demo", "runtimeExecutable": "npm", "runtimeArgs": ["run", "demo"], "port": 3000 },
+    {
+      "name": "demo-3100",
+      "runtimeExecutable": "env",
+      "runtimeArgs": ["NEXT_PUBLIC_DEMO=1", "NEXT_PUBLIC_SITE_URL=http://localhost:3100", "npx", "next", "dev", "-p", "3100"],
+      "port": 3100
+    }
   ]
 }

@@ -123,6 +123,25 @@ describe("reservas de ingressos", () => {
   });
 });
 
+describe("camarote: convidado de", () => {
+  it("convidados de anfitrião de fora da lista aparecem como convidados dele (lista da área e da porta)", async () => {
+    const ev = await novoEvento();
+    const convidados = [nova("Convidada Externa Um"), nova("Convidado Externo Dois")];
+    await b.como(adm, `select adicionar_em_massa($1, 'camarote', $2, $3, null, 'Credenciado Fulano')`, [ev, presid, JSON.stringify(convidados)]);
+    await reservar(adm, ev, "camarote", presid, 1, "Diretor Reservado");
+
+    const area = await b.como<{ nome: string | null; convidado_de_nome: string | null; titular: boolean; reservado_para: string | null; status: string }>(
+      adm, `select nome, convidado_de_nome, titular, reservado_para, status::text from lista_area($1, 'camarote', $2)`, [ev, presid]);
+    expect(area.filter((l) => l.nome).map((l) => [l.convidado_de_nome, l.titular])).toEqual([
+      ["Credenciado Fulano", false], ["Credenciado Fulano", false],
+    ]);
+    expect(area.find((l) => l.status === "reservado")).toMatchObject({ nome: null, reservado_para: "Diretor Reservado" });
+
+    const porta = await b.como<{ nome: string; anfitriao: string; titular: boolean }>(adm, `select nome, anfitriao, titular from lista_camarote($1)`, [ev]);
+    expect(porta.map((l) => [l.anfitriao, l.titular])).toEqual([["Credenciado Fulano", false], ["Credenciado Fulano", false]]);
+  });
+});
+
 describe("migração 048 sobre o estado de produção", () => {
   it("unifica status_ingresso_old (em uso) e status_ingresso (sem uso) num tipo só, com 'reservado'", async () => {
     const raiz = path.resolve(__dirname, "../..");

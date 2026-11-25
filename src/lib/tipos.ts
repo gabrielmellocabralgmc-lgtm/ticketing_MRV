@@ -2,7 +2,7 @@ export type Papel = "admin" | "marketing" | "responsavel" | "operacao";
 export type Setor = "camarote" | "arquibancada" | "pista";
 export type StatusEvento = "rascunho" | "aberto" | "fechado" | "realizado" | "encerrado";
 export type StatusIngresso =
-  | "convite_enviado" | "aguardando_preenchimento" | "solicitado" | "validado_area" | "aprovado"
+  | "reservado" | "convite_enviado" | "aguardando_preenchimento" | "solicitado" | "validado_area" | "aprovado"
   | "facial_pendente" | "facial_ok" | "enviado" | "confirmado" | "presente"
   | "convite_expirado" | "lista_espera" | "recusado" | "cancelado" | "no_show";
 
@@ -80,6 +80,7 @@ export const ROTULO_STATUS_EVENTO: Record<StatusEvento, string> = {
 };
 
 export const STATUS_INGRESSO: Record<StatusIngresso, { rotulo: string; tom: "cinza" | "azul" | "amarelo" | "verde" | "laranja" | "vermelho" }> = {
+  reservado: { rotulo: "Reservado", tom: "laranja" },
   convite_enviado: { rotulo: "Convite enviado", tom: "cinza" },
   aguardando_preenchimento: { rotulo: "Aguardando preenchimento", tom: "amarelo" },
   solicitado: { rotulo: "Preenchido", tom: "azul" },
@@ -124,6 +125,6 @@ export function statusAmigavel(status: StatusIngresso, para: "gestor" | "convida
 
 /** Status que ainda ocupam lugar (espelha status_consome no banco). */
 export const STATUS_ATIVOS: StatusIngresso[] = [
-  "convite_enviado", "aguardando_preenchimento", "solicitado", "validado_area", "aprovado",
+  "reservado", "convite_enviado", "aguardando_preenchimento", "solicitado", "validado_area", "aprovado",
   "facial_pendente", "facial_ok", "enviado", "confirmado", "presente", "no_show",
 ];

@@ -22,7 +22,7 @@ export default async function PaginaLista({ params }: { params: Promise<{ id: st
   // link de resgate único: quem já abriu o resgate (mesmo status da lista de cada área)
   const resgates = Object.fromEntries(comIngresso.map((d) => [d.ingresso_id!, !!d.resgate_aberto_em]));
   const linhas = (await carregarIngressos(id, [
-    "solicitado", "validado_area", "aprovado", "facial_pendente", "facial_ok", "enviado", "confirmado", "presente",
+    "reservado", "solicitado", "validado_area", "aprovado", "facial_pendente", "facial_ok", "enviado", "confirmado", "presente",
     "lista_espera", "cancelado", "recusado", "no_show",
   ], "lista_geral")) as LinhaGeral[];
   return (

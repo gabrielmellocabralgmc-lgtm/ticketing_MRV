@@ -254,45 +254,43 @@ function GerarLink(p: Comum) {
 }
 
 function ReservarIngressosForm(p: Comum) {
-  const { setor: setorInicial, area: areaInicial, saldo: saldoInicial, campos } = useSetorArea(p);
-  const { rotulo: nomeSetor } = useSetores();
-  const [setor, setSetor] = useState<Setor>(setorInicial);
-  const [area, setArea] = useState(areaInicial);
-  const [qtd, setQtd] = useState(5);
+  const { setor, area, saldo, campos } = useSetorArea(p);
+  const [para, setPara] = useState("");
+  const [obs, setObs] = useState("");
+  const [qtd, setQtd] = useState(1);
   const [msg, setMsg] = useState<{ ok: boolean; texto: string } | null>(null);
   const [pendente, iniciar] = useTransition();
+  const camarote = setor === "camarote";
 
   return (
     <div>
-      <h2 className="text-lg font-bold text-mrv-900">Reservar ingressos</h2>
+      <h2 className="text-lg font-bold text-mrv-900">🔖 Reservar ingressos</h2>
       <p className="mb-3 text-sm text-tinta/60">
-        Cria ingressos com status &apos;Reservado&apos; para alocar depois. Sem preencher dados de pessoas ainda - você preenche quando quiser.
+        Bloqueia lugares para alguém antes de ter nome e CPF. A reserva já conta como lugar ocupado e aparece nas listas
+        como <b>“Reservado para …”</b>. {camarote ? <>No camarote sai do <b>pote geral da MRV</b>, sem cota de área.</> : <>Sai da <b>cota da área</b>.</>}
+        {" "}Quando tiver os dados, use <b>Preencher</b> na linha da reserva.
       </p>
-      <div className="mb-4 grid gap-3 sm:grid-cols-3">
-        <Campo rotulo="Setor">
-          <select value={setor} onChange={(e) => setSetor(e.target.value as Setor)}
-            className="w-full rounded-lg border border-borda px-3 py-2 text-sm">
-            {p.setores.map((s) => <option key={s.setor} value={s.setor}>{nomeSetor(s.setor)}</option>)}
-          </select>
+      <div className="mb-3 grid gap-3 sm:grid-cols-2">
+        {campos}
+        <Campo rotulo="Reservado para" dica="Nome da pessoa (ou grupo) para quem os lugares ficam guardados">
+          <Entrada value={para} onChange={(e) => setPara(e.target.value)} placeholder="Ex.: Diretor João Silva" maxLength={200} />
         </Campo>
-        <Campo rotulo="Área" dica={setor === "camarote" ? "Sem validação de cota" : undefined}>
-          <select value={area} onChange={(e) => setArea(e.target.value)}
-            className="w-full rounded-lg border border-borda px-3 py-2 text-sm">
-            <option value="">Escolha a área…</option>
-            {p.areas.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
-          </select>
+        <Campo rotulo="Quantos ingressos" dica={area ? `${saldo} lugar(es) livre(s)` : undefined}>
+          <Entrada type="number" min={1} max={60} value={qtd} onChange={(e) => setQtd(Math.max(1, Math.min(60, Number(e.target.value) || 1)))} />
         </Campo>
-        <Campo rotulo="Quantos ingressos">
-          <Entrada type="number" min={1} max={100} value={qtd} onChange={(e) => setQtd(Math.max(1, Math.min(100, Number(e.target.value) || 1)))} />
-        </Campo>
+        <div className="sm:col-span-2">
+          <Campo rotulo="Observação (opcional)">
+            <Entrada value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Ex.: confirmar nomes até sexta" />
+          </Campo>
+        </div>
       </div>
       {msg && <div className="mb-3"><Aviso tom={msg.ok ? "ok" : "erro"}>{msg.texto}</Aviso></div>}
-      <Botao disabled={pendente || !area} onClick={() => iniciar(async () => {
+      <Botao disabled={pendente || !area || !para.trim()} onClick={() => iniciar(async () => {
         setMsg(null);
-        const r = await reservarIngressos(p.evento, setor, area, qtd, 'Reserva via formulário');
+        const r = await reservarIngressos(p.evento, setor, area, qtd, para, obs);
         if (!r.ok) return setMsg({ ok: false, texto: r.erro });
-        setMsg({ ok: true, texto: `${qtd} ingresso(s) reservado(s)! Clique em "Abrir lista" para preencher os dados depois.` });
-        setQtd(5);
+        setMsg({ ok: true, texto: r.mensagem ?? "Reservado." });
+        setPara(""); setObs(""); setQtd(1);
       })}>
         {pendente ? "Reservando…" : `Reservar ${qtd} ingresso${qtd > 1 ? "s" : ""}`}
       </Botao>

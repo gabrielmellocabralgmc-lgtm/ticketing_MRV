@@ -17,7 +17,7 @@ export async function cancelarIngresso(evento: string, ingresso: string, motivo?
 
   if (error) return falha(error);
   atualizar(evento);
-  return { ok: true, mensagem: "Ingresso cancelado. O saldo foi devolvido à área." };
+  return { ok: true, mensagem: "Ingresso cancelado. O lugar voltou para o saldo." };
 }
 
 // Buscar histórico por CPF (para pré-preenchimento)
@@ -47,36 +47,5 @@ export async function buscarHistoricoCPF(cpf: string): Promise<Resultado<{
       celular: row.celular,
       ultimo_evento: row.ultimo_evento,
     }
-  };
-}
-
-// Reservar N ingressos (cria com status "reservado")
-// Camarote: sem cota e sem área; outros setores: com cota por área
-export async function reservarIngressos(
-  evento: string,
-  setor: "camarote" | "arquibancada" | "pista",
-  area: string,
-  qtd: number,
-  motivo?: string
-): Promise<Resultado<{ criados: number }>> {
-  await exigirAdmin();
-  const sb = await supabaseServidor();
-
-  const { data, error } = await sb.rpc("reservar_ingressos", {
-    p_evento: evento,
-    p_setor: setor,
-    p_area_id: area || null,
-    p_qtd: qtd,
-    p_motivo: motivo ?? "Reserva do Admin",
-    p_sem_validar_cota: !area // Camarote (sem área): sem validação de cota
-  });
-
-  if (error) return falha(error);
-  const rows = data as Array<{ ingresso_id: string }>;
-  atualizar(evento);
-  return {
-    ok: true,
-    mensagem: `${qtd} ingresso(s) reservado(s). Clique em uma linha e selecione "Alocar" para atribuir à pessoa.`,
-    dados: { criados: rows.length }
   };
 }
