@@ -103,6 +103,13 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
   const info = setores.find((s) => s.setor === setor);
   const enviados = ativos.filter((l) => ENVIADOS.includes(l.status)).length;
   const reservados = ativos.filter((l) => l.status === "reservado").length;
+  // de quem são as reservas e quantas de cada (para o quadrinho do resumo)
+  const porReserva = new Map<string, number>();
+  for (const l of ativos) if (l.status === "reservado") {
+    const quem = l.reservado_para?.trim() || "Sem nome";
+    porReserva.set(quem, (porReserva.get(quem) ?? 0) + 1);
+  }
+  const detalheReservas = [...porReserva].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([quem, n]) => `${n} · ${quem}`);
   // sem facial: aprovado já está pronto para envio
   const semFacial = facial ? ativos.filter((l) => l.status === "aprovado" || l.status === "facial_pendente").length : 0;
   const prontos = ativos.filter((l) => l.status === "facial_ok" || (!facial && l.status === "aprovado")).length;
@@ -154,7 +161,7 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
         <Grande rotulo="Enviados" valor={enviados} />
         <Grande rotulo="Prontos para envio" valor={prontos} />
         {facial && <Grande rotulo="Pendente envio · falta facial" valor={semFacial} laranja={semFacial > 0} />}
-        <Grande rotulo="🔖 Reservados (sem nome)" valor={reservados} laranja={reservados > 0} />
+        <Grande rotulo="🔖 Reservados (sem nome)" valor={reservados} laranja={reservados > 0} detalhe={detalheReservas} />
         {aguardando > 0 && <Grande rotulo="Aguardando aprovação/dados" valor={aguardando} />}
       </div>
 
@@ -215,11 +222,16 @@ function LinksPendentes({ evento, convites, eventoInfo }: { evento: string; conv
   );
 }
 
-function Grande({ rotulo, valor, laranja }: { rotulo: string; valor: number | string; laranja?: boolean }) {
+function Grande({ rotulo, valor, laranja, detalhe = [] }: { rotulo: string; valor: number | string; laranja?: boolean; detalhe?: string[] }) {
   return (
     <div className={clsx("rounded-2xl border p-5", laranja ? "border-[#ffd9b3] bg-laranja-100" : "border-borda bg-white")}>
       <div className={clsx("text-[13px] font-semibold", laranja ? "text-[#8a4b0f]" : "text-cinza")}>{rotulo}</div>
       <div className={clsx("tabular mt-1 font-display text-[40px] leading-tight font-bold", laranja ? "text-laranja-700" : "text-mrv-700")}>{valor}</div>
+      {detalhe.length > 0 && (
+        <ul className="mt-1 max-h-16 overflow-y-auto text-[11px] leading-tight text-[#8a4b0f]" title={detalhe.join("\n")}>
+          {detalhe.map((d) => <li key={d} className="truncate">{d}</li>)}
+        </ul>
+      )}
     </div>
   );
 }
