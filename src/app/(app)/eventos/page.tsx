@@ -19,12 +19,19 @@ export default async function Eventos() {
   const supabase = await supabaseServidor();
   const { data } = await supabase.from("eventos").select("*").order("inicio", { ascending: false }).limit(60);
   const eventos = ((data ?? []) as Evento[]).filter((e) => s.staff || e.status !== "rascunho");
-  // Staff vê o total do setor; responsável, só a cota das próprias áreas
+  // Admin e Marketing: total de cada setor + tabelinha por área; responsável, só a cota das próprias áreas
   type Linha = { setor: Setor; rotulo: string; ocupados: number; capacidade: number; em_espera: number };
+  type LinhaArea = { setor: Setor; area_nome: string; cota: number; ocupados: number; em_espera: number };
+  const porArea: Record<string, LinhaArea[]> = {};
   const resumos = await Promise.all(
     eventos.map(async (e): Promise<readonly [string, Linha[]]> => {
-      if (s.staff) {
-        const { data: r } = await supabase.rpc("resumo_setores", { p_evento: e.id });
+      if (s.verTudo) {
+        const [{ data: r }, { data: a }] = await Promise.all([
+          supabase.rpc("resumo_setores", { p_evento: e.id }),
+          supabase.rpc("resumo_evento", { p_evento: e.id }),
+        ]);
+        porArea[e.id] = ((a ?? []) as (Omit<LinhaArea, "cota"> & { cota: number | null })[])
+          .filter((x): x is LinhaArea => x.cota !== null && x.cota > 0);
         return [e.id, ((r ?? []) as Omit<Linha, "rotulo">[]).map((x) => ({ ...x, rotulo: rotuloSetor(x.setor, e.nomes_setores) }))] as const;
       }
       const { data: r } = await supabase.rpc("resumo_evento", { p_evento: e.id });
@@ -71,10 +78,12 @@ export default async function Eventos() {
                   <div key={r.rotulo} className="rounded-xl bg-fundo px-3 py-2.5">
                     <div className="text-xs text-cinza">{r.rotulo}</div>
                     <div className="tabular font-display text-xl font-bold">{r.ocupados}<span className="text-sm text-[#8a8f8c]">/{r.capacidade}</span></div>
+                    {s.verTudo && <div className="text-xs font-semibold text-mrv-700">{Math.max(0, r.capacidade - r.ocupados)} disponíveis</div>}
                     {r.em_espera > 0 && <div className="text-xs font-semibold text-laranja-700">{r.em_espera} em espera</div>}
                   </div>
                 ))}
               </div>
+              {s.verTudo && (porArea[e.id] ?? []).length > 0 && <TabelaAreas linhas={porArea[e.id]} aberto={e.status === "aberto"} multiSetor={new Set(porArea[e.id].map((x) => x.setor)).size > 1} nomes={e.nomes_setores} />}
               {e.prazo_solicitacao && e.status === "aberto" && <p className="text-xs text-cinza">Solicitações até {dataHora(e.prazo_solicitacao)}</p>}
             </div>
           </Link>
@@ -105,7 +114,7 @@ export default async function Eventos() {
   return (
     <>
       <Titulo
-        sub={s.staff ? "Jogos e shows na Arena MRV" : `Você responde por: ${s.areas.map((a) => a.nome).join(", ") || "nenhuma área"}`}
+        sub={s.verTudo ? "Jogos e shows na Arena MRV" : `Você responde por: ${s.areas.map((a) => a.nome).join(", ") || "nenhuma área"}`}
         acoes={s.papel === "admin" && <BotaoLink href="/eventos/novo" variante="primario">Novo evento</BotaoLink>}
       >
         Eventos
@@ -119,5 +128,32 @@ export default async function Eventos() {
         </>
       )}
     </>
+  );
+}
+
+/** Uso da cota de cada área (Admin e Marketing), com destaque para quem ainda não pediu nada. */
+function TabelaAreas({ linhas, aberto, multiSetor, nomes }: {
+  linhas: { setor: Setor; area_nome: string; cota: number; ocupados: number; em_espera: number }[];
+  aberto: boolean; multiSetor: boolean; nomes?: Record<string, string>;
+}) {
+  return (
+    <table className="w-full text-[13px] [&_td]:py-1 [&_th]:pb-1 [&_th]:text-[11px] [&_th]:font-semibold [&_th]:tracking-wide [&_th]:text-cinza [&_th]:uppercase [&_tbody_tr]:border-t [&_tbody_tr]:border-[#edeeed]">
+      <thead><tr><th className="text-left">Área</th><th className="text-right">Usados</th><th className="pl-3 text-right">Espera</th></tr></thead>
+      <tbody>
+        {linhas.map((l) => (
+          <tr key={`${l.setor}-${l.area_nome}`}>
+            <td className="pr-2">
+              {l.area_nome}
+              {multiSetor && <span className="text-cinza"> · {rotuloSetorCurto(l.setor, nomes)}</span>}
+              {aberto && l.ocupados === 0 && <span className="ml-1.5 rounded bg-laranja-100 px-1.5 py-0.5 text-[11px] font-semibold text-laranja-700">ainda não pediu</span>}
+            </td>
+            <td className={clsx("tabular text-right font-semibold whitespace-nowrap", l.ocupados >= l.cota ? "text-mrv-700" : "text-tinta")}>
+              {l.ocupados}<span className="font-normal text-[#8a8f8c]">/{l.cota}</span>
+            </td>
+            <td className={clsx("tabular pl-3 text-right", l.em_espera > 0 ? "font-semibold text-laranja-700" : "text-[#b0b3b1]")}>{l.em_espera || "–"}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
