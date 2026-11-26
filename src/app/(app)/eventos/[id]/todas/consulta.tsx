@@ -1,11 +1,11 @@
 "use client";
 import { useMemo, useState } from "react";
-import { Cartao, Entrada, Selecao, SeloStatus, Vazio } from "@/components/ui";
+import { Cartao, Entrada, Selecao, Selo, Vazio } from "@/components/ui";
 import { formatarCpf } from "@/lib/cpf";
 import { celular as fmtCelular } from "@/lib/formato";
 import { normalizarTexto } from "@/lib/texto";
 import { convidadoDe } from "@/lib/anfitriao";
-import { rotuloSetor, type NomesSetores, type Setor, type StatusIngresso } from "@/lib/tipos";
+import { rotuloSetor, statusPainel, type NomesSetores, type Setor, type StatusIngresso } from "@/lib/tipos";
 
 export interface LinhaConsulta {
   id: string; nome: string | null; cpf: string | null; celular: string | null; email: string | null;
@@ -17,8 +17,8 @@ const anfitriaoDe = (l: LinhaConsulta) =>
   convidadoDe({ setor: l.setor, convidado_de: l.convidado_de ?? null, convidado_de_nome: l.convidado_de_nome ?? null, anfitriao_externo: l.anfitriao_externo });
 
 /** Lista única de todos os convidados do evento, com busca por nome/CPF e filtro por área. Só leitura. */
-export function ConsultaTodas({ evento, linhas, resgate, nomes, todasAreas = [] }: {
-  evento: string; linhas: LinhaConsulta[]; resgate: boolean; nomes: NomesSetores;
+export function ConsultaTodas({ evento, linhas, resgate, nomes, todasAreas = [], facial = true }: {
+  evento: string; linhas: LinhaConsulta[]; resgate: boolean; nomes: NomesSetores; facial?: boolean;
   /** Áreas com cota no evento (o filtro mostra todas, mesmo as que ainda não cadastraram ninguém). */
   todasAreas?: string[];
 }) {
@@ -68,7 +68,7 @@ export function ConsultaTodas({ evento, linhas, resgate, nomes, todasAreas = [] 
                   <td className="text-xs">{l.celular ? fmtCelular(l.celular) : "—"}{l.email && <div className="text-cinza">{l.email}</div>}</td>
                   <td>{l.area_nome}<div className="text-xs text-cinza">{rotuloSetor(l.setor, nomes)}</div></td>
                   <td className="text-xs text-cinza">{anfitriaoDe(l) ?? (l.setor === "camarote" && l.status !== "reservado" ? "Anfitrião" : "—")}</td>
-                  <td><SeloStatus status={l.status} para="gestor" resgate={resgate} resgateAberto={l.resgateAberto} /></td>
+                  <td>{(() => { const st = statusPainel(l.status, { facial, resgate, resgateAberto: l.resgateAberto }); return <Selo tom={st.tom}>{st.rotulo}</Selo>; })()}</td>
                 </tr>
               ))}
             </tbody>

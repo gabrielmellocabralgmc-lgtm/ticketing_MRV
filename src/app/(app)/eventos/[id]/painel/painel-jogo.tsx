@@ -8,7 +8,8 @@ import { Aviso, Botao, Entrada, Selo } from "@/components/ui";
 import { formatarCpf } from "@/lib/cpf";
 import { dataHora } from "@/lib/formato";
 import { normalizarTexto } from "@/lib/texto";
-import { type Setor, type StatusIngresso } from "@/lib/tipos";
+import { statusPainel, type Setor, type StatusIngresso } from "@/lib/tipos";
+import { contarSetor, grupoDoStatus, ROTULO_GRUPO, type Grupo } from "@/lib/contagem";
 import { facialOk, pendenteFacial } from "../marketing-actions";
 import { PortaCamarote, type Walkin } from "./camarote";
 import { AcoesConvidados, DefinirAnfitriao, type PessoaDaLista } from "../adicionar-convidado";
@@ -50,20 +51,6 @@ export interface SetorPainel {
   ocupados: number;
 }
 
-// Status em linguagem simples para quem só acompanha
-const STATUS_SIMPLES: Partial<Record<StatusIngresso, { rotulo: string; tom: "cinza" | "azul" | "amarelo" | "verde" | "laranja" | "vermelho" }>> = {
-  reservado: { rotulo: "Reservado", tom: "laranja" },
-  solicitado: { rotulo: "Preenchido", tom: "cinza" },
-  validado_area: { rotulo: "Aguardando aprovação", tom: "azul" },
-  aprovado: { rotulo: "Pendente facial", tom: "vermelho" },
-  facial_pendente: { rotulo: "Pendente facial", tom: "vermelho" },
-  facial_ok: { rotulo: "Pronto para envio", tom: "verde" },
-  enviado: { rotulo: "Enviado", tom: "verde" },
-  confirmado: { rotulo: "Recebido", tom: "verde" },
-  presente: { rotulo: "Presente", tom: "verde" },
-  lista_espera: { rotulo: "Lista de espera", tom: "amarelo" },
-};
-const ENVIADOS: StatusIngresso[] = ["enviado", "confirmado", "presente"];
 
 export interface ConvitePendente {
   id: string; token: string; nome_previsto: string | null; qtd_lugares: number; expira_em: string; setor: Setor; area_id: string; area_nome: string; contato: string | null;
@@ -89,11 +76,15 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
 }) {
   const [setor, setSetor] = useState<Setor>(setores.find((s) => s.setor === "arquibancada")?.setor ?? setores[0]?.setor ?? "arquibancada");
   const [busca, setBusca] = useState("");
+  // clicar num quadro (Enviados, Pendente facial…) mostra só essas pessoas na lista
+  const [filtro, setFiltro] = useState<Grupo | null>(null);
+  const trocarSetor = (x: Setor) => { setSetor(x); setFiltro(null); };
 
   // vagas de convite sem dados ficam fora da lista; reservas aparecem ("Reservado para …")
   const doSetor = linhas.filter((l) => l.setor === setor && (l.nome || l.status === "reservado"));
   const ativos = doSetor.filter((l) => l.status !== "lista_espera");
-  const filtrar = (ls: LinhaPainel[]) => {
+  const filtrar = (todos: LinhaPainel[]) => {
+    const ls = filtro ? todos.filter((l) => grupoDoStatus(l.status, facial) === filtro) : todos;
     if (!busca) return ls;
     const b = normalizarTexto(busca);
     const d = busca.replace(/\D/g, "");
@@ -101,8 +92,11 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
       || normalizarTexto(l.convidado_de_nome).includes(b) || (d.length >= 3 && (l.cpf ?? "").includes(d)));
   };
   const info = setores.find((s) => s.setor === setor);
-  const enviados = ativos.filter((l) => ENVIADOS.includes(l.status)).length;
-  const reservados = ativos.filter((l) => l.status === "reservado").length;
+  const capacidade = info?.capacidade ?? 0;
+  // a mesma conta de "Todas as áreas" e do resumo por e-mail (src/lib/contagem.ts)
+  const c = contarSetor(ativos.map((l) => l.status), capacidade, info?.ocupados ?? 0, facial);
+  const { enviados, prontos, reservados, aguardando, disponiveis } = c;
+  const semFacial = c.facial;
   // de quem são as reservas e quantas de cada (para o quadrinho do resumo)
   const porReserva = new Map<string, number>();
   for (const l of ativos) if (l.status === "reservado") {
@@ -110,18 +104,12 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
     porReserva.set(quem, (porReserva.get(quem) ?? 0) + 1);
   }
   const detalheReservas = [...porReserva].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([quem, n]) => `${n} · ${quem}`);
-  // sem facial: aprovado já está pronto para envio
-  const semFacial = facial ? ativos.filter((l) => l.status === "aprovado" || l.status === "facial_pendente").length : 0;
-  const prontos = ativos.filter((l) => l.status === "facial_ok" || (!facial && l.status === "aprovado")).length;
-  const aguardando = ativos.length - enviados - reservados - semFacial - prontos; // preenchidos, a validar/aprovar etc.
-  const capacidade = info?.capacidade ?? 0;
-  const disponiveis = Math.max(0, capacidade - (info?.ocupados ?? 0));
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         {setores.map((s) => (
-          <button key={s.setor} onClick={() => setSetor(s.setor)}
+          <button key={s.setor} onClick={() => trocarSetor(s.setor)}
             aria-pressed={s.setor === setor}
             className={clsx("rounded-xl border px-[18px] py-3 text-left", s.setor === setor ? "border-mrv-700 bg-mrv-700 text-white" : "border-borda bg-white text-tinta hover:border-mrv-600")}>
             <div className="text-[15px] font-bold"><NomeSetor s={s.setor} curto /></div>
@@ -158,11 +146,17 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
         </p>
       </div>
       <div className={clsx("grid grid-cols-2 gap-3", aguardando > 0 ? "sm:grid-cols-5" : "sm:grid-cols-4")}>
-        <Grande rotulo="Enviados" valor={enviados} />
-        <Grande rotulo="Prontos para envio" valor={prontos} />
-        {facial && <Grande rotulo="Pendente envio · falta facial" valor={semFacial} laranja={semFacial > 0} />}
-        <Grande rotulo="🔖 Reservados (sem nome)" valor={reservados} laranja={reservados > 0} detalhe={detalheReservas} />
-        {aguardando > 0 && <Grande rotulo="Aguardando aprovação/dados" valor={aguardando} />}
+        {([
+          ["enviados", enviados, false],
+          ["prontos", prontos, false],
+          ...(facial ? [["facial", semFacial, semFacial > 0]] : []),
+          ["reservados", reservados, reservados > 0],
+          ...(aguardando > 0 ? [["aguardando", aguardando, false]] : []),
+        ] as [Grupo, number, boolean][]).map(([g, valor, laranja]) => (
+          <Grande key={g} rotulo={g === "reservados" ? `🔖 ${ROTULO_GRUPO[g]}` : ROTULO_GRUPO[g as Exclude<Grupo, "fora">]} valor={valor} laranja={laranja}
+            detalhe={g === "reservados" ? detalheReservas : undefined}
+            ativo={filtro === g} onClick={() => setFiltro((f) => (f === g ? null : g))} />
+        ))}
       </div>
 
       <div className="rounded-2xl border border-borda bg-white p-5">
@@ -179,7 +173,13 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
             <div className="w-full sm:w-72"><Entrada value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar nome, CPF ou área…" aria-label="Buscar" /></div>
           </div>
         </div>
-        <TabelaSimples linhas={filtrar(ativos)} vazio="Ninguém neste setor ainda." evento={leitura ? undefined : evento} facial={facial} digitais={digitais} anfitrioes={anfitrioes} />
+        {filtro && (
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg bg-mrv-50 px-3 py-2 text-sm">
+            Mostrando só: <b>{ROTULO_GRUPO[filtro as Exclude<Grupo, "fora">]}</b> ({filtrar(ativos).length})
+            <button onClick={() => setFiltro(null)} className="ml-auto rounded-md px-2 py-0.5 font-semibold text-mrv-700 ring-1 ring-mrv-600/40 hover:bg-white">Mostrar todos</button>
+          </div>
+        )}
+        <TabelaSimples linhas={filtrar(ativos)} vazio={filtro ? "Ninguém nesta situação." : "Ninguém neste setor ainda."} evento={leitura ? undefined : evento} facial={facial} digitais={digitais} anfitrioes={anfitrioes} />
       </div>
 
       {!leitura && <LinksPendentes evento={evento} convites={convites.filter((c) => c.setor === setor)} eventoInfo={eventoInfo} />}
@@ -222,9 +222,14 @@ function LinksPendentes({ evento, convites, eventoInfo }: { evento: string; conv
   );
 }
 
-function Grande({ rotulo, valor, laranja, detalhe = [] }: { rotulo: string; valor: number | string; laranja?: boolean; detalhe?: string[] }) {
+function Grande({ rotulo, valor, laranja, detalhe = [], ativo, onClick }: {
+  rotulo: string; valor: number | string; laranja?: boolean; detalhe?: string[]; ativo?: boolean; onClick?: () => void;
+}) {
   return (
-    <div className={clsx("rounded-2xl border p-5", laranja ? "border-[#ffd9b3] bg-laranja-100" : "border-borda bg-white")}>
+    <button type="button" onClick={onClick} aria-pressed={ativo} title={ativo ? "Mostrar todos" : "Mostrar só estes na lista"}
+      className={clsx("rounded-2xl border p-5 text-left transition hover:border-mrv-600",
+        laranja ? "border-[#ffd9b3] bg-laranja-100" : "border-borda bg-white",
+        ativo && "ring-2 ring-mrv-700 ring-offset-1")}>
       <div className={clsx("text-[13px] font-semibold", laranja ? "text-[#8a4b0f]" : "text-cinza")}>{rotulo}</div>
       <div className={clsx("tabular mt-1 font-display text-[40px] leading-tight font-bold", laranja ? "text-laranja-700" : "text-mrv-700")}>{valor}</div>
       {detalhe.length > 0 && (
@@ -232,7 +237,8 @@ function Grande({ rotulo, valor, laranja, detalhe = [] }: { rotulo: string; valo
           {detalhe.map((d) => <li key={d} className="truncate">{d}</li>)}
         </ul>
       )}
-    </div>
+      <div className={clsx("mt-1 text-[11px] font-semibold", ativo ? "text-mrv-700" : "text-transparent")}>{ativo ? "Filtrando a lista ✓" : "."}</div>
+    </button>
   );
 }
 
@@ -259,7 +265,7 @@ function TabelaSimples({ linhas, vazio, posicao, evento, facial = true, digitais
         </thead>
         <tbody>
           {linhas.map((l, i) => {
-            const st = STATUS_SIMPLES[l.status] ?? { rotulo: l.status, tom: "cinza" as const };
+            const st = statusPainel(l.status, { facial });
             const reserva = l.status === "reservado";
             return (
               <Fragment key={l.id}>

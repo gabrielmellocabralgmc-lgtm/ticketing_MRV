@@ -123,6 +123,32 @@ export function statusAmigavel(status: StatusIngresso, para: "gestor" | "convida
   }
 }
 
+/**
+ * Status para quem acompanha o evento (Marketing e Admin): os mesmos nomes e cores no Painel do jogo
+ * e em "Todas as áreas", alinhados com os quadros do painel (src/lib/contagem.ts).
+ */
+export function statusPainel(status: StatusIngresso, o: { facial?: boolean; resgate?: boolean; resgateAberto?: boolean } = {}): { rotulo: string; tom: Tom } {
+  const facial = o.facial ?? true;
+  switch (status) {
+    case "reservado": return { rotulo: "Reservado", tom: "laranja" };
+    case "convite_enviado":
+    case "aguardando_preenchimento": return { rotulo: "Aguardando dados", tom: "amarelo" };
+    case "solicitado": return { rotulo: "Preenchido", tom: "cinza" };
+    case "validado_area": return { rotulo: "Aguardando aprovação", tom: "azul" };
+    case "aprovado": return facial ? { rotulo: "Pendente facial", tom: "vermelho" } : { rotulo: "Pronto para envio", tom: "verde" };
+    case "facial_pendente": return { rotulo: "Pendente facial", tom: "vermelho" };
+    case "facial_ok": return { rotulo: "Pronto para envio", tom: "verde" };
+    case "enviado":
+      if (!o.resgate) return { rotulo: "Enviado", tom: "verde" };
+      return { rotulo: o.resgateAberto ? "Enviado · abriu o resgate" : "Enviado · falta resgatar", tom: "amarelo" };
+    case "confirmado": return { rotulo: o.resgate ? "Resgatado" : "Recebido", tom: "verde" };
+    case "presente": return { rotulo: "Presente", tom: "verde" };
+    case "no_show": return { rotulo: "No-show", tom: "cinza" };
+    case "lista_espera": return { rotulo: "Lista de espera", tom: "amarelo" };
+    default: return STATUS_INGRESSO[status];
+  }
+}
+
 /** Status que ainda ocupam lugar (espelha status_consome no banco). */
 export const STATUS_ATIVOS: StatusIngresso[] = [
   "reservado", "convite_enviado", "aguardando_preenchimento", "solicitado", "validado_area", "aprovado",

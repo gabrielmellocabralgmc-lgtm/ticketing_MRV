@@ -34,6 +34,12 @@ export default async function TodasAsAreas({ params }: { params: Promise<{ id: s
   const marketing = s.areas.find((a) => linhas.some((l) => l.area_id === a.id && l.cota !== null));
   // Inclui áreas com cota E camarote (que não tem cota por área)
   const resumo = linhas.filter((l) => (l.cota !== null && l.cota > 0) || l.setor === "camarote");
+  // agrupado por setor (camarote não tem cota por área: lá só "usados")
+  const porSetor = setores.map((st) => {
+    const ls = resumo.filter((l) => l.setor === st.setor && (l.cota !== null || l.ocupados > 0));
+    return { setor: st.setor, linhas: ls, comCota: ls.some((l) => l.cota !== null) };
+  }).filter((g) => g.linhas.length > 0);
+  const reservasDe = (setor: Setor, area: string) => ativos.filter((l) => l.setor === setor && l.area_nome === area && l.status === "reservado").length;
 
   return (
     <>
@@ -43,40 +49,47 @@ export default async function TodasAsAreas({ params }: { params: Promise<{ id: s
 
       <Cartao className="mb-6">
         <h2 className="mb-1 text-lg font-bold text-mrv-900">Resumo por área</h2>
-        <p className="mb-4 text-sm text-cinza">Quantos convidados cada área já cadastrou. Só para consulta.</p>
+        <p className="mb-4 text-sm text-cinza">Quanto cada área já usou da cota, contando as reservas. Só para consulta.</p>
         <div className="-mx-5 overflow-x-auto">
-          <table className="w-full min-w-[520px] text-left text-sm [&_td]:px-5 [&_td]:py-2.5 [&_th]:px-5 [&_th]:py-2 [&_th]:text-xs [&_th]:font-semibold [&_th]:tracking-wide [&_th]:text-cinza [&_th]:uppercase [&_tbody_tr]:border-t [&_tbody_tr]:border-[#edeeed]">
-            <thead><tr><th>Área</th><th>Setor</th><th className="text-right">Cota</th><th className="text-right">Cadastrados</th><th className="text-right">Faltam</th></tr></thead>
-            <tbody>
-              {resumo.map((l) => (
-                <tr key={`${l.setor}-${l.area_id}`}>
-                  <td className="font-medium">{l.area_nome}</td>
-                  <td className="text-cinza">{rotuloSetor(l.setor as Setor, ev.nomes_setores)}</td>
-                  <td className="tabular text-right">{l.cota}</td>
-                  <td className="tabular text-right font-semibold">{l.ocupados}</td>
-                  <td className={`tabular text-right ${l.cota! - l.ocupados > 0 ? "text-orange-700" : "text-mrv-700"}`}>{Math.max(0, l.cota! - l.ocupados)}</td>
+          <table className="w-full min-w-[560px] text-left text-sm [&_td]:px-5 [&_td]:py-2.5 [&_th]:px-5 [&_th]:py-2 [&_th]:text-xs [&_th]:font-semibold [&_th]:tracking-wide [&_th]:text-cinza [&_th]:uppercase [&_tbody_tr]:border-t [&_tbody_tr]:border-[#edeeed]">
+            <thead><tr><th>Área</th><th className="text-right">Cota</th><th className="text-right">Usados</th><th className="text-right">🔖 Reservas</th><th className="text-right">Faltam</th></tr></thead>
+            {porSetor.map(({ setor, linhas: ls, comCota }) => (
+              <tbody key={setor}>
+                <tr className="bg-[#fafafa]"><td colSpan={5} className="text-xs font-bold tracking-wide text-mrv-900 uppercase">{rotuloSetor(setor, ev.nomes_setores)}{!comCota && <span className="ml-2 font-normal normal-case text-cinza">· sem cota por área</span>}</td></tr>
+                {ls.map((l) => {
+                  const falta = l.cota === null ? null : Math.max(0, l.cota - l.ocupados);
+                  return (
+                    <tr key={`${l.setor}-${l.area_id}`}>
+                      <td className="font-medium">{l.area_nome}</td>
+                      <td className="tabular text-right">{l.cota ?? "—"}</td>
+                      <td className="tabular text-right font-semibold">{l.ocupados}</td>
+                      <td className="tabular text-right text-laranja-700">{reservasDe(l.setor, l.area_nome) || ""}</td>
+                      <td className={`tabular text-right ${falta ? "text-orange-700" : "text-mrv-700"}`}>{falta ?? "—"}</td>
+                    </tr>
+                  );
+                })}
+                <tr className="font-bold">
+                  <td>Total {rotuloSetor(setor, ev.nomes_setores).toLowerCase()}</td>
+                  <td className="tabular text-right">{comCota ? ls.reduce((n, l) => n + (l.cota ?? 0), 0) : "—"}</td>
+                  <td className="tabular text-right">{ls.reduce((n, l) => n + l.ocupados, 0)}</td>
+                  <td className="tabular text-right text-laranja-700">{ls.reduce((n, l) => n + reservasDe(l.setor, l.area_nome), 0) || ""}</td>
+                  <td className="tabular text-right">{comCota ? ls.reduce((n, l) => n + Math.max(0, (l.cota ?? 0) - l.ocupados), 0) : "—"}</td>
                 </tr>
-              ))}
-              <tr className="font-bold">
-                <td>Total</td><td />
-                <td className="tabular text-right">{resumo.reduce((n, l) => n + (l.cota ?? 0), 0)}</td>
-                <td className="tabular text-right">{resumo.reduce((n, l) => n + l.ocupados, 0)}</td>
-                <td className="tabular text-right">{resumo.reduce((n, l) => n + Math.max(0, (l.cota ?? 0) - l.ocupados), 0)}</td>
-              </tr>
-            </tbody>
+              </tbody>
+            ))}
           </table>
         </div>
       </Cartao>
 
-      <ConsolidadoSetores linhas={ativos.map(({ setor, status }) => ({ setor, status }))} setores={setores} nomes_setores={ev.nomes_setores} />
+      <ConsolidadoSetores linhas={ativos.map(({ setor, status }) => ({ setor, status }))} setores={setores} nomes_setores={ev.nomes_setores} facial={ev.exige_facial} />
 
       <Cartao className="mb-6">
         <h2 className="mb-4 text-lg font-bold text-mrv-900">Detalhamento por setor</h2>
         <DetalheSetores linhas={ativos.map(({ id: i, nome, area_nome, setor, status, criado_em, convidado_de, convidado_de_nome, anfitriao_externo, reservado_para }) =>
-          ({ id: i, nome, area_nome, setor, status, criado_em, convidado_de, convidado_de_nome, anfitriao_externo, reservado_para }))} nomes_setores={ev.nomes_setores} />
+          ({ id: i, nome, area_nome, setor, status, criado_em, convidado_de, convidado_de_nome, anfitriao_externo, reservado_para }))} nomes_setores={ev.nomes_setores} facial={ev.exige_facial} />
       </Cartao>
 
-      <ConsultaTodas evento={id} resgate={ev.resgate_unico} nomes={ev.nomes_setores} todasAreas={[...new Set(resumo.map((l) => l.area_nome))]}
+      <ConsultaTodas evento={id} resgate={ev.resgate_unico} facial={ev.exige_facial} nomes={ev.nomes_setores} todasAreas={[...new Set(resumo.map((l) => l.area_nome))]}
         linhas={ativos.map(({ id: i, nome, cpf, celular, email, area_nome, setor, status, convidado_de_nome }) => ({ id: i, nome, cpf, celular, email, area_nome, setor, status, convidado_de_nome, resgateAberto: resgates.has(i) }))} />
     </>
   );

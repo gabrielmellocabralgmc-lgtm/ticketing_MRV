@@ -1,4 +1,5 @@
 "use client";
+import { contarSetor, ROTULO_GRUPO } from "@/lib/contagem";
 import { rotuloSetor, type Setor, type StatusIngresso } from "@/lib/tipos";
 
 export interface LinhaConsolidado {
@@ -9,43 +10,47 @@ export interface ResumoSetor {
   setor: Setor; capacidade: number; ocupados: number;
 }
 
-const ENVIADOS: StatusIngresso[] = ["enviado", "confirmado", "presente"];
-const SOLICITADOS: StatusIngresso[] = ["solicitado", "validado_area", "aprovado", "facial_pendente", "facial_ok"];
-
-export function ConsolidadoSetores({ linhas, setores, nomes_setores }: { linhas: LinhaConsolidado[]; setores: ResumoSetor[]; nomes_setores?: Record<string, string> }) {
-  const setoresLista: Setor[] = ["camarote", "arquibancada"];
-
+/** Quadro de cada setor com os MESMOS números do Painel do jogo (reservas contam como ocupadas). */
+export function ConsolidadoSetores({ linhas, setores, nomes_setores, facial = true }: {
+  linhas: LinhaConsolidado[]; setores: ResumoSetor[]; nomes_setores?: Record<string, string>; facial?: boolean;
+}) {
   return (
     <div className="mb-6 grid gap-4 md:grid-cols-2">
-      {setoresLista.map((setor) => {
-        const linhasSetor = linhas.filter((l) => l.setor === setor);
-        const setorInfo = setores.find((s) => s.setor === setor);
-        if (!linhasSetor.length || !setorInfo) return null;
-        const enviados = linhasSetor.filter((l) => ENVIADOS.includes(l.status)).length;
-        const solicitados = linhasSetor.filter((l) => SOLICITADOS.includes(l.status)).length;
-        const disponiveis = setorInfo.capacidade - enviados - solicitados;
-
+      {setores.map((info) => {
+        const c = contarSetor(linhas.filter((l) => l.setor === info.setor).map((l) => l.status), info.capacidade, info.ocupados, facial);
+        const itens: [string, number, boolean][] = [
+          [ROTULO_GRUPO.enviados, c.enviados, false],
+          [ROTULO_GRUPO.prontos, c.prontos, false],
+          ...(facial ? [[ROTULO_GRUPO.facial, c.facial, c.facial > 0] as [string, number, boolean]] : []),
+          [`🔖 ${ROTULO_GRUPO.reservados}`, c.reservados, c.reservados > 0],
+          [ROTULO_GRUPO.aguardando, c.aguardando, false],
+        ];
         return (
-          <div key={setor} className="rounded-2xl border border-borda bg-gradient-to-br from-white to-fundo p-6">
-            <h3 className="mb-4 text-lg font-bold text-mrv-900">{rotuloSetor(setor, nomes_setores)}</h3>
-            <div className="space-y-3">
-              <div className="flex items-baseline justify-between">
-                <span className="text-sm font-medium text-tinta/70">Enviados/Confirmados</span>
-                <span className="text-4xl font-bold tabular text-mrv-700">{enviados}</span>
+          <div key={info.setor} className="rounded-2xl border border-borda bg-white p-6">
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-bold text-mrv-900">{rotuloSetor(info.setor, nomes_setores)}</h3>
+                <p className="text-xs text-cinza">{c.ocupados} de {c.capacidade} ocupados, contando reservas</p>
               </div>
-              <div className="flex items-baseline justify-between">
-                <span className="text-sm font-medium text-tinta/70">Solicitados/Pendentes</span>
-                <span className="text-4xl font-bold tabular text-orange-700">{solicitados}</span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <span className="text-sm font-medium text-tinta/70">Disponíveis</span>
-                <span className="text-4xl font-bold tabular text-cinza">{disponiveis}</span>
-              </div>
-              <div className="border-t border-borda pt-3">
-                <span className="text-xs font-semibold uppercase text-cinza">Capacidade</span>
-                <span className="block text-2xl font-bold text-tinta">{setorInfo.capacidade}</span>
+              <div className="text-right">
+                <div className="text-xs font-bold tracking-wide text-mrv-700 uppercase">Disponíveis</div>
+                <div className="tabular font-display text-5xl leading-none font-bold text-mrv-700">{c.disponiveis}</div>
               </div>
             </div>
+            <dl className="divide-y divide-[#edeeed] text-sm">
+              {itens.map(([rotulo, valor, destaque]) => (
+                <div key={rotulo} className="flex items-baseline justify-between py-1.5">
+                  <dt className={destaque ? "font-semibold text-[#8a4b0f]" : "text-tinta/70"}>{rotulo}</dt>
+                  <dd className={`tabular text-xl font-bold ${destaque ? "text-laranja-700" : "text-tinta"}`}>{valor}</dd>
+                </div>
+              ))}
+              {c.espera > 0 && (
+                <div className="flex items-baseline justify-between py-1.5">
+                  <dt className="text-tinta/70">{ROTULO_GRUPO.espera} <span className="text-xs">(não ocupa lugar)</span></dt>
+                  <dd className="tabular text-xl font-bold text-tinta">{c.espera}</dd>
+                </div>
+              )}
+            </dl>
           </div>
         );
       })}
