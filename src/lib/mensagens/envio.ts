@@ -9,7 +9,7 @@ import { linkTorcedor, siteUrl } from "@/lib/mensagens";
 import { canalEmail } from "@/lib/mensagens/email";
 import { htmlEmail, preencher } from "@/lib/mensagens/modelos";
 import { supabaseServico } from "@/lib/supabase/server";
-import { rotuloSetor, type NomesSetores, type Setor } from "@/lib/tipos";
+import { rotuloSetor, type NomesSetores, type Setor, type StatusIngresso } from "@/lib/tipos";
 
 export type Vars = Record<string, string | number | null | undefined>;
 
@@ -643,4 +643,79 @@ export async function arquivoAnexoConvocacao(): Promise<{ nome: string; base64: 
   const { lerFoto } = await import("@/lib/fotos");
   const dados = await lerFoto(a.caminho);
   return dados ? { nome: a.nome, base64: Buffer.from(dados).toString("base64") } : null;
+}
+
+// ---------------------------------------------------------------- resumo ao Marketing (36h e 24h antes)
+/**
+ * Atualização do jogo para o time de Marketing: 36h antes e a final 24h antes. Os números são os
+ * mesmos do Painel do jogo (src/lib/contagem.ts). Cada etapa sai uma vez por evento.
+ */
+export async function executarResumoMarketing(agora = Date.now()): Promise<ResultadoEnvio & { eventos: number }> {
+  const { etapaResumoMarketing } = await import("@/lib/resumo-marketing");
+  const sb = await supabaseServico();
+  const total: ResultadoEnvio & { eventos: number } = { enviados: 0, simulados: 0, falhas: 0, erros: [], eventos: 0 };
+  const { data: evs } = await sb.from("eventos")
+    .select("id, titulo, inicio, abertura_portoes, prazo_solicitacao, prazo_validacao, exige_facial, tipo, ingressos_digitais, resgate_unico, orientacoes_convidado, nomes_setores, status, visivel")
+    .in("status", ["aberto", "fechado"])
+    .gt("inicio", new Date(agora).toISOString())
+    .lte("inicio", new Date(agora + 36 * 3600e3).toISOString());
+  const eventos = ((evs ?? []) as (EventoVars & { status: string; visivel?: boolean })[]).filter((e) => e.visivel !== false);
+  if (!eventos.length) return total;
+  const para = await perfisPorPapel(["marketing"]);
+  if (!para.length) return total;
+  for (const ev of eventos) {
+    const { data: ja } = await sb.from("envios").select("tipo").eq("evento_id", ev.id).in("tipo", ["resumo_marketing", "resumo_marketing_final"]).neq("status", "falhou");
+    const etapa = etapaResumoMarketing(ev.inicio, agora, new Set(((ja ?? []) as { tipo: string }[]).map((x) => x.tipo)));
+    if (!etapa) continue;
+    const r = await enviarResumoMarketing(ev, etapa, para);
+    total.eventos++;
+    total.enviados += r.enviados; total.simulados += r.simulados; total.falhas += r.falhas; total.erros.push(...r.erros);
+  }
+  return total;
+}
+
+async function enviarResumoMarketing(ev: EventoVars, tipo: "resumo_marketing" | "resumo_marketing_final", para: { nome: string; email: string }[]): Promise<ResultadoEnvio> {
+  const { contarSetor } = await import("@/lib/contagem");
+  const { textoSetores, textoSemPedido } = await import("@/lib/resumo-marketing");
+  const sb = await supabaseServico();
+  const [{ data: setores }, { data: ings }, { data: cotas }] = await Promise.all([
+    sb.from("evento_setores").select("setor, capacidade").eq("evento_id", ev.id).order("setor"),
+    sb.from("ingressos").select("setor, area_id, status, reservado_para").eq("evento_id", ev.id),
+    sb.from("cotas").select("setor, area_id, quantidade, sob_demanda, areas(nome, ordem)").eq("evento_id", ev.id).gt("quantidade", 0),
+  ]);
+  const lista = (ings ?? []) as { setor: Setor; area_id: string; status: StatusIngresso; reservado_para: string | null }[];
+  const consome = (s: StatusIngresso) => !["convite_expirado", "lista_espera", "recusado", "cancelado"].includes(s);
+  const facial = ev.exige_facial !== false;
+  const blocos = ((setores ?? []) as { setor: Setor; capacidade: number }[]).map((st) => {
+    const doSetor = lista.filter((i) => i.setor === st.setor);
+    const porQuem = new Map<string, number>();
+    for (const i of doSetor) if (i.status === "reservado") {
+      const q = i.reservado_para?.trim() || "Sem nome";
+      porQuem.set(q, (porQuem.get(q) ?? 0) + 1);
+    }
+    return {
+      rotulo: rotuloSetor(st.setor, ev.nomes_setores),
+      c: contarSetor(doSetor.map((i) => i.status), st.capacidade, doSetor.filter((i) => consome(i.status)).length, facial),
+      reservas: [...porQuem].sort((a, b) => b[1] - a[1]).map(([q, n]) => `${n} · ${q}`),
+    };
+  });
+  const areas = ((cotas ?? []) as unknown as { setor: Setor; area_id: string; quantidade: number; sob_demanda: boolean; areas: { nome: string; ordem: number } }[])
+    .filter((c) => !c.sob_demanda && c.setor !== "camarote")
+    .sort((a, b) => a.areas.ordem - b.areas.ordem)
+    .map((c) => ({
+      area: c.areas.nome, setor: rotuloSetor(c.setor, ev.nomes_setores), cota: c.quantidade,
+      ocupados: lista.filter((i) => i.setor === c.setor && i.area_id === c.area_id && consome(i.status)).length,
+    }));
+  const vars: Vars = {
+    ...varsEvento(ev),
+    numeros: textoSetores(blocos, facial),
+    sem_pedido: textoSemPedido(areas),
+    pendente_facial: blocos.reduce((n, b) => n + b.c.facial, 0),
+  };
+  const link = `${siteUrl()}/eventos/${ev.id}/painel`;
+  return enviarModelo(para.map((p) => ({
+    tipo, para: { nome: p.nome, email: p.email }, evento_id: ev.id,
+    vars: { ...vars, nome: primeiroNome(p.nome) },
+    botao: { rotulo: "Abrir o painel do jogo", url: link },
+  })));
 }

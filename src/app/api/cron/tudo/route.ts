@@ -6,7 +6,7 @@ import { cronNaoAutorizado } from "../autorizar";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const ROTINAS = ["expirar-convites", "fechar-prazos", "encerrar-eventos", "lembretes"];
+const ROTINAS = ["expirar-convites", "fechar-prazos", "encerrar-eventos", "lembretes", "resumo-marketing"];
 
 export async function GET(req: Request) {
   const negado = cronNaoAutorizado(req);

@@ -36,6 +36,9 @@ export const VARIAVEIS: Record<string, string> = {
   manutencao: "Manutenção e pendências (relatório da operação)",
   problemas: "Itens com problema nos check-lists",
   bebidas: "Consumo de bebidas no jogo",
+  numeros: "Números de cada setor, iguais aos do Painel do jogo (resumo ao Marketing)",
+  sem_pedido: "Áreas com cota que ainda não pediram nenhum ingresso (resumo ao Marketing)",
+  pendente_facial: "Quantos convidados ainda estão com a facial pendente (resumo ao Marketing)",
 };
 
 /** Exemplo usado na prévia do editor. */
@@ -48,6 +51,8 @@ export const EXEMPLO: Record<string, string> = {
   contato: "marketing@mrv.com.br", total: "12", presenca: "10 de 12 convidados chegaram", horarios: "14:00 / 19:30", avaliacao: "5 de 5",
   resumo: "Operação tranquila.", ocorrencias: "Nenhuma.", manutencao: "Trocar lâmpada do LED testeira.", problemas: "• LEDs: LED testeira — piscando",
   bebidas: "• Cerveja (lata 350 ml): 36 latas (sobraram 12)", link: "https://ingressos.weareact3.com/…",
+  numeros: "ARQUIBANCADA (INTER OESTE): 56 disponíveis de 100\n• Enviados: 0\n• Prontos para envio: 16\n• Pendente facial: 3\n• Reservados (sem nome): 4 (3 · Diretor João Silva; 1 · Ana Souza)\n• Aguardando dados/aprovação: 21",
+  sem_pedido: "• Comercial Regional BH (Arquibancada): 0 de 10", pendente_facial: "3",
 };
 
 export function preencher(texto: string, vars: Record<string, string | number | null | undefined>) {
