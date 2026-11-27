@@ -39,6 +39,8 @@ const INATIVOS: StatusIngresso[] = ["cancelado", "recusado", "convite_expirado"]
 const POS_APROVACAO: StatusIngresso[] = ["aprovado", "facial_pendente", "facial_ok", "enviado", "confirmado"];
 
 const ALTERAVEIS: StatusIngresso[] = ["solicitado", "validado_area", "aprovado", "facial_ok", "facial_pendente", "lista_espera"];
+/** Cancelar vale até o prazo, inclusive para quem já recebeu o ingresso (a equipe cancela no Atlético). */
+const CANCELAVEIS: StatusIngresso[] = [...ALTERAVEIS, "enviado", "confirmado"];
 
 export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, podeAlterar, prazo, facial = true, resgate = false, resgates = {}, areas = [], isAdmin = false, anfitrioes = [] }: {
   evento: string; setor: Setor; area: string; areaNome: string; linhas: LinhaLista[];
@@ -90,7 +92,7 @@ export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, p
       {retorno && <Aviso tom={retorno.ok ? "ok" : "erro"}>{retorno.msg}</Aviso>}
       <p className="text-xs text-tinta/60">
         {podeAlterar
-          ? <>Trocas e cancelamentos de convidados são permitidos até <b>{prazo}</b> (enquanto o ingresso não foi enviado).</>
+          ? <>Você pode trocar ou <b>cancelar</b> convidados até <b>{prazo}</b>, mesmo depois do envio. Cancelou? O lugar volta para o saldo e você pode pedir outro convidado.</>
           : <>O prazo de solicitação terminou: a lista está travada. Para qualquer ajuste, fale com o Marketing MRV.</>}
       </p>
 
@@ -252,10 +254,11 @@ export function ListaArea({ evento, setor, area, areaNome, linhas, eventoInfo, p
                         {podeAlterar && ALTERAVEIS.includes(l.status) && (
                           <button className="rounded-md px-2 py-1 text-xs font-semibold text-mrv-700 hover:bg-mrv-50" onClick={() => setEditando(l.ingresso_id)}>Editar</button>
                         )}
-                        {podeAlterar && ALTERAVEIS.includes(l.status) && (
-                          <button className="rounded-md px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50" disabled={pendente}
+                        {podeAlterar && CANCELAVEIS.includes(l.status) && (
+                          <button className="rounded-md px-2.5 py-1 text-xs font-bold text-red-700 ring-1 ring-red-300 hover:bg-red-50 disabled:opacity-50" disabled={pendente}
                             onClick={() => {
-                              const motivo = prompt(`Cancelar o ingresso de ${l.nome}? Informe o motivo:`, "pedi mas não vou");
+                              const enviado = l.status === "enviado" || l.status === "confirmado";
+                              const motivo = prompt(`Cancelar o ingresso de ${l.nome}?${enviado ? " O ingresso já foi enviado: a equipe de ingressos cancela também no sistema do Atlético." : ""} O lugar volta para o saldo da área e você pode pedir outro convidado.\n\nMotivo:`, "pedi mas não vou");
                               if (motivo !== null) rodar(() => cancelarIngresso(evento, area, l.ingresso_id, motivo));
                             }}>
                             Cancelar

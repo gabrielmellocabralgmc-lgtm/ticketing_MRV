@@ -85,13 +85,20 @@ export async function cancelarConvite(evento: string, area: string, convite: str
 }
 
 export async function cancelarIngresso(evento: string, area: string, ingresso: string, motivo: string): Promise<Resultado> {
-  await exigirArea(area);
+  const s = await exigirArea(area);
   const supabase = await supabaseServidor();
+  // já enviado no sistema do Atlético? a equipe precisa cancelar lá também
+  const { data: antes } = await supabase.from("v_ingressos").select("status, nome, area_nome, setor").eq("id", ingresso).maybeSingle();
   const { data, error } = await supabase.rpc("cancelar_ingressos", { p_ids: [ingresso], p_motivo: motivo || "cancelado pela área" });
   if (error) return falha(error);
   if (!data) return { ok: false, erro: "Este ingresso não pode mais ser cancelado pela área. Fale com o Marketing." };
+  if (antes && ["enviado", "confirmado"].includes(antes.status as string)) {
+    const { avisarEquipeCancelamento } = await import("@/lib/duvidas");
+    await avisarEquipeCancelamento({ evento, area, nome: antes.nome as string | null, area_nome: antes.area_nome as string, setor: antes.setor as Setor, por: s.nome, motivo })
+      .catch((e) => console.error("[cancelar] aviso à equipe falhou:", e));
+  }
   revalidatePath(caminho(evento, area));
-  return { ok: true, mensagem: "Cancelado. O lugar voltou para o saldo (e a lista de espera foi chamada, se houver)." };
+  return { ok: true, mensagem: "Cancelado. O lugar voltou para o saldo — você já pode pedir outro convidado (se houver lista de espera, ela é chamada primeiro)." };
 }
 
 export async function editarPessoa(evento: string, area: string, ingresso: string, p: PessoaForm): Promise<Resultado> {

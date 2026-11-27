@@ -183,3 +183,12 @@ async function avisarAutor(d: DuvidaCompleta, msg: string) {
     `Olá, ${d.autor_nome.split(" ")[0]}!\n\nA equipe de ingressos MRV respondeu a sua dúvida sobre ${d.evento_titulo}:\n\n“${msg}”\n\nSe precisar, continue a conversa pelo botão abaixo.`,
     { rotulo: "Ver a conversa", url: await linkDaConversa(d) });
 }
+
+/** A área cancelou um ingresso que já tinha sido enviado: a equipe cancela também no sistema do Atlético. */
+export async function avisarEquipeCancelamento(c: { evento: string; area: string; nome: string | null; area_nome: string; setor: string; por: string; motivo: string }) {
+  const { data: ev } = await (await supabaseServico()).from("eventos").select("titulo").eq("id", c.evento).maybeSingle();
+  const titulo = (ev?.titulo as string | undefined) ?? "evento";
+  await enviar({ nome: "Equipe de ingressos", email: EMAIL_OPERACIONAL() }, `Cancelado após o envio · ${titulo} · ${c.area_nome}`,
+    `${c.por} cancelou o ingresso de ${c.nome ?? "(sem nome)"} (${c.area_nome}, ${c.setor}) em ${titulo}.\n\nO ingresso JÁ TINHA SIDO ENVIADO: cancele também no sistema do Atlético.\n\nMotivo: ${c.motivo || "—"}\n\nO lugar voltou para o saldo da área.`,
+    { rotulo: "Abrir a lista da área", url: `${siteUrl()}/eventos/${c.evento}/areas/${c.area}` });
+}

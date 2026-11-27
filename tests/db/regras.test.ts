@@ -516,6 +516,20 @@ describe("lista da área: modo gestor × modo convidado", () => {
     expect(c2.status).toBe("facial_ok");
   });
 
+  it("gestor cancela até o prazo mesmo depois do envio, e o lugar volta para o saldo", async () => {
+    const ev = await novoEvento({ prazo_solicitacao: new Date(Date.now() + 3600e3).toISOString() });
+    const r = await pedir(respDH, ev, dh, [nova("Já Enviado")]);
+    await b.sql(`update ingressos set status = 'enviado' where id = $1`, [r.ingressos[0]]); // envio no sistema do Atlético
+    const [{ n: antes }] = await b.sql<{ n: number }>(`select ocupados($1, 'arquibancada', $2) as n`, [ev, dh]);
+    await expect(b.como(respDH, `select cancelar_ingressos($1, 'pedi mas não vou')`, [r.ingressos])).resolves.toEqual([{ cancelar_ingressos: 1 }]);
+    expect(await statusDe(r.ingressos)).toEqual(["cancelado"]);
+    const [{ n: depois }] = await b.sql<{ n: number }>(`select ocupados($1, 'arquibancada', $2) as n`, [ev, dh]);
+    expect(depois).toBe(antes - 1);
+    // e pede de novo no lugar
+    const r2 = await pedir(respDH, ev, dh, [nova("No Lugar Dele")]);
+    expect(r2.ingressos).toHaveLength(1);
+  });
+
   it("gestor troca e cancela convidados só até o prazo de solicitação", async () => {
     const ev = await novoEvento({ prazo_solicitacao: new Date(Date.now() + 3600e3).toISOString() });
     const r = await pedir(respDH, ev, dh, [nova("Trocado")]);
