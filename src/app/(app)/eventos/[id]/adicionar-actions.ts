@@ -119,6 +119,26 @@ export async function preencherReserva(
   return { ok: true, dados: { status: data as string }, mensagem: `Reserva preenchida: ${p.nome.trim()} está na lista.` };
 }
 
+/**
+ * Preenche várias reservas de uma vez (lista colada): a pessoa i ocupa a reserva i. Tudo ou nada —
+ * se uma linha tiver problema (CPF inválido ou repetido no jogo), nada é salvo e o erro diz qual linha.
+ */
+export async function preencherReservasEmMassa(
+  evento: string, ingressos: string[], pessoas: { nome: string; cpf: string; celular: string | null; email: string | null }[],
+): Promise<Resultado<{ preenchidas: number }>> {
+  await exigirStaff();
+  if (!ingressos.length || ingressos.length !== pessoas.length) return { ok: false, erro: "A lista precisa ter uma pessoa para cada reserva." };
+  const sb = await supabaseServidor();
+  const { data, error } = await sb.rpc("preencher_reservas", {
+    p_ingressos: ingressos,
+    p_pessoas: pessoas.map((p) => ({ nome: p.nome, cpf: p.cpf, celular: p.celular || null, email: p.email || null })),
+  });
+  if (error) return falha(error);
+  revalidatePath(`/eventos/${evento}`, "layout");
+  const n = data as number;
+  return { ok: true, dados: { preenchidas: n }, mensagem: `${n === 1 ? "1 reserva preenchida" : `${n} reservas preenchidas`}: as pessoas já estão na lista.` };
+}
+
 /** Camarote: de quem a pessoa é convidada, definido à mão (alguém da lista, alguém de fora ou ninguém). */
 export async function definirConvidadoDe(evento: string, ingresso: string, anfitriao: Anfitriao): Promise<Resultado> {
   await exigirStaff();

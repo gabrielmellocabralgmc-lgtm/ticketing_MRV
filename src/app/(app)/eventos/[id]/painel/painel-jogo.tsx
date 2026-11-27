@@ -23,6 +23,7 @@ import { EditorCotas, type AreaCota } from "../editor-cotas";
 import { NomeSetor } from "@/components/setores";
 import { convidadoDe } from "@/lib/anfitriao";
 import { cancelarIngresso } from "../galo-actions";
+import { PreencherReservasEmMassa } from "./preencher-reservas";
 
 export interface LinhaPainel {
   id: string;
@@ -159,9 +160,14 @@ export function PainelJogo({ evento, linhas, setores, areas, areaPadrao, walkins
         ))}
       </div>
 
+      {!leitura && reservados > 0 && (
+        <PreencherReservasEmMassa key={`massa-${setor}`} evento={evento}
+          reservas={ativos.filter((l) => l.status === "reservado").map((l) => ({ id: l.id, para: l.reservado_para?.trim() || "Sem nome", area: l.area_nome }))} />
+      )}
+
       <div className="rounded-2xl border border-borda bg-white p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-xl font-bold">Lista · <NomeSetor s={setor} />
+          <h2 className="text-xl font-bold">Lista ·<NomeSetor s={setor} />
             {reservados > 0 && <span className="ml-2 align-middle text-sm font-semibold text-laranja-700">🔖 {reservados} reservado{reservados > 1 ? "s" : ""}</span>}
           </h2>
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">

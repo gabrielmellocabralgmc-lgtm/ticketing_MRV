@@ -227,3 +227,39 @@ describe("migração 048 sobre o estado de produção", () => {
     await db.close();
   });
 });
+
+describe("preencher reservas em massa", () => {
+  const preencher = (user: string, ids: string[], pessoas: unknown[]) =>
+    b.como<{ n: number }>(user, `select preencher_reservas($1::uuid[], $2::jsonb) as n`, [ids, JSON.stringify(pessoas)]);
+
+  it("cada pessoa da lista ocupa uma reserva; as que sobram continuam reservadas", async () => {
+    const ev = await novoEvento();
+    const r = await reservar(mkt, ev, "camarote", presid, 4, "Diretor João");
+    const [{ n }] = await preencher(mkt, r.ingressos.slice(0, 3), [nova("Ana Lima"), nova("Bruno Reis"), { nome: "Carla Dias", cpf: nova().cpf }]);
+    expect(n).toBe(3);
+    const linhas = await b.sql<{ id: string; status: string; nome: string | null }>(
+      `select id, status, nome from v_ingressos where pedido_id = $1`, [r.pedido_id]);
+    const por = new Map(linhas.map((l) => [l.id, l]));
+    expect(r.ingressos.slice(0, 3).map((id) => por.get(id)?.nome)).toEqual(["Ana Lima", "Bruno Reis", "Carla Dias"]);
+    expect(r.ingressos.slice(0, 3).every((id) => por.get(id)?.status !== "reservado")).toBe(true);
+    expect(por.get(r.ingressos[3])?.status).toBe("reservado");
+  });
+
+  it("tudo ou nada: CPF repetido numa linha não preenche nenhuma e diz qual linha", async () => {
+    const ev = await novoEvento();
+    const r = await reservar(adm, ev, "camarote", presid, 3, "VPs");
+    const p = nova("Duda Alves");
+    await expect(preencher(adm, r.ingressos, [nova("Edu Matos"), p, { ...p, nome: "Duda Repetida" }]))
+      .rejects.toThrow(/Linha 3 \(Duda Repetida\)/);
+    const st = await b.sql<{ status: string }>(`select status from ingressos where pedido_id = $1`, [r.pedido_id]);
+    expect(st.every((x) => x.status === "reservado")).toBe(true);
+  });
+
+  it("só Admin/Marketing; a lista precisa ter uma pessoa por reserva", async () => {
+    const ev = await novoEvento();
+    const r = await reservar(adm, ev, "arquibancada", dh, 2, "Fulano");
+    await expect(preencher(respDH, r.ingressos, [nova(), nova()])).rejects.toThrow(/SEM_PERMISSAO/);
+    await expect(preencher(adm, r.ingressos, [nova()])).rejects.toThrow(/VALOR_INVALIDO/);
+    await expect(preencher(adm, r.ingressos, [nova(), { nome: "Sem CPF" }])).rejects.toThrow(/DADOS_INCOMPLETOS: Linha 2/);
+  });
+});
