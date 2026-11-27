@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { falha, type Resultado } from "@/lib/erros";
-import { exigirArea, exigirSessao } from "@/lib/sessao";
+import { exigirAdmin, exigirArea, exigirSessao } from "@/lib/sessao";
 import { supabaseServidor } from "@/lib/supabase/server";
 import { rotuloSetor, type Setor } from "@/lib/tipos";
 import { dataHora, deInputLocal } from "@/lib/formato";
@@ -149,5 +149,35 @@ export async function responderNaArea(evento: string, area: string, duvida: stri
     return falha(e);
   }
   revalidatePath(caminho(evento, area));
+  return { ok: true, mensagem: "Enviado." };
+}
+
+/** Equipe (Admin) escreve para a área toda: abre uma conversa e avisa todos os responsáveis. */
+export async function mensagemEquipeParaArea(evento: string, area: string, texto: string): Promise<Resultado> {
+  const s = await exigirAdmin();
+  const { mensagemParaArea } = await import("@/lib/duvidas");
+  try {
+    await mensagemParaArea(evento, area, { userId: s.userId, nome: s.nome, email: s.email }, texto);
+  } catch (e) {
+    return falha(e);
+  }
+  revalidatePath(caminho(evento, area));
+  revalidatePath("/duvidas");
+  return { ok: true, mensagem: "Enviada. Os responsáveis da área foram avisados por e-mail." };
+}
+
+/** Equipe (Admin) responde numa conversa da área, pela própria lista da área. */
+export async function responderComoEquipe(evento: string, area: string, duvida: string, texto: string): Promise<Resultado> {
+  const s = await exigirAdmin();
+  const { buscarDuvida, registrarMensagem } = await import("@/lib/duvidas");
+  const d = await buscarDuvida(duvida);
+  if (!d || d.evento_id !== evento || d.area_id !== area) return { ok: false, erro: "Conversa não encontrada." };
+  try {
+    await registrarMensagem(duvida, "equipe", s.userId, s.nome, texto);
+  } catch (e) {
+    return falha(e);
+  }
+  revalidatePath(caminho(evento, area));
+  revalidatePath("/duvidas");
   return { ok: true, mensagem: "Enviado." };
 }

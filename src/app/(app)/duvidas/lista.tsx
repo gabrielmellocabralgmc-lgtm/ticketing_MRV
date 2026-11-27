@@ -7,7 +7,7 @@ import { mudarStatusDuvida, responderDuvida } from "./actions";
 
 export interface DuvidaLista {
   id: string; evento_id: string; evento_titulo: string; area_id: string | null; area_nome: string | null;
-  autor_tipo: "gestor" | "convidado"; autor_nome: string; autor_email: string | null;
+  autor_tipo: "gestor" | "convidado" | "equipe"; autor_nome: string; autor_email: string | null;
   status: "aguardando" | "respondida" | "resolvida"; atualizado_em: string; mensagens: MensagemConversa[];
 }
 
@@ -23,9 +23,9 @@ export function ListaDuvidas({ duvidas }: { duvidas: DuvidaLista[] }) {
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-xs font-bold tracking-wide text-mrv-700 uppercase">{d.evento_titulo}{d.area_nome && ` · ${d.area_nome}`}</div>
-                <div className="text-lg font-bold">{d.autor_nome}</div>
+                <div className="text-lg font-bold">{d.autor_tipo === "equipe" ? `Para a área ${d.area_nome ?? ""}` : d.autor_nome}</div>
                 <div className="text-sm text-cinza">
-                  {d.autor_tipo === "gestor" ? "Gestor da área" : "Convidado"}{d.autor_email && ` · ${d.autor_email}`}
+                  {d.autor_tipo === "gestor" ? "Gestor da área" : d.autor_tipo === "equipe" ? "Mensagem da equipe para a área" : "Convidado"}{d.autor_email && ` · ${d.autor_email}`}
                 </div>
                 <div className="mt-1 flex flex-wrap gap-3 text-xs font-semibold">
                   {d.area_id && <Link className="text-mrv-700 hover:underline" href={`/eventos/${d.evento_id}/areas/${d.area_id}`}>Abrir a lista da área</Link>}

@@ -14,7 +14,7 @@ export type Status = "aguardando" | "respondida" | "resolvida";
 export interface Mensagem { id: number; de: "equipe" | "gestor" | "convidado"; autor_nome: string | null; texto: string; criado_em: string }
 export interface Duvida {
   id: string; evento_id: string; area_id: string | null; ingresso_id: string | null;
-  autor_tipo: "gestor" | "convidado"; autor_user: string | null; autor_nome: string; autor_email: string | null;
+  autor_tipo: "gestor" | "convidado" | "equipe"; autor_user: string | null; autor_nome: string; autor_email: string | null;
   status: Status; criado_em: string; atualizado_em: string;
 }
 export interface DuvidaCompleta extends Duvida { evento_titulo: string; area_nome: string | null; mensagens: Mensagem[] }
@@ -44,11 +44,12 @@ async function completar(lista: Duvida[]): Promise<DuvidaCompleta[]> {
 
 const CAMPOS = "id, evento_id, area_id, ingresso_id, autor_tipo, autor_user, autor_nome, autor_email, status, criado_em, atualizado_em";
 
-/** Conversas de uma área num evento (qualquer gestor da área vê as da área). */
+/** Conversas de uma área num evento: abertas por gestores ou pela equipe (qualquer gestor da área vê todas). */
 export async function duvidasDaArea(evento: string, area: string) {
   const { data } = await (await supabaseServico()).from("duvidas").select(CAMPOS)
-    .eq("evento_id", evento).eq("area_id", area).eq("autor_tipo", "gestor").order("atualizado_em", { ascending: false });
-  return completar((data ?? []) as Duvida[]);
+    .eq("evento_id", evento).eq("area_id", area).in("autor_tipo", ["gestor", "equipe"])
+    .order("atualizado_em", { ascending: false });
+  return completar(((data ?? []) as Duvida[]).filter((d) => !d.ingresso_id));
 }
 
 /** A conversa do convidado (uma por ingresso), se existir. */
@@ -94,6 +95,29 @@ export async function novaDuvida(d: Omit<Duvida, "id" | "status" | "criado_em" |
   return id;
 }
 
+/** Responsáveis ativos de uma área (quem recebe as mensagens da equipe para a área). */
+export async function responsaveisDaArea(area: string) {
+  const { data } = await (await supabaseServico()).from("area_responsaveis").select("perfis(nome, email, ativo)").eq("area_id", area);
+  return ((data ?? []) as unknown as { perfis: { nome: string; email: string; ativo: boolean } | null }[])
+    .map((r) => r.perfis).filter((p): p is { nome: string; email: string; ativo: boolean } => !!p?.ativo && !!p.email)
+    .map(({ nome, email }) => ({ nome, email }));
+}
+
+/** A equipe (Admin) abre uma conversa com a área: todos os responsáveis são avisados por e-mail. */
+export async function mensagemParaArea(evento: string, area: string, autor: { userId: string; nome: string; email: string | null }, texto: string) {
+  const msg = limpar(texto);
+  if (!msg) throw new Error("Escreva a mensagem.");
+  if (!(await responsaveisDaArea(area)).length) throw new Error("Esta área não tem responsável cadastrado. Cadastre em Configurações › Áreas e responsáveis.");
+  const id = randomUUID();
+  const { error } = await (await supabaseServico()).from("duvidas").insert({
+    id, evento_id: evento, area_id: area, ingresso_id: null, autor_tipo: "equipe",
+    autor_user: autor.userId, autor_nome: autor.nome, autor_email: autor.email, status: "respondida",
+  });
+  if (error) throw new Error(error.message);
+  await registrarMensagem(id, "equipe", autor.userId, autor.nome, msg);
+  return id;
+}
+
 /** Nova mensagem numa conversa. Da equipe: vira "respondida" e avisa quem perguntou; do outro lado: "aguardando" e avisa a equipe. */
 export async function registrarMensagem(id: string, de: Mensagem["de"], autorUser: string | null, autorNome: string | null, texto: string) {
   const sb = await supabaseServico();
@@ -103,7 +127,7 @@ export async function registrarMensagem(id: string, de: Mensagem["de"], autorUse
   if (error) throw new Error(error.message);
   await sb.from("duvidas").update({ status: de === "equipe" ? "respondida" : "aguardando", atualizado_em: new Date().toISOString() }).eq("id", id);
   const d = await buscarDuvida(id);
-  if (d) await (de === "equipe" ? avisarAutor(d, msg) : avisarEquipe(d, msg)).catch((e) => console.error("[duvidas] aviso por e-mail falhou:", e));
+  if (d) await (de === "equipe" ? avisarAutor(d, msg) : avisarEquipe(d, msg, autorNome)).catch((e) => console.error("[duvidas] aviso por e-mail falhou:", e));
 }
 
 export async function marcarStatus(id: string, status: Status) {
@@ -130,13 +154,30 @@ async function enviar(para: { nome: string; email: string }, assunto: string, te
   if (!r.ok) console.error(`[duvidas] e-mail para ${para.email} falhou: ${r.erro}`);
 }
 
-async function avisarEquipe(d: DuvidaCompleta, msg: string) {
+async function avisarEquipe(d: DuvidaCompleta, msg: string, quem?: string | null) {
+  if (d.autor_tipo === "equipe") {
+    await enviar({ nome: "Equipe de ingressos", email: EMAIL_OPERACIONAL() }, `Resposta da área · ${[d.evento_titulo, d.area_nome].filter(Boolean).join(" · ")}`,
+      `${quem ?? "Um responsável"} respondeu à mensagem da equipe.\n\nEvento: ${d.evento_titulo}${d.area_nome ? `\nÁrea: ${d.area_nome}` : ""}\n\n“${msg}”`,
+      { rotulo: "Responder no sistema", url: `${siteUrl()}/duvidas#${d.id}` });
+    return;
+  }
   await enviar({ nome: "Equipe de ingressos", email: EMAIL_OPERACIONAL() }, `Dúvida · ${contexto(d)}`,
     `Nova mensagem de ${d.autor_nome}${d.autor_email ? ` (${d.autor_email})` : ""}.\n\nEvento: ${d.evento_titulo}${d.area_nome ? `\nÁrea: ${d.area_nome}` : ""}\n${d.autor_tipo === "convidado" ? "Quem pergunta: convidado" : "Quem pergunta: gestor da área"}\n\n“${msg}”`,
     { rotulo: "Responder no sistema", url: `${siteUrl()}/duvidas#${d.id}` });
 }
 
 async function avisarAutor(d: DuvidaCompleta, msg: string) {
+  // conversa aberta pela equipe: a mensagem é para a área inteira (todos os responsáveis)
+  if (d.autor_tipo === "equipe" && d.area_id) {
+    const primeira = d.mensagens.length <= 1;
+    const link = await linkDaConversa(d);
+    for (const p of await responsaveisDaArea(d.area_id)) {
+      await enviar(p, `${primeira ? "Mensagem" : "Nova mensagem"} da equipe de ingressos · ${d.evento_titulo}`,
+        `Olá, ${p.nome.split(" ")[0]}!\n\nA equipe de ingressos MRV ${primeira ? "mandou uma mensagem" : "escreveu de novo"} para a área ${d.area_nome ?? ""} sobre ${d.evento_titulo}:\n\n“${msg}”\n\nPara responder, use o botão abaixo (a conversa fica na lista da sua área).`,
+        { rotulo: "Ver e responder", url: link });
+    }
+    return;
+  }
   if (!d.autor_email) return;
   await enviar({ nome: d.autor_nome, email: d.autor_email }, `Resposta da equipe de ingressos · ${d.evento_titulo}`,
     `Olá, ${d.autor_nome.split(" ")[0]}!\n\nA equipe de ingressos MRV respondeu a sua dúvida sobre ${d.evento_titulo}:\n\n“${msg}”\n\nSe precisar, continue a conversa pelo botão abaixo.`,

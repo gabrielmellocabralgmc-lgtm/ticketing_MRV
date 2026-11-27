@@ -17,7 +17,7 @@ import { ListaArea, type LinhaLista } from "./lista";
 import { ModoPreenchimento } from "./modo-preenchimento";
 import { AbasMarketing } from "../../abas-marketing";
 import { DuvidasArea } from "./duvidas";
-import { duvidasDaArea } from "@/lib/duvidas";
+import { duvidasDaArea, responsaveisDaArea } from "@/lib/duvidas";
 import { carregarAnfitrioes } from "../../adicionar-opcoes";
 
 export const metadata = { title: "Lista da área" };
@@ -160,7 +160,9 @@ export default async function PainelArea({ params, searchParams }: { params: Pro
         <ListaArea evento={id} resgate={ev.resgate_unico} resgates={resgates} setor={setor} area={area} areaNome={areaRow.nome} linhas={lista} eventoInfo={eventoInfo} areas={(todasAreas ?? []) as { id: string; nome: string }[]} isAdmin={s.staff} anfitrioes={anfitrioes}
           podeAlterar={s.staff || !prazoPassou} prazo={dataHora(ev.prazo_solicitacao)} facial={ev.exige_facial} />
       </Cartao>
-      {!s.staff && <DuvidasArea evento={id} area={area} duvidas={(await duvidasDaArea(id, area)).map((d) => ({ id: d.id, status: d.status, autor_nome: d.autor_nome, mensagens: d.mensagens }))} />}
+      <DuvidasArea evento={id} area={area} equipe={s.staff}
+        responsaveis={s.staff ? (await responsaveisDaArea(area)).map((r) => r.nome) : []}
+        duvidas={(await duvidasDaArea(id, area)).map((d) => ({ id: d.id, status: d.status, autor_tipo: d.autor_tipo, autor_nome: d.autor_nome, mensagens: d.mensagens }))} />
     </>
   );
 }

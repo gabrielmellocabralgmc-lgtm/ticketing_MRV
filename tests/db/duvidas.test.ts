@@ -17,5 +17,9 @@ describe("dúvidas", () => {
     const visiveis = await b.como(resp, `select * from duvidas`).catch(() => []);
     expect(visiveis).toEqual([]);
     await expect(b.sql(`insert into duvida_mensagens (duvida_id, de, texto) values ($1, 'gestor', '   ')`, [id])).rejects.toThrow();
+    // a equipe também abre conversa com a área (migração 055); outros tipos continuam barrados
+    await b.sql(`insert into duvidas (evento_id, area_id, autor_tipo, autor_nome, status) values ($1, $2, 'equipe', 'Admin act.3', 'respondida')`, [ev, dh]);
+    expect((await b.sql(`select 1 from duvidas where evento_id = $1 and autor_tipo = 'equipe'`, [ev])).length).toBe(1);
+    await expect(b.sql(`insert into duvidas (evento_id, area_id, autor_tipo, autor_nome) values ($1, $2, 'qualquer', 'X')`, [ev, dh])).rejects.toThrow();
   }, 120_000); // cria um banco inteiro: sob carga, passa do tempo padrão
 });
